@@ -1,0 +1,83 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TheNavbar from "../../components/layout/TheNavbar.vue";
+import TheFooter from "../../components/layout/TheFooter.astro";
+import WaveDivider from "../../components/layout/WaveDivider.astro";
+import { getStrings } from "../../i18n";
+
+export const getStaticPaths = () => [
+  { params: { lang: "ar" } },
+  { params: { lang: "en" } },
+];
+
+const { lang } = Astro.params;
+const strings = getStrings(lang);
+const basePath = `/${lang}`;
+const isAr = lang === "ar";
+---
+<BaseLayout
+  lang={lang}
+  title={`${isAr ? "الشروط والأحكام" : "Terms of Use"} — ${strings.site.name}`}
+  description={isAr ? "شروط الاستخدام لموقع مستشفى النور العام" : "Terms of use for Al Noor Public Hospital website"}
+>
+  <TheNavbar lang={lang} strings={strings} client:load />
+
+  <section class="bg-primary text-white section-stripes py-20">
+    <div class="container mx-auto">
+      <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
+        <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
+        <span aria-hidden="true">/</span>
+        <span class="text-white/90">{isAr ? "الشروط والأحكام" : "Terms of Use"}</span>
+      </nav>
+      <h1 class="text-4xl font-extrabold">{isAr ? "الشروط والأحكام" : "Terms of Use"}</h1>
+    </div>
+  </section>
+
+  <WaveDivider class="text-background" />
+
+  <section class="container mx-auto py-12">
+    <div class="mx-auto max-w-3xl rounded-2xl bg-surface p-10 shadow-soft" data-animate="fade">
+      {isAr ? (
+        <div dir="rtl" class="space-y-6 text-sm leading-relaxed text-muted">
+          <p class="text-xs text-muted/70">آخر تحديث: {new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</p>
+
+          <h2 class="text-lg font-bold text-text">طبيعة الموقع</h2>
+          <p>هذا الموقع منصة توعوية وتعريفية بمستشفى النور العام. لا يقدم الموقع استشارات طبية ولا يُعدّ بديلاً عن التشخيص الطبي المتخصص.</p>
+
+          <h2 class="text-lg font-bold text-text">المحتوى الطبي</h2>
+          <p>المعلومات المنشورة على الموقع هي لأغراض توعوية فقط. في حال الطوارئ الطبية، يرجى الاتصال بالرقم <strong class="text-red-700">12345</strong> فوراً أو التوجه لأقرب مستشفى.</p>
+
+          <h2 class="text-lg font-bold text-text">الملكية الفكرية</h2>
+          <p>جميع المحتويات الواردة بالموقع من نصوص وصور وشعارات هي ملك لمستشفى النور العام ولا يجوز إعادة نشرها دون إذن صريح.</p>
+
+          <h2 class="text-lg font-bold text-text">روابط خارجية</h2>
+          <p>قد يحتوي الموقع على روابط لمواقع خارجية. المستشفى غير مسؤول عن محتوى أو سياسات تلك المواقع.</p>
+
+          <h2 class="text-lg font-bold text-text">التواصل</h2>
+          <p>لأي استفسار: <a href={`mailto:${strings.contact.details.email}`} class="text-secondary hover:underline">{strings.contact.details.email}</a></p>
+        </div>
+      ) : (
+        <div dir="ltr" class="space-y-6 text-sm leading-relaxed text-muted">
+          <p class="text-xs text-muted/70">Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+
+          <h2 class="text-lg font-bold text-text">Nature of this Website</h2>
+          <p>This website is an informational and awareness platform for Al Noor Public Hospital. It does not provide medical advice and should not be used as a substitute for professional medical diagnosis.</p>
+
+          <h2 class="text-lg font-bold text-text">Medical Content</h2>
+          <p>Information published on this site is for awareness purposes only. In a medical emergency, please call <strong class="text-red-700">12345</strong> immediately or go to the nearest hospital.</p>
+
+          <h2 class="text-lg font-bold text-text">Intellectual Property</h2>
+          <p>All content on this website including texts, images, and logos is the property of Al Noor Public Hospital and may not be republished without explicit permission.</p>
+
+          <h2 class="text-lg font-bold text-text">External Links</h2>
+          <p>This website may contain links to external sites. The hospital is not responsible for the content or policies of those sites.</p>
+
+          <h2 class="text-lg font-bold text-text">Contact</h2>
+          <p>For any inquiries: <a href={`mailto:${strings.contact.details.email}`} class="text-secondary hover:underline">{strings.contact.details.email}</a></p>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <TheFooter lang={lang} strings={strings} />
+</BaseLayout>

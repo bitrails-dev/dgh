@@ -13,6 +13,7 @@
   "license": "MIT",
   "type": "module",
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.2",
     "@astrojs/tailwind": "^6.0.2",
     "@astrojs/vue": "^5.1.4",
     "@vueuse/core": "^14.2.1",

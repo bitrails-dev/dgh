@@ -2,6 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import TheNavbar from "../../../components/layout/TheNavbar.vue";
 import TheFooter from "../../../components/layout/TheFooter.astro";
+import WaveDivider from "../../../components/layout/WaveDivider.astro";
 import { getCollection } from "astro:content";
 import { getStrings } from "../../../i18n";
 
@@ -22,28 +23,122 @@ const strings = getStrings(lang);
 const name = lang === "ar" ? entry.data.nameAr : entry.data.name;
 const specialty = lang === "ar" ? entry.data.specialtyAr : entry.data.specialty;
 const bio = lang === "ar" ? entry.data.bioAr : entry.data.bio;
+const basePath = `/${lang}`;
 ---
-<BaseLayout lang={lang} title={name} description={bio}>
+<BaseLayout lang={lang} title={`${name} — ${strings.site.name}`} description={bio} ogImage={entry.data.photo}>
   <TheNavbar lang={lang} strings={strings} client:load />
+
+  <!-- Hero banner -->
   <section class="bg-primary text-white section-stripes py-20">
     <div class="container mx-auto">
-      <h1 class="text-3xl font-bold">{name}</h1>
-      <p class="mt-2 text-sm text-white/70">{specialty}</p>
+      <!-- Breadcrumb -->
+      <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
+        <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
+        <span aria-hidden="true">/</span>
+        <a href={`${basePath}/#team`} class="hover:text-accent transition-colors">{strings.nav.team}</a>
+        <span aria-hidden="true">/</span>
+        <span class="text-white/90">{name}</span>
+      </nav>
+      <h1 class="text-4xl font-extrabold">{name}</h1>
+      <p class="mt-2 text-base text-white/70">{specialty}</p>
+      {entry.data.certified && (
+        <span class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold text-accent">
+          <span aria-hidden="true">★</span>
+          {strings.team.certified}
+        </span>
+      )}
     </div>
   </section>
+
+  <WaveDivider class="text-background" />
+
+  <!-- Content -->
   <section class="container mx-auto py-12">
-    <div class="grid gap-8 lg:grid-cols-3">
-      <img src={entry.data.photo} alt={name} class="h-80 w-full rounded-2xl object-cover shadow-soft" />
-      <div class="lg:col-span-2 rounded-2xl bg-surface p-8 shadow-soft">
-        <p class="text-sm text-muted">{bio}</p>
-        {entry.data.certified && (
-          <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold text-accent">
-            <span>★</span>
-            <span>{strings.team.certified}</span>
+    <div class="grid gap-10 lg:grid-cols-3">
+
+      <!-- Photo + quick contact -->
+      <div class="space-y-6" data-animate="fade">
+        <div class="overflow-hidden rounded-2xl shadow-soft">
+          <img
+            src={entry.data.photo}
+            alt={name}
+            width="400"
+            height="480"
+            class="h-80 w-full object-cover lg:h-96"
+            loading="lazy"
+          />
+        </div>
+
+        <!-- Appointment CTA -->
+        <div class="rounded-2xl bg-primary p-6 text-white shadow-deep">
+          <h3 class="text-base font-bold">{lang === "ar" ? "احجز موعداً" : "Book an Appointment"}</h3>
+          <p class="mt-1 text-xs text-white/70">
+            {lang === "ar" ? "تواصل مع المستشفى لحجز موعد مع الدكتور" : "Contact the hospital to schedule an appointment"}
+          </p>
+          <a
+            href={`${basePath}/#contact`}
+            class="mt-4 flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-primary transition-transform hover:-translate-y-0.5"
+          >
+            {lang === "ar" ? "تواصل معنا" : "Contact Us"}
+          </a>
+        </div>
+
+        <div class="rounded-2xl bg-surface p-5 shadow-soft text-sm text-muted">
+          <p class="font-semibold text-text mb-1">{lang === "ar" ? "خط الطوارئ" : "Emergency Line"}</p>
+          <a href="tel:12345" class="text-xl font-extrabold text-red-600 hover:underline">12345</a>
+          <p class="mt-1 text-xs text-muted/70">{lang === "ar" ? "متاح على مدار الساعة" : "Available 24/7"}</p>
+        </div>
+      </div>
+
+      <!-- Bio + details -->
+      <div class="lg:col-span-2 space-y-6" data-animate="fade">
+        <div class="rounded-2xl bg-surface p-8 shadow-soft">
+          <h2 class="mb-4 text-lg font-bold text-text">
+            {lang === "ar" ? "نبذة تعريفية" : "About"}
+          </h2>
+          <p class="text-sm leading-relaxed text-muted">{bio}</p>
+        </div>
+
+        <div class="rounded-2xl bg-white p-8 shadow-soft">
+          <h2 class="mb-4 text-lg font-bold text-text">
+            {lang === "ar" ? "التخصص والكفاءة" : "Specialty & Expertise"}
+          </h2>
+          <div class="flex flex-wrap gap-3">
+            <span class="rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">{specialty}</span>
+            {entry.data.certified && (
+              <span class="rounded-full bg-accent/15 px-4 py-1.5 text-sm font-medium text-accent">
+                {strings.team.certified}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <!-- Department link if available -->
+        {entry.data.department && (
+          <div class="rounded-2xl border border-primary/10 bg-white p-6 shadow-soft">
+            <p class="text-sm text-muted">
+              <span class="font-semibold text-text">{lang === "ar" ? "القسم:" : "Department:"}</span>{" "}
+              <a
+                href={`${basePath}/departments/${entry.data.department}`}
+                class="text-secondary hover:underline"
+              >
+                {entry.data.department}
+              </a>
+            </p>
           </div>
         )}
       </div>
+
+    </div>
+
+    <!-- Back link -->
+    <div class="mt-10">
+      <a href={`${basePath}/#team`} class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-secondary transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        {lang === "ar" ? "العودة إلى الفريق الطبي" : "Back to Medical Team"}
+      </a>
     </div>
   </section>
+
   <TheFooter lang={lang} strings={strings} />
 </BaseLayout>

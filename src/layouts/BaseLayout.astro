@@ -1,29 +1,116 @@
 ---
 import "../styles/global.css";
 
-const { lang = "ar", title, description } = Astro.props;
+interface Props {
+  lang?: "ar" | "en";
+  title: string;
+  description: string;
+  ogImage?: string;
+  noindex?: boolean;
+}
+
+const {
+  lang = "ar",
+  title,
+  description,
+  ogImage = "/images/og-default.png",
+  noindex = false,
+} = Astro.props;
+
 const dir = lang === "ar" ? "rtl" : "ltr";
+const locale = lang === "ar" ? "ar_EG" : "en_US";
+const siteUrl = import.meta.env.SITE ?? "https://yourhospital.eg";
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl).href;
+const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteUrl).href;
 ---
 <!doctype html>
 <html lang={lang} dir={dir} class={lang === "ar" ? "font-cairo" : "font-sans"}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content={description ?? ""} />
-    <title>{title ?? ""}</title>
+
+    <!-- Primary meta -->
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {noindex ? <meta name="robots" content="noindex, nofollow" /> : <meta name="robots" content="index, follow" />}
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="theme-color" content="#1B3F6E" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content={locale} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Schema.org: Medical Organization -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Hospital",
+      "name": lang === "ar" ? "مستشفى النور العام" : "Al Noor Public Hospital",
+      "url": siteUrl,
+      "logo": `${siteUrl}/images/logo.png`,
+      "image": ogImageUrl,
+      "description": description,
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": lang === "ar" ? "القاهرة" : "Cairo",
+        "addressCountry": "EG"
+      },
+      "telephone": "+20-2-1234-5678",
+      "openingHours": ["Sa-Th 08:00-21:00", "Fr 09:00-18:00"],
+      "sameAs": []
+    })} />
   </head>
   <body>
-    <main>
+    <!-- Skip to main content (accessibility) -->
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+    >
+      {lang === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
+    </a>
+
+    <main id="main-content">
       <slot />
     </main>
 
+    <!-- Back to top -->
+    <button
+      id="back-to-top"
+      aria-label={lang === "ar" ? "العودة للأعلى" : "Back to top"}
+      class="fixed bottom-24 end-6 z-40 hidden h-10 w-10 items-center justify-center rounded-full bg-primary/90 text-white shadow-deep transition-all hover:bg-primary focus:outline-none focus:ring-2 focus:ring-accent"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="18 15 12 9 6 15" />
+      </svg>
+    </button>
+
     <script is:inline>
+      // Scroll reveal
       const animated = document.querySelectorAll('[data-animate="fade"]');
       if (animated.length) {
         const observer = new IntersectionObserver(
@@ -35,9 +122,24 @@ const dir = lang === "ar" ? "rtl" : "ltr";
               }
             });
           },
-          { threshold: 0.2 }
+          { threshold: 0.15 }
         );
         animated.forEach((el) => observer.observe(el));
+      }
+
+      // Back to top
+      const btn = document.getElementById('back-to-top');
+      if (btn) {
+        window.addEventListener('scroll', () => {
+          if (window.scrollY > 400) {
+            btn.classList.remove('hidden');
+            btn.classList.add('flex');
+          } else {
+            btn.classList.add('hidden');
+            btn.classList.remove('flex');
+          }
+        }, { passive: true });
+        btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
       }
     </script>
   </body>

@@ -1,0 +1,81 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TheNavbar from "../../components/layout/TheNavbar.vue";
+import TheFooter from "../../components/layout/TheFooter.astro";
+import WaveDivider from "../../components/layout/WaveDivider.astro";
+import { getStrings } from "../../i18n";
+
+export const getStaticPaths = () => [
+  { params: { lang: "ar" } },
+  { params: { lang: "en" } },
+];
+
+const { lang } = Astro.params;
+const strings = getStrings(lang);
+const basePath = `/${lang}`;
+const isAr = lang === "ar";
+---
+<BaseLayout
+  lang={lang}
+  title={`${isAr ? "سياسة الخصوصية" : "Privacy Policy"} — ${strings.site.name}`}
+  description={isAr ? "سياسة الخصوصية لموقع مستشفى النور العام" : "Privacy Policy for Al Noor Public Hospital website"}
+>
+  <TheNavbar lang={lang} strings={strings} client:load />
+
+  <section class="bg-primary text-white section-stripes py-20">
+    <div class="container mx-auto">
+      <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
+        <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
+        <span aria-hidden="true">/</span>
+        <span class="text-white/90">{isAr ? "سياسة الخصوصية" : "Privacy Policy"}</span>
+      </nav>
+      <h1 class="text-4xl font-extrabold">{isAr ? "سياسة الخصوصية" : "Privacy Policy"}</h1>
+    </div>
+  </section>
+
+  <WaveDivider class="text-background" />
+
+  <section class="container mx-auto py-12">
+    <div class="mx-auto max-w-3xl rounded-2xl bg-surface p-10 shadow-soft prose prose-sm max-w-none" data-animate="fade">
+      {isAr ? (
+        <div dir="rtl" class="space-y-6 text-sm leading-relaxed text-muted">
+          <p class="text-xs text-muted/70">آخر تحديث: {new Date().toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}</p>
+          <h2 class="text-lg font-bold text-text">جمع المعلومات</h2>
+          <p>يجمع الموقع معلومات أساسية فقط عند تواصلك معنا عبر النموذج الإلكتروني، وتشمل: الاسم ورقم الهاتف ومضمون الرسالة. لا يتم تخزين هذه البيانات على خوادمنا؛ إذ تُرسَل مباشرةً عبر تطبيق واتساب.</p>
+
+          <h2 class="text-lg font-bold text-text">ملفات الارتباط (Cookies)</h2>
+          <p>لا يستخدم الموقع ملفات تتبع أو إعلانات. قد يستخدم الخرائط المضمّنة (Google Maps) ملفات ارتباط خاصة بها وفق سياسة خصوصية Google.</p>
+
+          <h2 class="text-lg font-bold text-text">مشاركة البيانات</h2>
+          <p>لا تُشارك مستشفى النور العام بياناتك مع أي جهة خارجية ولا تبيعها. المعلومات المُرسَلة عبر واتساب تخضع لسياسة خصوصية Meta/WhatsApp.</p>
+
+          <h2 class="text-lg font-bold text-text">الأمان</h2>
+          <p>يُشغَّل الموقع بوصفه تطبيقاً ثابتاً (Static Site) على منصة Cloudflare Pages التي توفر حماية متكاملة بما فيها حماية DDoS وشهادة SSL.</p>
+
+          <h2 class="text-lg font-bold text-text">التواصل</h2>
+          <p>لأي استفسار يتعلق بهذه السياسة، تواصل معنا عبر: <a href={`mailto:${strings.contact.details.email}`} class="text-secondary hover:underline">{strings.contact.details.email}</a></p>
+        </div>
+      ) : (
+        <div dir="ltr" class="space-y-6 text-sm leading-relaxed text-muted">
+          <p class="text-xs text-muted/70">Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+          <h2 class="text-lg font-bold text-text">Information We Collect</h2>
+          <p>We only collect basic information when you contact us through the contact form: your name, phone number, and message. This data is not stored on our servers — it is sent directly via WhatsApp.</p>
+
+          <h2 class="text-lg font-bold text-text">Cookies</h2>
+          <p>This website does not use tracking cookies or advertising. The embedded Google Map may use cookies subject to Google's own privacy policy.</p>
+
+          <h2 class="text-lg font-bold text-text">Data Sharing</h2>
+          <p>Al Noor Public Hospital does not share or sell your data to any third party. Information sent via WhatsApp is subject to Meta/WhatsApp's privacy policy.</p>
+
+          <h2 class="text-lg font-bold text-text">Security</h2>
+          <p>This website runs as a static application on Cloudflare Pages, which provides comprehensive protection including DDoS protection and SSL certificates.</p>
+
+          <h2 class="text-lg font-bold text-text">Contact</h2>
+          <p>For questions about this policy, reach us at: <a href={`mailto:${strings.contact.details.email}`} class="text-secondary hover:underline">{strings.contact.details.email}</a></p>
+        </div>
+      )}
+    </div>
+  </section>
+
+  <TheFooter lang={lang} strings={strings} />
+</BaseLayout>
