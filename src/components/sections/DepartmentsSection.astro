@@ -8,9 +8,11 @@ const departments = await getCollection("departments");
 ---
 <section id="departments" class="bg-background py-20">
   <div class="container mx-auto">
-    <GoldHeading text={strings.departments.title} />
-    <p class="mt-4 max-w-2xl text-sm text-muted">{strings.departments.subtitle}</p>
-    <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div data-animate="fade">
+      <GoldHeading text={strings.departments.title} />
+      <p class="mt-4 max-w-2xl text-sm text-muted">{strings.departments.subtitle}</p>
+    </div>
+    <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-animate="fade">
       {departments.map((dept) => (
         <CardDepartment
           dept={dept}

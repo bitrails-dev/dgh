@@ -2,6 +2,7 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import TheNavbar from "../../../components/layout/TheNavbar.vue";
 import TheFooter from "../../../components/layout/TheFooter.astro";
+import WaveDivider from "../../../components/layout/WaveDivider.astro";
 import CardNews from "../../../components/ui/CardNews.astro";
 import { getCollection } from "astro:content";
 import { getStrings } from "../../../i18n";
@@ -13,29 +14,70 @@ export const getStaticPaths = () => [
 
 const { lang } = Astro.params;
 const strings = getStrings(lang);
+const basePath = `/${lang}`;
+
+// All news, bilingual fields per file — no lang filter needed
 const items = (await getCollection("news"))
-  .filter((entry) => entry.data.lang === lang)
   .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const categories = ["hospital-news", "health-tips", "research", "events"] as const;
 ---
-<BaseLayout lang={lang} title={strings.news.title} description={strings.news.subtitle}>
+<BaseLayout
+  lang={lang}
+  title={`${strings.news.title} — ${strings.site.name}`}
+  description={strings.news.subtitle}
+>
   <TheNavbar lang={lang} strings={strings} client:load />
+
   <section class="bg-primary text-white section-stripes py-20">
     <div class="container mx-auto">
-      <h1 class="text-3xl font-bold">{strings.news.title}</h1>
-      <p class="mt-3 text-sm text-white/70">{strings.news.subtitle}</p>
+      <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
+        <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
+        <span aria-hidden="true">/</span>
+        <span class="text-white/90">{strings.news.title}</span>
+      </nav>
+      <h1 class="text-4xl font-extrabold">{strings.news.title}</h1>
+      <p class="mt-3 max-w-2xl text-sm text-white/70">{strings.news.subtitle}</p>
     </div>
   </section>
+
+  <WaveDivider class="text-background" />
+
   <section class="container mx-auto py-12">
-    <div class="grid gap-6 lg:grid-cols-3">
-      {items.map((item) => (
-        <CardNews
-          item={item}
-          lang={lang}
-          categoryLabel={strings.news.category[item.data.category]}
-          readLabel={strings.links.readMore}
-        />
-      ))}
+
+    <!-- Category counts -->
+    <div class="mb-8 flex flex-wrap gap-3">
+      <span class="rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+        {lang === "ar" ? "الكل" : "All"} ({items.length})
+      </span>
+      {categories.map((cat) => {
+        const count = items.filter((i) => i.data.category === cat).length;
+        if (count === 0) return null;
+        return (
+          <span class="rounded-full border border-gray-200 px-4 py-1.5 text-sm text-muted transition-colors hover:border-primary hover:text-primary cursor-default">
+            {strings.news.category[cat]} ({count})
+          </span>
+        );
+      })}
     </div>
+
+    {items.length > 0 ? (
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <CardNews
+            item={item}
+            lang={lang}
+            categoryLabel={strings.news.category[item.data.category] ?? item.data.category}
+            readLabel={strings.links.readMore}
+          />
+        ))}
+      </div>
+    ) : (
+      <div class="rounded-2xl bg-surface py-20 text-center shadow-soft">
+        <p class="text-muted">{lang === "ar" ? "لا توجد أخبار بعد." : "No news yet."}</p>
+      </div>
+    )}
   </section>
+
   <TheFooter lang={lang} strings={strings} />
 </BaseLayout>
