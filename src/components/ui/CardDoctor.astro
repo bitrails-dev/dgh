@@ -1,0 +1,27 @@
+---
+const { doctor, lang, certifiedLabel, profileLabel, imageAlt } = Astro.props;
+const name = lang === "ar" ? doctor.data.nameAr : doctor.data.name;
+const specialty = lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty;
+const href = `/${lang}/doctors/${doctor.slug}`;
+---
+<article class="group overflow-hidden rounded-2xl bg-surface shadow-soft transition-all duration-300 hover:scale-[1.02] hover:shadow-deep">
+  <div class="relative">
+    <img src={doctor.data.photo} alt={imageAlt ?? name} class="h-56 w-full object-cover" loading="lazy" />
+    {doctor.data.certified && (
+      <span class="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-accent/90 px-3 py-1 text-xs font-semibold text-white">
+        <svg viewBox="0 0 24 24" class="h-4 w-4 fill-white" aria-hidden="true">
+          <path d="M12 2l2.9 6.2 6.6.6-5 4.3 1.6 6.4-6.1-3.4-6.1 3.4 1.6-6.4-5-4.3 6.6-.6L12 2z" />
+        </svg>
+        {certifiedLabel}
+      </span>
+    )}
+  </div>
+  <div class="p-5">
+    <h3 class="text-lg font-semibold text-text">{name}</h3>
+    <p class="mt-1 text-sm text-muted">{specialty}</p>
+    <a href={href} class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-secondary">
+      <span>↗</span>
+      <span>{profileLabel}</span>
+    </a>
+  </div>
+</article>

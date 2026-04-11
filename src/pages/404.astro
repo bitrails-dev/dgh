@@ -1,0 +1,27 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getStrings } from "../i18n";
+
+const ar = getStrings("ar");
+const en = getStrings("en");
+---
+<BaseLayout lang="ar" title={ar.notFound.title} description={ar.notFound.body}>
+  <section class="min-h-screen bg-background flex items-center">
+    <div class="container mx-auto">
+      <div class="rounded-2xl bg-surface p-10 shadow-soft">
+        <h1 class="text-3xl font-bold text-text">{ar.notFound.title}</h1>
+        <p class="mt-3 text-sm text-muted">{ar.notFound.body}</p>
+        <a href="/ar" class="mt-6 inline-flex rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-white">
+          {ar.notFound.cta}
+        </a>
+        <div class="mt-8 border-t border-gray-200 pt-6">
+          <h2 class="text-lg font-semibold text-text">{en.notFound.title}</h2>
+          <p class="mt-2 text-sm text-muted">{en.notFound.body}</p>
+          <a href="/en" class="mt-4 inline-flex rounded-lg border border-primary px-5 py-3 text-sm font-semibold text-primary">
+            {en.notFound.cta}
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

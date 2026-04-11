@@ -1,0 +1,41 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import TheNavbar from "../../../components/layout/TheNavbar.vue";
+import TheFooter from "../../../components/layout/TheFooter.astro";
+import CardNews from "../../../components/ui/CardNews.astro";
+import { getCollection } from "astro:content";
+import { getStrings } from "../../../i18n";
+
+export const getStaticPaths = () => [
+  { params: { lang: "ar" } },
+  { params: { lang: "en" } },
+];
+
+const { lang } = Astro.params;
+const strings = getStrings(lang);
+const items = (await getCollection("news"))
+  .filter((entry) => entry.data.lang === lang)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+<BaseLayout lang={lang} title={strings.news.title} description={strings.news.subtitle}>
+  <TheNavbar lang={lang} strings={strings} client:load />
+  <section class="bg-primary text-white section-stripes py-20">
+    <div class="container mx-auto">
+      <h1 class="text-3xl font-bold">{strings.news.title}</h1>
+      <p class="mt-3 text-sm text-white/70">{strings.news.subtitle}</p>
+    </div>
+  </section>
+  <section class="container mx-auto py-12">
+    <div class="grid gap-6 lg:grid-cols-3">
+      {items.map((item) => (
+        <CardNews
+          item={item}
+          lang={lang}
+          categoryLabel={strings.news.category[item.data.category]}
+          readLabel={strings.links.readMore}
+        />
+      ))}
+    </div>
+  </section>
+  <TheFooter lang={lang} strings={strings} />
+</BaseLayout>

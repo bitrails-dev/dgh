@@ -1,0 +1,43 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import TheNavbar from "../../../components/layout/TheNavbar.vue";
+import TheFooter from "../../../components/layout/TheFooter.astro";
+import { getCollection } from "astro:content";
+import { getStrings } from "../../../i18n";
+
+export const getStaticPaths = async () => {
+  const entries = await getCollection("news");
+  return entries.map((entry) => ({
+    params: { lang: entry.data.lang, slug: entry.slug },
+    props: { entry },
+  }));
+};
+
+const { lang } = Astro.params;
+const { entry } = Astro.props;
+const strings = getStrings(lang);
+const title = lang === "ar" ? entry.data.titleAr : entry.data.title;
+const excerpt = lang === "ar" ? entry.data.excerptAr : entry.data.excerpt;
+const categoryLabel = strings.news.category[entry.data.category];
+const { Content } = await entry.render();
+const dateLabel = new Intl.DateTimeFormat(lang === "ar" ? "ar-EG" : "en-GB", { dateStyle: "long" }).format(entry.data.date);
+---
+<BaseLayout lang={lang} title={title} description={excerpt}>
+  <TheNavbar lang={lang} strings={strings} client:load />
+  <section class="bg-primary text-white section-stripes py-20">
+    <div class="container mx-auto">
+      <span class="inline-flex rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold text-accent">
+        {categoryLabel}
+      </span>
+      <h1 class="mt-4 text-3xl font-bold">{title}</h1>
+      <p class="mt-2 text-sm text-white/70">{dateLabel}</p>
+    </div>
+  </section>
+  <section class="container mx-auto py-12">
+    <img src={entry.data.thumbnail} alt={title} class="h-80 w-full rounded-2xl object-cover shadow-soft" />
+    <article class="prose mt-8 max-w-3xl text-sm text-muted">
+      <Content />
+    </article>
+  </section>
+  <TheFooter lang={lang} strings={strings} />
+</BaseLayout>

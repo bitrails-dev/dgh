@@ -1,0 +1,48 @@
+---
+import StatsBlock from "./StatsBlock.vue";
+import SectionLabel from "../ui/SectionLabel.astro";
+import HeroParticles from "./HeroParticles.vue";
+
+const { lang, strings } = Astro.props;
+const stats = [
+  { label: strings.hero.stats.years, value: 67 },
+  { label: strings.hero.stats.departments, value: 18 },
+  { label: strings.hero.stats.patients, value: 1200000 },
+  { label: strings.hero.stats.staff, value: 2400 },
+  { label: strings.hero.stats.awards, value: 42 },
+];
+---
+<section id="about" class="relative min-h-screen bg-primary text-white section-stripes">
+  <HeroParticles client:visible />
+  <div class="container mx-auto relative z-10 grid gap-12 py-28 lg:grid-cols-2 lg:items-center">
+    <div class="rtl:text-right">
+      <SectionLabel text={strings.hero.label} class="text-white/70" />
+      <h1 class="mt-4 text-display font-extrabold border-b-4 border-accent inline-block pb-3">
+        {strings.hero.headline}
+      </h1>
+      <p class="mt-5 max-w-xl text-body text-white/80">
+        {strings.hero.subhead}
+      </p>
+      <div class="mt-8 flex flex-wrap gap-4">
+        <a href="#achievements" class="rounded-lg bg-accent px-6 py-3 text-sm font-semibold text-primary shadow-soft">
+          {strings.hero.ctaPrimary}
+        </a>
+        <a href="#team" class="rounded-lg border border-white/40 px-6 py-3 text-sm font-semibold text-white">
+          {strings.hero.ctaSecondary}
+        </a>
+      </div>
+      <div class="mt-10">
+        <StatsBlock :stats="stats" client:visible />
+      </div>
+    </div>
+    <div class="relative">
+      <div class="absolute -inset-4 rounded-[32px] border-2 border-accent/60"></div>
+      <img
+        src="https://picsum.photos/seed/hospital-building/800/600"
+        alt={strings.site.name}
+        class="relative z-10 h-[420px] w-full rounded-[28px] object-cover shadow-deep"
+        loading="eager"
+      />
+    </div>
+  </div>
+</section>

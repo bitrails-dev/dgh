@@ -1,0 +1,25 @@
+---
+import { getCollection } from "astro:content";
+import GoldHeading from "../ui/GoldHeading.astro";
+
+const { lang, strings } = Astro.props;
+const awards = await getCollection("awards");
+---
+<section class="bg-primary text-white section-stripes py-16">
+  <div class="container mx-auto" data-animate="fade">
+    <GoldHeading text={strings.achievements.awardsTitle} class="text-white border-accent" />
+    <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {awards.map((award) => (
+        <div class="group relative overflow-hidden rounded-2xl p-6 frosted-card transition-all duration-300 hover:border-accent">
+          <div class="absolute inset-0 bg-[linear-gradient(110deg,transparent,rgba(255,255,255,0.2),transparent)] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:animate-[shimmer_1.6s_linear_infinite]"></div>
+          <img src={award.data.badgeImage ?? "https://picsum.photos/seed/award-badge/200/200"} alt={strings.achievements.badgeAlt} class="h-16 w-16" />
+          <h3 class="mt-4 text-lg font-semibold">
+            {lang === "ar" ? award.data.nameAr : award.data.name}
+          </h3>
+          <p class="mt-2 text-sm text-white/70">{award.data.body}</p>
+          <p class="mt-3 text-xs text-accent">{award.data.year}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,72 @@
+---
+import SectionLabel from "../ui/SectionLabel.astro";
+
+const { lang, strings } = Astro.props;
+const year = new Date().getFullYear();
+const basePath = `/${lang}`;
+---
+<footer class="bg-primary text-white">
+  <div class="container mx-auto py-16">
+    <div class="grid gap-10 lg:grid-cols-4">
+      <div>
+        <p class="text-2xl font-bold">{strings.site.name}</p>
+        <p class="mt-3 text-sm text-white/70">{strings.site.tagline}</p>
+      </div>
+      <div>
+        <SectionLabel text={strings.footer.quickLinks} class="text-white/70" />
+        <ul class="mt-4 space-y-2 text-sm">
+          <li><a href={`${basePath}/#about`} class="hover:text-accent">{strings.nav.about}</a></li>
+          <li><a href={`${basePath}/#departments`} class="hover:text-accent">{strings.nav.departments}</a></li>
+          <li><a href={`${basePath}/#achievements`} class="hover:text-accent">{strings.nav.achievements}</a></li>
+          <li><a href={`${basePath}/#team`} class="hover:text-accent">{strings.nav.team}</a></li>
+        </ul>
+      </div>
+      <div>
+        <SectionLabel text={strings.footer.departments} class="text-white/70" />
+        <ul class="mt-4 space-y-2 text-sm">
+          {strings.footer.departmentList.map((item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <SectionLabel text={strings.footer.contact} class="text-white/70" />
+        <ul class="mt-4 space-y-2 text-sm text-white/80">
+          {strings.footer.contactLines.map((item) => (
+            <li>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+    <div class="mt-10 flex flex-wrap items-center justify-between gap-6">
+      <div class="flex items-center gap-4 text-white/80">
+        <a href="#" aria-label={strings.footer.social.facebook} class="hover:text-accent">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path d="M13 9h3V6h-3c-2.2 0-4 1.8-4 4v2H7v3h2v6h3v-6h3l1-3h-4v-2c0-.6.4-1 1-1z" />
+          </svg>
+        </a>
+        <a href="#" aria-label={strings.footer.social.x} class="hover:text-accent">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path d="M4 4l7.5 8.5L4.5 20H8l5.5-6.3L19 20h3L14 11.4 21.1 4h-3.5l-4.9 5.7L8.1 4H4z" />
+          </svg>
+        </a>
+        <a href="#" aria-label={strings.footer.social.youtube} class="hover:text-accent">
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor" aria-hidden="true">
+            <path d="M22.5 7.2a2.8 2.8 0 00-2-2C18.6 4.7 12 4.7 12 4.7s-6.6 0-8.5.5a2.8 2.8 0 00-2 2A29 29 0 001 12a29 29 0 00.5 4.8 2.8 2.8 0 002 2c1.9.5 8.5.5 8.5.5s6.6 0 8.5-.5a2.8 2.8 0 002-2A29 29 0 0023 12a29 29 0 00-.5-4.8zM10 15.5V8.5l6 3.5-6 3.5z" />
+          </svg>
+        </a>
+      </div>
+      <div class="flex items-center gap-4">
+        <img src="https://picsum.photos/seed/ministry-badge/120/60" alt={strings.footer.social.ministryBadge} class="h-10 rounded bg-white/10 p-2" />
+        <img src="https://picsum.photos/seed/accreditation-badge/120/60" alt={strings.footer.social.accreditationBadge} class="h-10 rounded bg-white/10 p-2" />
+      </div>
+    </div>
+    <div class="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-6 text-xs text-white/70">
+      <p>{year} © {strings.site.name}. {strings.footer.rights}.</p>
+      <div class="flex items-center gap-4">
+        <a href="#" class="hover:text-accent">{strings.footer.privacy}</a>
+        <a href="#" class="hover:text-accent">{strings.footer.terms}</a>
+      </div>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,24 @@
+---
+import { getCollection } from "astro:content";
+import GoldHeading from "../ui/GoldHeading.astro";
+import CardDepartment from "../ui/CardDepartment.astro";
+
+const { lang, strings } = Astro.props;
+const departments = await getCollection("departments");
+---
+<section id="departments" class="bg-background py-20">
+  <div class="container mx-auto">
+    <GoldHeading text={strings.departments.title} />
+    <p class="mt-4 max-w-2xl text-sm text-muted">{strings.departments.subtitle}</p>
+    <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {departments.map((dept) => (
+        <CardDepartment
+          dept={dept}
+          lang={lang}
+          centerLabel={strings.departments.centerOfExcellence}
+          linkLabel={strings.links.viewDepartment}
+        />
+      ))}
+    </div>
+  </div>
+</section>

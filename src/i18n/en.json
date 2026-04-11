@@ -1,0 +1,174 @@
+{
+  "site": {
+    "name": "Al Noor Public Hospital",
+    "nameAr": "مستشفى النور العام",
+    "initials": "AN",
+    "tagline": "A national beacon of public health excellence",
+    "description": "A prestige showcase of Al Noor Public Hospital, celebrating its medical achievements, people, and public service."
+  },
+  "nav": {
+    "about": "About",
+    "departments": "Departments",
+    "achievements": "Achievements",
+    "team": "Team",
+    "news": "News",
+    "contact": "Contact",
+    "cta": "Book Appointment",
+    "emergency": "Emergency",
+    "toggleToAr": "AR",
+    "toggleToEn": "EN"
+  },
+  "links": {
+    "viewDepartment": "View Department",
+    "viewProfile": "View Profile",
+    "readMore": "Read More"
+  },
+  "hero": {
+    "label": "Public Health Pillar",
+    "headline": "A hospital built on service, science, and national pride",
+    "subhead": "For decades, Al Noor Public Hospital has carried Egypt’s mission of accessible, high-quality healthcare with unwavering dignity and compassion.",
+    "ctaPrimary": "Discover Our Story",
+    "ctaSecondary": "Meet Our Doctors",
+    "stats": {
+      "years": "Years of Service",
+      "departments": "Departments",
+      "patients": "Patients Served",
+      "staff": "Dedicated Staff",
+      "awards": "National Awards"
+    }
+  },
+  "mission": {
+    "missionTitle": "Mission",
+    "missionBody": "Deliver world-class care to every citizen with integrity and empathy.",
+    "visionTitle": "Vision",
+    "visionBody": "Shape the future of public healthcare through innovation and trust.",
+    "valuesTitle": "Values",
+    "valuesBody": "Excellence, transparency, and service to the Egyptian community."
+  },
+  "achievements": {
+    "title": "Milestones of National Impact",
+    "subtitle": "Each milestone represents a promise fulfilled for the people of Egypt.",
+    "timelineLabel": "Timeline",
+    "awardsTitle": "Awards of Distinction",
+    "statsTitle": "Impact by the Numbers",
+    "badgeAlt": "Award badge"
+  },
+  "departments": {
+    "title": "Departments of Care",
+    "subtitle": "Comprehensive specialties led by expert teams and modern facilities.",
+    "centerOfExcellence": "Center of Excellence",
+    "learnMore": "Learn More",
+    "detailPoints": [
+      "Advanced diagnostics and rapid assessment",
+      "Multidisciplinary medical teams",
+      "Integrated post-treatment care"
+    ]
+  },
+  "team": {
+    "title": "The Minds Behind Our Mission",
+    "subtitle": "Leadership and clinical teams dedicated to public health leadership.",
+    "featuredTitle": "Executive Leadership",
+    "doctorsTitle": "Our Doctors",
+    "certified": "Certified",
+    "profileLabel": "View Profile"
+  },
+  "testimonials": {
+    "title": "Stories of Healing",
+    "subtitle": "Voices from patients and families who trusted our care.",
+    "items": [
+      {
+        "quote": "We found attentive, human care at every step.",
+        "name": "Souad Ibrahim",
+        "caseType": "Cardiac Surgery",
+        "avatar": "https://picsum.photos/seed/patient-1/120/120"
+      },
+      {
+        "quote": "The staff were reassuring and exceptionally professional.",
+        "name": "Mohamed Abdallah",
+        "caseType": "Critical Care",
+        "avatar": "https://picsum.photos/seed/patient-2/120/120"
+      },
+      {
+        "quote": "We felt in safe hands throughout the treatment journey.",
+        "name": "Reem Sherif",
+        "caseType": "Women’s Health",
+        "avatar": "https://picsum.photos/seed/patient-3/120/120"
+      }
+    ]
+  },
+  "news": {
+    "title": "News and Highlights",
+    "subtitle": "Updates from the hospital, research, and community initiatives.",
+    "cta": "View All News",
+    "category": {
+      "hospital-news": "Hospital News",
+      "health-tips": "Health Tips",
+      "research": "Research",
+      "events": "Events"
+    }
+  },
+  "contact": {
+    "title": "Contact and Location",
+    "subtitle": "We are here to serve the nation, every hour of every day.",
+    "addressLabel": "Address",
+    "phoneLabel": "Main Line",
+    "emergencyLabel": "Emergency",
+    "whatsappLabel": "WhatsApp",
+    "emailLabel": "Email",
+    "hoursLabel": "Operating Hours",
+    "formTitle": "Send a Message",
+    "formName": "Full Name",
+    "formPhone": "Phone Number",
+    "formMessage": "Message",
+    "formSubmit": "Send via WhatsApp",
+    "mapTitle": "Hospital map",
+    "whatsappFab": "WA",
+    "details": {
+      "address": "Cairo, Arab Republic of Egypt",
+      "phone": "+20 2 1234 5678",
+      "emergencyNumber": "12345",
+      "whatsapp": "+20 10 5555 7777",
+      "email": "info@alnoor.eg",
+      "hours": [
+        { "day": "Saturday - Thursday", "time": "8:00 AM - 9:00 PM" },
+        { "day": "Friday", "time": "9:00 AM - 6:00 PM" }
+      ]
+    },
+    "whatsappMessage": {
+      "nameLabel": "Name",
+      "phoneLabel": "Phone",
+      "messageLabel": "Message"
+    }
+  },
+  "footer": {
+    "quickLinks": "Quick Links",
+    "departments": "Departments",
+    "contact": "Contact",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "rights": "All rights reserved",
+    "departmentList": [
+      "Cardiac & Critical Care",
+      "Emergency & Trauma",
+      "Oncology & Radiotherapy",
+      "Women’s and Children’s Health"
+    ],
+    "contactLines": [
+      "Cairo, Arab Republic of Egypt",
+      "+20 2 1234 5678",
+      "hotline@alnoor.eg"
+    ],
+    "social": {
+      "facebook": "Facebook",
+      "x": "X",
+      "youtube": "YouTube",
+      "ministryBadge": "Ministry of Health",
+      "accreditationBadge": "Accreditation Badge"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you are looking for does not exist. Return to the hospital homepage.",
+    "cta": "Go to Homepage"
+  }
+}

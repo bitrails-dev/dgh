@@ -1,0 +1,34 @@
+---
+import { getCollection } from "astro:content";
+import GoldHeading from "../ui/GoldHeading.astro";
+import CardNews from "../ui/CardNews.astro";
+
+const { lang, strings } = Astro.props;
+const newsItems = await getCollection("news");
+const featured = newsItems
+  .filter((item) => item.data.lang === lang)
+  .filter((item) => item.data.featured)
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 3);
+---
+<section id="news" class="bg-background py-20">
+  <div class="container mx-auto">
+    <GoldHeading text={strings.news.title} />
+    <p class="mt-4 max-w-2xl text-sm text-muted">{strings.news.subtitle}</p>
+    <div class="mt-10 grid gap-6 lg:grid-cols-3">
+      {featured.map((item) => (
+        <CardNews
+          item={item}
+          lang={lang}
+          categoryLabel={strings.news.category[item.data.category]}
+          readLabel={strings.links.readMore}
+        />
+      ))}
+    </div>
+    <div class="mt-10">
+      <a href={`/${lang}/news`} class="rounded-lg border border-primary px-6 py-3 text-sm font-semibold text-primary">
+        {strings.news.cta}
+      </a>
+    </div>
+  </div>
+</section>

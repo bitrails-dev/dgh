@@ -1,0 +1,103 @@
+backend:
+  name: github
+  repo: your-org/hospital-site
+  branch: main
+  base_url: https://yourhospital.eg
+  auth_endpoint: /api/auth
+
+media_folder: public/uploads
+public_folder: /uploads
+
+commit_messages:
+  create: 'محتوى جديد [{{collection}}]: "{{slug}}" — {{author-name}}'
+  update: 'تحديث [{{collection}}]: "{{slug}}" — {{author-name}}'
+  delete: 'حذف [{{collection}}]: "{{slug}}" — {{author-name}}'
+  uploadMedia: 'رفع ملف: {{path}} — {{author-name}}'
+
+collections:
+  - name: articles
+    label: المقالات والأخبار
+    folder: src/content/articles
+    create: true
+    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
+    fields:
+      - { label: العنوان (عربي), name: titleAr, widget: string }
+      - { label: Title (English), name: title, widget: string }
+      - { label: التاريخ, name: date, widget: datetime }
+      - { label: الكاتب, name: author, widget: string }
+      - { label: التصنيف, name: category, widget: select, options: [hospital-news, health-tips, research, events] }
+      - { label: الصورة الرئيسية, name: thumbnail, widget: image }
+      - { label: مقال مميز, name: featured, widget: boolean, default: false }
+      - { label: اللغة, name: lang, widget: select, options: [ar, en], default: ar }
+      - { label: المحتوى, name: body, widget: markdown }
+
+  - name: achievements
+    label: الإنجازات
+    folder: src/content/achievements
+    create: true
+    slug: '{{year}}-{{slug}}'
+    fields:
+      - { label: السنة, name: year, widget: number }
+      - { label: العنوان (عربي), name: titleAr, widget: string }
+      - { label: Title (English), name: title, widget: string }
+      - { label: الوصف (عربي), name: descriptionAr, widget: text }
+      - { label: Description (English), name: description, widget: text }
+      - { label: أيقونة, name: icon, widget: string, required: false }
+
+  - name: awards
+    label: الجوائز
+    folder: src/content/awards
+    create: true
+    slug: '{{year}}-{{slug}}'
+    fields:
+      - { label: اسم الجائزة (عربي), name: nameAr, widget: string }
+      - { label: Award Name (English), name: name, widget: string }
+      - { label: الجهة المانحة, name: body, widget: string }
+      - { label: السنة, name: year, widget: number }
+      - { label: صورة الشارة, name: badgeImage, widget: image, required: false }
+
+  - name: departments
+    label: الأقسام
+    folder: src/content/departments
+    create: true
+    slug: '{{slug}}'
+    fields:
+      - { label: اسم القسم (عربي), name: nameAr, widget: string }
+      - { label: Department Name (English), name: name, widget: string }
+      - { label: الوصف (عربي), name: descriptionAr, widget: text }
+      - { label: Description (English), name: description, widget: text }
+      - { label: أيقونة, name: icon, widget: string }
+      - { label: مركز تميز, name: centerOfExcellence, widget: boolean, default: false }
+
+  - name: doctors
+    label: الأطباء
+    folder: src/content/doctors
+    create: true
+    slug: '{{slug}}'
+    fields:
+      - { label: الاسم (عربي), name: nameAr, widget: string }
+      - { label: Name (English), name: name, widget: string }
+      - { label: التخصص (عربي), name: specialtyAr, widget: string }
+      - { label: Specialty (English), name: specialty, widget: string }
+      - { label: الصورة, name: photo, widget: image }
+      - { label: السيرة (عربي), name: bioAr, widget: text }
+      - { label: Bio (English), name: bio, widget: text }
+      - { label: معتمد, name: certified, widget: boolean, default: false }
+      - { label: مميز, name: featured, widget: boolean, default: false }
+
+  - name: news
+    label: الأخبار
+    folder: src/content/news
+    create: true
+    slug: '{{year}}-{{month}}-{{day}}-{{slug}}'
+    fields:
+      - { label: العنوان (عربي), name: titleAr, widget: string }
+      - { label: Title (English), name: title, widget: string }
+      - { label: الملخص (عربي), name: excerptAr, widget: text }
+      - { label: Excerpt (English), name: excerpt, widget: text }
+      - { label: التاريخ, name: date, widget: datetime }
+      - { label: التصنيف, name: category, widget: select, options: [hospital-news, health-tips, research, events] }
+      - { label: الصورة الرئيسية, name: thumbnail, widget: image }
+      - { label: خبر مميز, name: featured, widget: boolean, default: false }
+      - { label: اللغة, name: lang, widget: select, options: [ar, en], default: ar }
+      - { label: المحتوى, name: body, widget: markdown }

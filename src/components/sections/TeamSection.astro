@@ -1,0 +1,53 @@
+---
+import { getCollection } from "astro:content";
+import GoldHeading from "../ui/GoldHeading.astro";
+import CardDoctor from "../ui/CardDoctor.astro";
+
+const { lang, strings } = Astro.props;
+const doctors = await getCollection("doctors");
+const featured = doctors.filter((doc) => doc.data.featured);
+const others = doctors.filter((doc) => !doc.data.featured);
+---
+<section id="team" class="bg-background py-20">
+  <div class="container mx-auto">
+    <GoldHeading text={strings.team.title} />
+    <p class="mt-4 max-w-2xl text-sm text-muted">{strings.team.subtitle}</p>
+
+    <div class="mt-10">
+      <h3 class="text-lg font-semibold text-text">{strings.team.featuredTitle}</h3>
+      <div class="mt-6 grid gap-6 lg:grid-cols-3">
+        {featured.map((doctor) => (
+          <article class="overflow-hidden rounded-2xl bg-surface shadow-layered">
+            <img src={doctor.data.photo} alt={strings.team.profileLabel} class="h-60 w-full object-cover" loading="lazy" />
+            <div class="p-6">
+              <h4 class="text-xl font-semibold text-text">
+                {lang === "ar" ? doctor.data.nameAr : doctor.data.name}
+              </h4>
+              <p class="mt-1 text-sm text-muted">
+                {lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty}
+              </p>
+              <p class="mt-4 text-sm text-muted">
+                {lang === "ar" ? doctor.data.bioAr : doctor.data.bio}
+              </p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+
+    <div class="mt-14">
+      <h3 class="text-lg font-semibold text-text">{strings.team.doctorsTitle}</h3>
+      <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {others.map((doctor) => (
+          <CardDoctor
+            doctor={doctor}
+            lang={lang}
+            certifiedLabel={strings.team.certified}
+            profileLabel={strings.team.profileLabel}
+            imageAlt={strings.team.profileLabel}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

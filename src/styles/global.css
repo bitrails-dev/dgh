@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-background text-text font-sans;
+}
+
+main {
+  @apply overflow-x-hidden;
+}
+
+.section-stripes {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0,
+    rgba(255, 255, 255, 0.06) 8px,
+    rgba(255, 255, 255, 0) 8px,
+    rgba(255, 255, 255, 0) 16px
+  );
+}
+
+.section-title {
+  @apply text-section font-bold border-b-4 border-accent inline-block pb-2;
+}
+
+.label-text {
+  @apply text-label uppercase tracking-[0.08em] text-muted;
+}
+
+.frosted-card {
+  @apply backdrop-blur-md bg-white/10 border border-white/20;
+}
+
+.prose h2,
+.prose h3,
+.prose h4 {
+  @apply mt-6 text-xl font-semibold text-text;
+}
+
+.prose p {
+  @apply mt-4 text-sm text-muted;
+}
+
+.prose a {
+  @apply text-secondary font-semibold;
+}
+
+.wave-divider {
+  display: block;
+  width: 100%;
+  height: 120px;
+}
+
+[data-animate="fade"] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+[data-animate="fade"].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-animate="fade"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

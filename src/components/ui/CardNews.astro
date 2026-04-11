@@ -1,0 +1,25 @@
+---
+const { item, lang, categoryLabel, readLabel } = Astro.props;
+const title = lang === "ar" ? item.data.titleAr : item.data.title;
+const excerpt = lang === "ar" ? item.data.excerptAr : item.data.excerpt;
+const href = `/${lang}/news/${item.slug}`;
+const categoryColors = {
+  "hospital-news": "bg-secondary/10 text-secondary",
+  "health-tips": "bg-green-600/10 text-green-700",
+  "research": "bg-primary/10 text-primary",
+  "events": "bg-accent/10 text-accent",
+};
+const categoryClass = categoryColors[item.data.category] ?? "bg-muted/10 text-muted";
+---
+<article class="overflow-hidden rounded-2xl bg-surface shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-layered">
+  <img src={item.data.thumbnail} alt={title} class="h-44 w-full object-cover" loading="lazy" />
+  <div class="p-5">
+    <span class={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${categoryClass}`}>{categoryLabel}</span>
+    <h3 class="mt-3 text-lg font-semibold text-text">{title}</h3>
+    <p class="mt-2 text-sm text-muted">{excerpt}</p>
+    <a href={href} class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-secondary">
+      <span>↗</span>
+      <span>{readLabel}</span>
+    </a>
+  </div>
+</article>
