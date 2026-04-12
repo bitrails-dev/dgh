@@ -2,7 +2,7 @@
 const { doctor, lang, certifiedLabel, profileLabel, imageAlt } = Astro.props;
 const name = lang === "ar" ? doctor.data.nameAr : doctor.data.name;
 const specialty = lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty;
-const href = `/${lang}/doctors/${doctor.slug}`;
+const href = `/${lang}/doctors/${doctor.id}`;
 ---
 <article class="group overflow-hidden rounded-2xl bg-surface shadow-soft transition-all duration-300 hover:scale-[1.02] hover:shadow-deep">
   <div class="relative">

@@ -4,7 +4,7 @@ const title = lang === "ar" ? item.data.titleAr : item.data.title;
 const excerpt = lang === "ar"
   ? (item.data.excerptAr ?? item.data.summaryAr ?? "")
   : (item.data.excerpt   ?? item.data.summary   ?? "");
-const href = `/${lang}/${basePath}/${item.slug}`;
+const href = `/${lang}/${basePath}/${item.id}`;
 const hasThumbnail = item.data.thumbnail && !item.data.thumbnail.includes("picsum");
 const categoryColors: Record<string, string> = {
   "hospital-news": "bg-secondary/10 text-secondary",

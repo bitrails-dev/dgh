@@ -2,11 +2,14 @@
 import { getCollection } from "astro:content";
 import GoldHeading from "../ui/GoldHeading.astro";
 import CardDoctor from "../ui/CardDoctor.astro";
+import CardNurse from "../ui/CardNurse.astro";
 
 const { lang, strings } = Astro.props;
 const doctors = await getCollection("doctors");
-const featured = doctors.filter((doc) => doc.data.featured);
-const others   = doctors.filter((doc) => !doc.data.featured);
+const nursing = await getCollection("nursing");
+const sortByOrder = (a: any, b: any) => (a.data.order ?? 999) - (b.data.order ?? 999);
+const featured = doctors.filter((doc) => doc.data.featured).sort(sortByOrder);
+const others   = doctors.filter((doc) => !doc.data.featured).sort(sortByOrder);
 ---
 <section id="team" class="bg-background py-20">
   <div class="container mx-auto">
@@ -25,7 +28,7 @@ const others   = doctors.filter((doc) => !doc.data.featured);
             const name      = lang === "ar" ? doctor.data.nameAr    : doctor.data.name;
             const specialty = lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty;
             const bio       = lang === "ar" ? doctor.data.bioAr     : doctor.data.bio;
-            const href      = `/${lang}/doctors/${doctor.slug}`;
+            const href      = `/${lang}/doctors/${doctor.id}`;
             return (
               <article class="group overflow-hidden rounded-2xl bg-surface shadow-layered transition-all duration-300 hover:-translate-y-1 hover:shadow-deep">
                 <div class="relative overflow-hidden">
@@ -78,6 +81,20 @@ const others   = doctors.filter((doc) => !doc.data.featured);
               profileLabel={strings.team.profileLabel}
               imageAlt={lang === "ar" ? doctor.data.nameAr : doctor.data.name}
             />
+          ))}
+        </div>
+      </div>
+    )}
+
+    <!-- Nursing staff -->
+    {nursing.length > 0 && (
+      <div class="mt-14" data-animate="fade">
+        <h3 class="mb-6 text-lg font-bold text-text">
+          {lang === "ar" ? "الفريق التمريضي" : "Nursing Team"}
+        </h3>
+        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {nursing.map((staff) => (
+            <CardNurse staff={staff} lang={lang} />
           ))}
         </div>
       </div>

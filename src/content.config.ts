@@ -64,6 +64,7 @@ const doctors = defineCollection({
     department: z.string().optional(),
     certified: z.boolean().default(false),
     featured: z.boolean().default(false),
+    order: z.number().optional(),
   }),
 });
 
