@@ -5,7 +5,7 @@ import astroI18next from "astro-i18next";
 import sitemap from "@astrojs/sitemap";
 
 export default defineConfig({
-  site: "https://yourhospital.eg",
+  site: "https://dumyat-public-hospital.eg",
   output: "static",
   integrations: [
     sitemap({
@@ -17,7 +17,7 @@ export default defineConfig({
         },
       },
     }),
-    vue({ appEntrypoint: "/src/components/vue-app.ts" }),
+    vue(),   // no appEntrypoint — avoids virtual:astro:vue-app resolution issue
     tailwind({ applyBaseStyles: false }),
     astroI18next(),
   ],

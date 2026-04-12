@@ -1,33 +1,35 @@
-import { defineStore } from "pinia";
+import { reactive } from "vue";
 
 export type Locale = "ar" | "en";
 
-const applyLocale = (locale: Locale) => {
+// Module-level singleton — shared across all islands in the same page
+const state = reactive({ current: "ar" as Locale });
+
+function applyLocale(locale: Locale) {
   if (typeof document === "undefined") return;
   const html = document.documentElement;
   html.lang = locale;
   html.dir = locale === "ar" ? "rtl" : "ltr";
   html.classList.toggle("font-cairo", locale === "ar");
   html.classList.toggle("font-sans", locale === "en");
-};
+}
 
-export const useLocaleStore = defineStore("locale", {
-  state: () => ({
-    current: "ar" as Locale,
-  }),
-  actions: {
+// Drop-in replacement for the old Pinia store — same property/method names
+export function useLocaleStore() {
+  return {
+    get current() { return state.current; },
     init() {
       if (typeof window === "undefined") return;
       const stored = window.localStorage.getItem("locale") as Locale | null;
-      this.current = stored ?? "ar";
-      applyLocale(this.current);
+      state.current = stored ?? "ar";
+      applyLocale(state.current);
     },
     setLocale(locale: Locale) {
-      this.current = locale;
+      state.current = locale;
       if (typeof window !== "undefined") {
         window.localStorage.setItem("locale", locale);
       }
       applyLocale(locale);
     },
-  },
-});
+  };
+}

@@ -11,7 +11,7 @@ export const getStaticPaths = async () => {
   const langs = ["ar", "en"];
   return entries.flatMap((entry) =>
     langs.map((lang) => ({
-      params: { lang, slug: entry.slug },
+      params: { lang, slug: entry.id },
       props: { entry },
     }))
   );
@@ -29,6 +29,9 @@ const detailPoints = [
   { icon: "👥", text: strings.departments.detailPoints[1] },
   { icon: "💊", text: strings.departments.detailPoints[2] },
 ];
+
+const allDoctors = await getCollection("doctors");
+const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 ---
 <BaseLayout lang={lang} title={`${title} — ${strings.site.name}`} description={description}>
   <TheNavbar lang={lang} strings={strings} client:load />
@@ -121,6 +124,47 @@ const detailPoints = [
       </div>
 
     </div>
+
+    <!-- Department doctors -->
+    {deptDoctors.length > 0 && (
+      <div class="mt-10" data-animate="fade">
+        <h2 class="mb-6 text-lg font-bold text-text">
+          {lang === "ar" ? "أطباء القسم" : "Department Doctors"}
+        </h2>
+        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {deptDoctors.map((doctor) => {
+            const name = lang === "ar" ? doctor.data.nameAr : doctor.data.name;
+            const specialty = lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty;
+            return (
+              <article class="rounded-2xl bg-surface p-5 shadow-soft transition-all hover:shadow-layered">
+                <div class="flex items-start gap-4">
+                  <img
+                    src={doctor.data.photo}
+                    alt={name}
+                    width="64"
+                    height="64"
+                    class="h-16 w-16 rounded-full object-cover flex-shrink-0"
+                    loading="lazy"
+                  />
+                  <div>
+                    <h3 class="font-bold text-text">{name}</h3>
+                    <p class="text-sm text-secondary">{specialty}</p>
+                    {doctor.data.certified && (
+                      <span class="mt-1 inline-flex items-center gap-1 text-xs text-accent">
+                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-accent" aria-hidden="true">
+                          <path d="M12 2l2.9 6.2 6.6.6-5 4.3 1.6 6.4-6.1-3.4-6.1 3.4 1.6-6.4-5-4.3 6.6-.6L12 2z"/>
+                        </svg>
+                        {strings.team.certified}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    )}
 
     <!-- Back link -->
     <div class="mt-10">

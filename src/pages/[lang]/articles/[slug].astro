@@ -2,13 +2,13 @@
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import TheNavbar from "../../../components/layout/TheNavbar.vue";
 import TheFooter from "../../../components/layout/TheFooter.astro";
-import { getCollection } from "astro:content";
+import { getCollection, render } from "astro:content";
 import { getStrings } from "../../../i18n";
 
 export const getStaticPaths = async () => {
   const entries = await getCollection("articles");
   return entries.map((entry) => ({
-    params: { lang: entry.data.lang, slug: entry.slug },
+    params: { lang: entry.data.lang, slug: entry.id },
     props: { entry },
   }));
 };
@@ -19,7 +19,7 @@ const strings = getStrings(lang);
 const title = lang === "ar" ? entry.data.titleAr : entry.data.title;
 const categoryLabel = strings.news.category[entry.data.category];
 const dateLabel = new Intl.DateTimeFormat(lang === "ar" ? "ar-EG" : "en-GB", { dateStyle: "long" }).format(entry.data.date);
-const { Content } = await entry.render();
+const { Content } = await render(entry);
 ---
 <BaseLayout lang={lang} title={title} description={title}>
   <TheNavbar lang={lang} strings={strings} client:load />

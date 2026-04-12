@@ -11,7 +11,7 @@ export const getStaticPaths = async () => {
   const langs = ["ar", "en"];
   return entries.flatMap((entry) =>
     langs.map((lang) => ({
-      params: { lang, id: entry.slug },
+      params: { lang, id: entry.id },
       props: { entry },
     }))
   );
