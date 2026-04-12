@@ -1,10 +1,10 @@
 {
   "site": {
-    "name": "Al Noor Public Hospital",
-    "nameAr": "مستشفى النور العام",
-    "initials": "AN",
+    "name": "Dumyat Public Hospital",
+    "nameAr": "مستشفى دمياط العام",
+    "initials": "DP",
     "tagline": "A national beacon of public health excellence",
-    "description": "A prestige showcase of Al Noor Public Hospital, celebrating its medical achievements, people, and public service."
+    "description": "A prestige showcase of Dumyat Public Hospital, celebrating its medical achievements, people, and public service."
   },
   "nav": {
     "about": "About",
@@ -26,7 +26,7 @@
   "hero": {
     "label": "Public Health Pillar",
     "headline": "A hospital built on service, science, and national pride",
-    "subhead": "For decades, Al Noor Public Hospital has carried Egypt’s mission of accessible, high-quality healthcare with unwavering dignity and compassion.",
+    "subhead": "For decades, Dumyat Public Hospital has carried Egypt’s mission of accessible, high-quality healthcare with unwavering dignity and compassion.",
     "ctaPrimary": "Discover Our Story",
     "ctaSecondary": "Meet Our Doctors",
     "stats": {
@@ -120,15 +120,15 @@
     "formName": "Full Name",
     "formPhone": "Phone Number",
     "formMessage": "Message",
-    "formSubmit": "Send via WhatsApp",
+    "formSubmit": "Send Message",
     "mapTitle": "Hospital map",
     "whatsappFab": "WA",
     "details": {
-      "address": "Cairo, Arab Republic of Egypt",
-      "phone": "+20 2 1234 5678",
+      "address": "Dumyat - Nile Corniche - Sa'd Zaghloul St., in front of the Governorate Building",
+      "phone": "+20 57 222 4340",
       "emergencyNumber": "12345",
-      "whatsapp": "+20 10 5555 7777",
-      "email": "info@alnoor.eg",
+      "whatsapp": "+20 57 222 4340",
+      "email": "nrmenelabd1234@yahoo.com",
       "hours": [
         { "day": "Saturday - Thursday", "time": "8:00 AM - 9:00 PM" },
         { "day": "Friday", "time": "9:00 AM - 6:00 PM" }
@@ -154,9 +154,9 @@
       "Women’s and Children’s Health"
     ],
     "contactLines": [
-      "Cairo, Arab Republic of Egypt",
-      "+20 2 1234 5678",
-      "hotline@alnoor.eg"
+      "Dumyat, Egypt",
+      "+20 57 222 4340",
+      "nrmenelabd1234@yahoo.com"
     ],
     "social": {
       "facebook": "Facebook",

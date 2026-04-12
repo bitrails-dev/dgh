@@ -20,12 +20,18 @@
   <rect x="80" y="180" width="56" height="200" rx="10" fill="#D4A843"/>
   <rect x="20" y="240" width="176" height="80" rx="10" fill="#D4A843"/>
 
-  <!-- Title -->
-  <text x="240" y="280" font-family="Cairo, Arial, sans-serif" font-size="72" font-weight="800" fill="white">مستشفى النور العام</text>
-  <text x="240" y="360" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="600" fill="rgba(255,255,255,0.75)">Al Noor Public Hospital</text>
+  <!-- Title Arabic -->
+  <text x="240" y="280" font-family="Cairo, Arial, sans-serif" font-size="72" font-weight="800" fill="white">مستشفى دمياط العام</text>
+
+  <!-- Title English -->
+  <text x="240" y="360" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="600" fill="rgba(255,255,255,0.75)">Dumyat Public Hospital</text>
 
   <!-- Tagline -->
   <text x="240" y="430" font-family="Cairo, Arial, sans-serif" font-size="28" fill="rgba(255,255,255,0.55)">منارة وطنية للتميز في الصحة العامة</text>
+
+  <!-- Location badge -->
+  <rect x="240" y="460" width="160" height="40" rx="20" fill="rgba(212,168,67,0.2)"/>
+  <text x="320" y="487" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="600" fill="#D4A843" text-anchor="middle">Dumyat, Egypt</text>
 
   <!-- Bottom accent -->
   <rect y="622" width="1200" height="8" fill="rgba(212,168,67,0.4)"/>

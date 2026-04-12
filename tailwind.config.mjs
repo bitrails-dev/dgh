@@ -27,9 +27,9 @@ export default {
         muted: "#6B7280",
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        sans: ["Cairo", "Inter", "sans-serif"],
         cairo: ["Cairo", "sans-serif"],
-        display: ["Cairo", "Inter", "sans-serif"],
+        display: ["Cairo", "sans-serif"],
       },
       fontSize: {
         display: ["clamp(40px, 6vw, 72px)", { lineHeight: "1.05" }],

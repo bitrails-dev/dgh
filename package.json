@@ -15,10 +15,10 @@
   "dependencies": {
     "@astrojs/sitemap": "^3.7.2",
     "@astrojs/tailwind": "^6.0.2",
-    "@astrojs/vue": "^5.1.4",
+    "@astrojs/vue": "^6.0.1",
     "@vueuse/core": "^14.2.1",
     "@vueuse/motion": "^3.0.3",
-    "astro": "^5.18.1",
+    "astro": "^6.1.5",
     "astro-i18next": "^1.0.0-beta.21",
     "gsap": "^3.14.2",
     "lucide-vue-next": "^1.0.0",

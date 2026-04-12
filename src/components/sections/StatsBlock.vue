@@ -1,13 +1,15 @@
 <template>
   <div
     ref="container"
-    class="grid grid-cols-2 sm:grid-cols-4 gap-0 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden"
+    class="grid grid-cols-2 sm:grid-cols-4 gap-0 rounded-2xl overflow-hidden"
+    :class="dark
+      ? 'border border-white/20 bg-white/10 backdrop-blur-md'
+      : 'border border-primary/20 bg-primary/[0.07] backdrop-blur-sm'"
   >
     <div
       v-for="(stat, i) in enriched"
       :key="stat.label"
-      class="flex flex-col items-center justify-center gap-2 px-6 py-7 text-center relative"
-      :class="i < enriched.length - 1 ? 'border-e border-white/10' : ''"
+      class="flex flex-col items-center justify-center gap-3 px-10 py-9 text-center relative"
     >
       <!-- Number + suffix inline -->
       <div class="flex items-baseline gap-0.5 leading-none">
@@ -20,7 +22,10 @@
       </div>
 
       <!-- Label -->
-      <p class="text-xs font-semibold text-white/55 leading-tight">
+      <p
+        class="text-xs font-semibold leading-tight"
+        :class="dark ? 'text-white/55' : 'text-primary/60'"
+      >
         {{ stat.label }}
       </p>
     </div>
@@ -33,6 +38,7 @@ import gsap from "gsap";
 
 const props = defineProps<{
   stats: { label: string; value: number }[];
+  dark?: boolean;
 }>();
 
 function abbreviate(value: number) {

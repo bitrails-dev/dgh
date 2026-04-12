@@ -11,7 +11,7 @@
             class="h-96 w-full"
             loading="lazy"
             referrerpolicy="no-referrer-when-downgrade"
-            src="https://maps.google.com/maps?q=Kasr%20Al%20Ainy%20Hospital%20Cairo&t=&z=13&ie=UTF8&iwloc=&output=embed"
+            src="https://maps.google.com/maps?q=Dumyat+Public+Hospital&t=&z=15&ie=UTF8&iwloc=&output=embed"
             :title="strings.contact.mapTitle"
           ></iframe>
         </div>
@@ -219,24 +219,35 @@ function showToast(type: "success" | "error", msg: string) {
   setTimeout(() => { toast.show = false; }, 4000);
 }
 
-const submit = () => {
+const submit = async () => {
   if (!validateAll()) {
     showToast("error", isAr ? "يرجى تصحيح الأخطاء قبل الإرسال" : "Please fix the errors before submitting");
     return;
   }
   loading.value = true;
-  const labels = props.strings.contact.whatsappMessage;
-  const text = encodeURIComponent(
-    `${labels.nameLabel}: ${name.value}\n${labels.phoneLabel}: ${phone.value}\n${labels.messageLabel}: ${message.value}`
-  );
-  setTimeout(() => {
-    window.open(`${whatsAppLink}?text=${text}`, "_blank", "noopener");
+  try {
+    const res = await fetch("https://formspree.io/f/xzdknnrw", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        name: name.value,
+        phone: phone.value,
+        message: message.value,
+      }),
+    });
+    if (res.ok) {
+      name.value = "";
+      phone.value = "";
+      message.value = "";
+      showToast("success", isAr ? "تم إرسال رسالتك بنجاح!" : "Message sent successfully!");
+    } else {
+      showToast("error", isAr ? "حدث خطأ، حاول مرة أخرى" : "Something went wrong, please try again");
+    }
+  } catch {
+    showToast("error", isAr ? "خطأ في الاتصال، تأكد من الإنترنت" : "Connection error, please check your internet");
+  } finally {
     loading.value = false;
-    name.value = "";
-    phone.value = "";
-    message.value = "";
-    showToast("success", isAr ? "تم فتح واتساب. شكراً لتواصلك معنا!" : "WhatsApp opened. Thank you for reaching out!");
-  }, 400);
+  }
 };
 
 onMounted(() => {

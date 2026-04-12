@@ -3,7 +3,6 @@ import { getCollection } from "astro:content";
 import GoldHeading from "../ui/GoldHeading.astro";
 import AchievementsTimeline from "./AchievementsTimeline.vue";
 import AwardsWall from "./AwardsWall.astro";
-import StatsBlock from "./StatsBlock.vue";
 
 const { lang, strings } = Astro.props;
 const achievements = await getCollection("achievements");
@@ -14,14 +13,6 @@ const timelineItems = achievements
     title: lang === "ar" ? entry.data.titleAr : entry.data.title,
     description: lang === "ar" ? entry.data.descriptionAr : entry.data.description,
   }));
-
-const stats = [
-  { label: strings.hero.stats.years, value: 67 },
-  { label: strings.hero.stats.departments, value: 18 },
-  { label: strings.hero.stats.patients, value: 1200000 },
-  { label: strings.hero.stats.staff, value: 2400 },
-  { label: strings.hero.stats.awards, value: 42 },
-];
 ---
 <section id="achievements" class="bg-background py-20">
   <div class="container mx-auto">
@@ -34,12 +25,3 @@ const stats = [
 </section>
 
 <AwardsWall lang={lang} strings={strings} />
-
-<section class="bg-background py-16">
-  <div class="container mx-auto" data-animate="fade">
-    <GoldHeading text={strings.achievements.statsTitle} />
-    <div class="mt-8">
-      <StatsBlock stats={stats} client:visible />
-    </div>
-  </div>
-</section>

@@ -7,12 +7,9 @@
 
       <!-- Logo -->
       <a :href="`/${lang}/`" class="flex items-center gap-3 group">
-        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl transition-colors"
-             :class="scrolled ? 'bg-primary text-white' : 'bg-white/20 text-white backdrop-blur-sm'">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <rect x="10" y="3" width="4" height="18" rx="1.5"/>
-            <rect x="3" y="10" width="18" height="4" rx="1.5"/>
-          </svg>
+        <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full overflow-hidden transition-colors"
+             :class="scrolled ? 'bg-primary' : 'bg-white/20 backdrop-blur-sm'">
+          <img src="/icon.png" :alt="strings.site.name" class="h-full w-full object-cover" />
         </div>
         <div>
           <p class="text-sm font-bold leading-tight transition-colors"
@@ -60,14 +57,6 @@
           {{ localeStore.current === 'ar' ? strings.nav.toggleToEn : strings.nav.toggleToAr }}
         </button>
 
-        <!-- CTA -->
-        <a
-          :href="resolveLink('contact')"
-          class="rounded-lg px-4 py-2 text-sm font-semibold shadow-soft transition-all"
-          :class="scrolled ? 'bg-primary text-white hover:bg-primary/90' : 'bg-accent text-primary hover:bg-accent/90'"
-        >
-          {{ strings.nav.cta }}
-        </a>
       </div>
 
       <!-- Mobile hamburger -->
@@ -114,13 +103,6 @@
             >
               {{ localeStore.current === 'ar' ? strings.nav.toggleToEn : strings.nav.toggleToAr }}
             </button>
-            <a
-              :href="resolveLink('contact')"
-              class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-soft"
-              @click="uiStore.closeMenu"
-            >
-              {{ strings.nav.cta }}
-            </a>
           </div>
         </div>
       </div>

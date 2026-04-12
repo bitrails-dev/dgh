@@ -1,8 +1,8 @@
 backend:
   name: github
-  repo: YOUR_ORG/YOUR_REPO          # Replace: e.g. my-org/hospital-site
+  repo: motifyee/dumyat-public-hospital
   branch: main
-  base_url: https://yourhospital.eg  # Replace with your deployed domain
+  base_url: https://dumyat-public-hospital.eg
   auth_endpoint: /api/auth
 
 media_folder: public/uploads
