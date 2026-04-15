@@ -12,7 +12,6 @@ const articles = defineCollection({
     category: z.enum(["hospital-news", "health-tips", "research", "events"]),
     thumbnail: z.string(),
     featured: z.boolean().default(false),
-    lang: z.enum(["ar", "en"]).default("ar"),
   }),
 });
 
@@ -68,29 +67,39 @@ const doctors = defineCollection({
   }),
 });
 
-const news = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/news" }),
+const events = defineCollection({
+  loader: glob({ pattern: "**/*.md", base: "./src/content/events" }),
   schema: z.object({
     title: z.string(),
     titleAr: z.string(),
-    excerpt: z.string(),
-    excerptAr: z.string(),
     date: z.coerce.date(),
-    category: z.enum(["hospital-news", "health-tips", "research", "events"]),
-    thumbnail: z.string(),
+    category: z.enum(["procedure", "event", "announcement"]),
+    summary: z.string(),
+    summaryAr: z.string(),
+    thumbnail: z.string().optional(),
     featured: z.boolean().default(false),
-    lang: z.enum(["ar", "en"]).default("ar"),
+    youtubeUrl: z.string().url().optional(),
+    gallery: z.array(z.object({
+      url: z.string(),
+      caption: z.string().optional(),
+      captionAr: z.string().optional(),
+      alt: z.string(),
+    })).optional(),
+    body: z.string().optional(),
+    bodyAr: z.string().optional(),
   }),
 });
 
-const nursing = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/nursing" }),
+const testimonials = defineCollection({
+  loader: glob({ pattern: "**/*.md", base: "./src/content/testimonials" }),
   schema: z.object({
     name: z.string(),
     nameAr: z.string(),
-    role: z.string(),
-    roleAr: z.string(),
-    department: z.string().optional(),
+    quote: z.string(),
+    quoteAr: z.string(),
+    caseType: z.string().optional(),
+    caseTypeAr: z.string().optional(),
+    avatar: z.string().optional(),
     featured: z.boolean().default(false),
   }),
 });
@@ -101,6 +110,6 @@ export const collections = {
   awards,
   departments,
   doctors,
-  news,
-  nursing,
+  events,
+  testimonials,
 };
