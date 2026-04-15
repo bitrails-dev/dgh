@@ -7,16 +7,19 @@
     "description": "A prestige showcase of Dumyat Public Hospital, celebrating its medical achievements, people, and public service."
   },
   "nav": {
+    "home": "Home",
     "about": "About",
     "departments": "Departments",
+    "team": "Our Team",
     "achievements": "Achievements",
-    "team": "Team",
-    "news": "News",
-    "contact": "Contact",
-    "cta": "Book Appointment",
-    "emergency": "Emergency",
-    "toggleToAr": "AR",
-    "toggleToEn": "EN"
+    "awards": "Awards",
+    "testimonials": "Testimonials",
+    "articles": "Articles",
+    "events": "Events & Highlights",
+    "contact": "Contact Us",
+    "toggleToEn": "English",
+    "toggleToAr": "العربية",
+    "emergency": "Emergency"
   },
   "links": {
     "viewDepartment": "View Department",
@@ -26,7 +29,7 @@
   "hero": {
     "label": "Public Health Pillar",
     "headline": "A hospital built on service, science, and national pride",
-    "subhead": "For decades, Dumyat Public Hospital has carried Egypt’s mission of accessible, high-quality healthcare with unwavering dignity and compassion.",
+    "subhead": "For decades, Dumyat Public Hospital has carried Egypt's mission of accessible, high-quality healthcare with unwavering dignity and compassion.",
     "ctaPrimary": "Discover Our Story",
     "ctaSecondary": "Meet Our Doctors",
     "stats": {
@@ -91,20 +94,20 @@
       {
         "quote": "We felt in safe hands throughout the treatment journey.",
         "name": "Reem Sherif",
-        "caseType": "Women’s Health",
+        "caseType": "Women's Health",
         "avatar": "https://picsum.photos/seed/patient-3/120/120"
       }
     ]
   },
-  "news": {
-    "title": "News and Highlights",
-    "subtitle": "Updates from the hospital, research, and community initiatives.",
-    "cta": "View All News",
+  "events": {
+    "title": "Events & Highlights",
+    "subtitle": "Latest events, procedures, and announcements from the hospital",
+    "cta": "View All Events",
     "category": {
-      "hospital-news": "Hospital News",
-      "health-tips": "Health Tips",
-      "research": "Research",
-      "events": "Events"
+      "all": "All",
+      "procedure": "Procedures",
+      "event": "Events",
+      "announcement": "Announcements"
     }
   },
   "contact": {
@@ -151,7 +154,7 @@
       "Cardiac & Critical Care",
       "Emergency & Trauma",
       "Oncology & Radiotherapy",
-      "Women’s and Children’s Health"
+      "Women's and Children's Health"
     ],
     "contactLines": [
       "Dumyat, Egypt",
@@ -170,5 +173,26 @@
     "title": "Page not found",
     "body": "The page you are looking for does not exist. Return to the hospital homepage.",
     "cta": "Go to Homepage"
+  },
+  "breadcrumb": {
+    "home": "Home",
+    "about": "About",
+    "departments": "Departments",
+    "team": "Our Team",
+    "achievements": "Achievements",
+    "awards": "Awards",
+    "testimonials": "Testimonials",
+    "articles": "Articles",
+    "events": "Events & Highlights",
+    "contact": "Contact Us"
+  },
+  "common": {
+    "viewAll": "View All",
+    "backTo": "Back to"
+  },
+  "sidebar": {
+    "expand": "Expand menu",
+    "collapse": "Collapse menu",
+    "emergency": "Emergency"
   }
 }
