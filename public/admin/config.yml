@@ -142,11 +142,11 @@ collections:
       - { label: "معتمد", name: certified, widget: boolean, default: false }
       - { label: "القسم (slug)", name: department, widget: string, required: false, hint: "slug of the department e.g. cardiology" }
 
-  # ── News ────────────────────────────────────────────────────────────────
-  - name: news
-    label: "الأخبار"
-    label_singular: "خبر"
-    folder: src/content/news
+  # ── Events & Highlights ─────────────────────────────────────────────────
+  - name: events
+    label: "فعاليات وإنجازات — Events & Highlights"
+    label_singular: "فعالية"
+    folder: src/content/events
     create: true
     slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
     sortable_fields: ["date", "titleAr"]
@@ -158,14 +158,23 @@ collections:
         name: category
         widget: select
         options:
-          - { label: "أخبار المستشفى", value: hospital-news }
-          - { label: "نصائح صحية", value: health-tips }
-          - { label: "أبحاث", value: research }
-          - { label: "فعاليات", value: events }
+          - { label: "إجراء / Procedure", value: procedure }
+          - { label: "فعالية / Event", value: event }
+          - { label: "إعلان / Announcement", value: announcement }
       - { label: "الملخص (عربي)", name: summaryAr, widget: text }
       - { label: "Summary (English)", name: summary, widget: text }
       - { label: "الصورة", name: thumbnail, widget: image, required: false }
-      - { label: "خبر مميز", name: featured, widget: boolean, default: false }
+      - { label: "YouTube Video URL", name: youtubeUrl, widget: string, required: false }
+      - label: "Image Gallery"
+        name: "gallery"
+        widget: "list"
+        required: false
+        fields:
+          - { label: "Image", name: "url", widget: "image" }
+          - { label: "Caption (English)", name: "caption", widget: "string", required: false }
+          - { label: "Caption (Arabic)", name: "captionAr", widget: "string", required: false }
+          - { label: "Alt Text", name: "alt", widget: "string" }
+      - { label: "فعالية مميزة", name: featured, widget: boolean, default: false }
       - { label: "المحتوى (عربي)", name: bodyAr, widget: markdown, required: false }
       - { label: "Content (English)", name: body, widget: markdown, required: false }
 
