@@ -1,0 +1,26 @@
+---
+interface Props {
+  url: string;
+}
+const { url } = Astro.props;
+
+function extractYouTubeId(url: string): string | null {
+  const match = url.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/
+  );
+  return match ? match[1] : null;
+}
+
+const videoId = extractYouTubeId(url);
+---
+{videoId && (
+  <div class="aspect-video w-full overflow-hidden rounded-lg">
+    <iframe
+      src={`https://www.youtube.com/embed/${videoId}`}
+      title="YouTube video"
+      allowfullscreen
+      loading="lazy"
+      class="h-full w-full"
+    ></iframe>
+  </div>
+)}
