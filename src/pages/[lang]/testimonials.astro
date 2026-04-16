@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import TestimonialsSection from '../../components/sections/TestimonialsSection.vue';
+import { getStrings } from '../../i18n';
+import type { Locale } from '../../i18n';
+
+export function getStaticPaths() {
+  return [{ params: { lang: 'ar' } }, { params: { lang: 'en' } }];
+}
+
+const lang = Astro.params.lang as Locale;
+const strings = getStrings(lang);
+const breadcrumbs = [
+  { label: strings.breadcrumb.home, href: `/${lang}/` },
+  { label: strings.breadcrumb.testimonials },
+];
+---
+<BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/testimonials`} title={`${strings.testimonials.title} | ${strings.site.name}`} description={strings.testimonials.subtitle}>
+  <PageHeader title={strings.testimonials.title} subtitle={strings.testimonials.subtitle} />
+  <TestimonialsSection lang={lang} strings={strings} client:visible />
+</BaseLayout>

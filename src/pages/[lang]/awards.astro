@@ -1,0 +1,22 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import AwardsWall from '../../components/sections/AwardsWall.astro';
+import { getStrings } from '../../i18n';
+import type { Locale } from '../../i18n';
+
+export function getStaticPaths() {
+  return [{ params: { lang: 'ar' } }, { params: { lang: 'en' } }];
+}
+
+const lang = Astro.params.lang as Locale;
+const strings = getStrings(lang);
+const breadcrumbs = [
+  { label: strings.breadcrumb.home, href: `/${lang}/` },
+  { label: strings.breadcrumb.awards },
+];
+---
+<BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/awards`} title={`${strings.achievements.awardsTitle} | ${strings.site.name}`} description={strings.achievements.subtitle}>
+  <PageHeader title={strings.achievements.awardsTitle} />
+  <AwardsWall lang={lang} strings={strings} />
+</BaseLayout>

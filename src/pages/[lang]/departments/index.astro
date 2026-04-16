@@ -1,0 +1,35 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/ui/PageHeader.astro';
+import CardDepartment from '../../../components/ui/CardDepartment.astro';
+import { getCollection } from 'astro:content';
+import { getStrings } from '../../../i18n';
+import type { Locale } from '../../../i18n';
+
+export function getStaticPaths() {
+  return [{ params: { lang: 'ar' } }, { params: { lang: 'en' } }];
+}
+
+const lang = Astro.params.lang as Locale;
+const strings = getStrings(lang);
+const breadcrumbs = [
+  { label: strings.breadcrumb.home, href: `/${lang}/` },
+  { label: strings.breadcrumb.departments },
+];
+
+const departments = await getCollection('departments');
+---
+<BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/departments`} title={`${strings.departments.title} | ${strings.site.name}`} description={strings.departments.subtitle}>
+  <PageHeader title={strings.departments.title} subtitle={strings.departments.subtitle} />
+
+  <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    {departments.map((dept) => (
+      <CardDepartment
+        dept={dept}
+        lang={lang}
+        centerLabel={strings.departments.centerOfExcellence}
+        linkLabel={strings.links.viewDepartment}
+      />
+    ))}
+  </div>
+</BaseLayout>
