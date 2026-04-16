@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import CardDoctor from '../../../components/ui/CardDoctor.astro';
 import { getCollection } from 'astro:content';
@@ -23,7 +25,9 @@ const featured = doctors.filter((d) => d.data.featured).sort(sortByOrder);
 const others = doctors.filter((d) => !d.data.featured).sort(sortByOrder);
 ---
 <BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/team`} title={`${strings.team.title} | ${strings.site.name}`} description={strings.team.subtitle}>
-  <PageHeader title={strings.team.title} subtitle={strings.team.subtitle} />
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/team`}>
+    <div class="px-6 py-8">
+      <PageHeader title={strings.team.title} subtitle={strings.team.subtitle} />
 
   {featured.length > 0 && (
     <section class="mb-12">
@@ -76,4 +80,7 @@ const others = doctors.filter((d) => !d.data.featured).sort(sortByOrder);
       </div>
     </section>
   )}
+    </div>
+    <TheFooter lang={lang} strings={strings} />
+  </SidebarLayout>
 </BaseLayout>

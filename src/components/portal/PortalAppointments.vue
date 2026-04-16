@@ -23,10 +23,86 @@
             <p class="text-sm font-bold text-text">{{ a.reference_number }}</p>
             <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-text">{{ a.status }}</span>
           </div>
-          <p class="mt-2 text-sm text-text">
-            {{ a.clinic?.name_ar || a.clinic?.name_en }}
-          </p>
+          <p class="mt-2 text-sm text-text">{{ a.clinic?.name_ar || a.clinic?.name_en }}</p>
           <p class="mt-1 text-xs text-muted">{{ a.start_at }}</p>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              v-if="a.status !== 'cancelled'"
+              class="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 disabled:opacity-60"
+              :disabled="busy"
+              @click="cancel(a.appointment_id)"
+            >
+              {{ strings.portal.appointments.cancel }}</button>
+            <button
+              v-if="a.status !== 'cancelled'"
+              class="rounded-xl border border-primary px-4 py-2 text-xs font-semibold text-primary disabled:opacity-60"
+              :disabled="busy"
+              @click="openReschedule(a)"
+            >
+              {{ strings.portal.appointments.reschedule }}
+            </button>
+          </div>
+
+          <div v-if="rescheduleTarget?.appointment_id === a.appointment_id" class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-text">{{ strings.portal.appointments.chooseSlot }}</h3>
+              <button class="text-xs font-semibold text-primary" @click="closeReschedule">
+                {{ strings.portal.appointments.close }}
+              </button>
+            </div>
+
+            <div class="mt-4 grid gap-3 lg:grid-cols-3">
+              <label class="block">
+                <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateFrom }}</span>
+                <input v-model="rescheduleFrom" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <label class="block">
+                <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateTo }}</span>
+                <input v-model="rescheduleTo" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
+              </label>
+              <button
+                class="self-end rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
+                :disabled="rescheduleLoading || !rescheduleFrom || !rescheduleTo"
+                @click="loadRescheduleSlots"
+              >
+                {{ strings.portal.appointments.loadSlots }}
+              </button>
+            </div>
+
+            <div v-if="rescheduleLoading" class="mt-4 text-sm text-muted">{{ strings.portal.loading }}</div>
+            <div v-else class="mt-4 space-y-2">
+              <div v-if="rescheduleSlots.length === 0" class="rounded-xl border border-dashed border-gray-300 bg-white p-4 text-sm text-muted">
+                {{ strings.portal.appointments.noRescheduleSlots }}
+              </div>
+
+              <button
+                v-for="slot in rescheduleSlots"
+                :key="slot.slot_id"
+                class="flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left text-sm"
+                :class="selectedSlotId === slot.slot_id ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'"
+                @click="selectedSlotId = slot.slot_id"
+              >
+                <div>
+                  <p class="font-semibold text-text">{{ slot.start_at }}</p>
+                  <p class="mt-1 text-xs text-muted">{{ labelFor(providers, slot.provider_id) }}</p>
+                </div>
+                <span class="text-xs font-semibold text-muted">{{ slot.remaining_capacity }} {{ strings.portal.remaining }}</span>
+              </button>
+            </div>
+
+            <p v-if="rescheduleError" class="mt-4 text-sm text-red-700">{{ rescheduleError }}</p>
+
+            <div class="mt-4 flex justify-end">
+              <button
+                class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                :disabled="busy || !selectedSlotId"
+                @click="confirmReschedule"
+              >
+                {{ strings.portal.appointments.confirmReschedule }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
@@ -43,21 +119,139 @@ const props = defineProps<{ lang: "ar" | "en"; strings: any }>();
 
 type State = "loading" | "ready";
 const state = ref<State>("loading");
+const busy = ref(false);
 const items = ref<any[]>([]);
+const providers = ref<any[]>([]);
 const error = ref<string | null>(null);
+
+const rescheduleTarget = ref<any | null>(null);
+const rescheduleFrom = ref(today());
+const rescheduleTo = ref(addDays(30));
+const rescheduleSlots = ref<any[]>([]);
+const rescheduleLoading = ref(false);
+const rescheduleError = ref<string | null>(null);
+const selectedSlotId = ref("");
 
 onMounted(async () => {
   try {
-    const res = await portalApi.appointments();
-    items.value = res.appointments || [];
+    await refresh();
   } catch (e: any) {
     if (e?.status === 401) {
       window.location.href = `/${props.lang}/portal/sign-in/`;
-      return;
     }
-    error.value = e?.message || "Error";
   } finally {
     state.value = "ready";
   }
 });
+
+async function refresh() {
+  const res = await portalApi.appointments();
+  items.value = res.appointments || [];
+}
+
+async function cancel(appointmentId: string) {
+  busy.value = true;
+  error.value = null;
+  try {
+    await portalApi.cancelAppointment({ appointment_id: appointmentId });
+    await refresh();
+    if (rescheduleTarget.value?.appointment_id === appointmentId) {
+      closeReschedule();
+    }
+  } catch (e: any) {
+    error.value = e?.message || "Error";
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function openReschedule(appointment: any) {
+  rescheduleTarget.value = appointment;
+  rescheduleError.value = null;
+  selectedSlotId.value = "";
+  rescheduleFrom.value = dateOnly(appointment.start_at) || today();
+  rescheduleTo.value = addDaysFrom(rescheduleFrom.value, 30);
+  await loadProviders(appointment.clinic_id);
+  await loadRescheduleSlots();
+}
+
+function closeReschedule() {
+  rescheduleTarget.value = null;
+  rescheduleError.value = null;
+  selectedSlotId.value = "";
+  rescheduleSlots.value = [];
+}
+
+async function loadProviders(clinicId: string) {
+  try {
+    const res = await portalApi.providers(clinicId);
+    providers.value = res.providers || [];
+  } catch {
+    providers.value = [];
+  }
+}
+
+async function loadRescheduleSlots() {
+  if (!rescheduleTarget.value) return;
+  rescheduleLoading.value = true;
+  rescheduleError.value = null;
+  try {
+    const res = await portalApi.slots({
+      clinic_id: rescheduleTarget.value.clinic_id,
+      visit_type_id: rescheduleTarget.value.visit_type_id,
+      date_from: rescheduleFrom.value,
+      date_to: rescheduleTo.value,
+    });
+    rescheduleSlots.value = (res.slots || []).filter((slot: any) => slot.slot_id !== rescheduleTarget.value?.slot_id);
+  } catch (e: any) {
+    rescheduleError.value = e?.message || "Error";
+  } finally {
+    rescheduleLoading.value = false;
+  }
+}
+
+async function confirmReschedule() {
+  if (!rescheduleTarget.value || !selectedSlotId.value) return;
+  busy.value = true;
+  error.value = null;
+  rescheduleError.value = null;
+  try {
+    await portalApi.rescheduleAppointment({ appointment_id: rescheduleTarget.value.appointment_id, slot_id: selectedSlotId.value });
+    await refresh();
+    closeReschedule();
+  } catch (e: any) {
+    rescheduleError.value = e?.message || "Error";
+  } finally {
+    busy.value = false;
+  }
+}
+
+function labelFor(items: any[], id: string) {
+  if (!id) return props.strings.portal.admin.anyDoctor;
+  const item = items.find((entry) => entry.provider_id === id || entry.visit_type_id === id || entry.clinic_id === id);
+  if (!item) return id;
+  return props.lang === "ar" ? item.name_ar || item.name_en : item.name_en || item.name_ar;
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDays(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function addDaysFrom(dateString: string, days: number) {
+  const d = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return addDays(days);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function dateOnly(value: string) {
+  if (!value) return "";
+  return value.slice(0, 10);
+}
 </script>

@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../layouts/SidebarLayout.astro';
+import TheFooter from '../../components/layout/TheFooter.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import TestimonialsSection from '../../components/sections/TestimonialsSection.vue';
 import { getStrings } from '../../i18n';
@@ -17,6 +19,11 @@ const breadcrumbs = [
 ];
 ---
 <BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/testimonials`} title={`${strings.testimonials.title} | ${strings.site.name}`} description={strings.testimonials.subtitle}>
-  <PageHeader title={strings.testimonials.title} subtitle={strings.testimonials.subtitle} />
-  <TestimonialsSection lang={lang} strings={strings} client:visible />
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/testimonials`}>
+    <div class="px-6 py-8">
+      <PageHeader title={strings.testimonials.title} subtitle={strings.testimonials.subtitle} />
+      <TestimonialsSection lang={lang} strings={strings} client:visible />
+    </div>
+    <TheFooter lang={lang} strings={strings} />
+  </SidebarLayout>
 </BaseLayout>

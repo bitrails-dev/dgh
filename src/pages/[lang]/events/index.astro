@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import FilteredCardGrid from '../../../components/ui/FilteredCardGrid.vue';
 import { getCollection } from 'astro:content';
@@ -53,12 +54,14 @@ const breadcrumbs = [
   description={lang === 'ar' ? 'اكتشف فعاليات المستشفى وأحدث الأخبار الطبية' : 'Discover hospital events and latest medical news'}
 >
   <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/events`}>
-    <PageHeader
-      title={lang === 'ar' ? 'الفعاليات' : 'Events'}
-      subtitle={lang === 'ar' ? 'تابع أحدث فعاليات المستشفى والبرامج الطبية' : 'Stay updated with hospital events and medical programs'}
-    />
+    <div class="px-6 pt-8">
+      <PageHeader
+        title={lang === 'ar' ? 'الفعاليات' : 'Events'}
+        subtitle={lang === 'ar' ? 'تابع أحدث فعاليات المستشفى والبرامج الطبية' : 'Stay updated with hospital events and medical programs'}
+      />
+    </div>
 
-    <section class="container mx-auto px-4 py-12">
+    <section class="container mx-auto px-4 pb-12">
       <FilteredCardGrid
         client:visible
         items={items}
@@ -69,5 +72,6 @@ const breadcrumbs = [
         cardType="event"
       />
     </section>
+    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

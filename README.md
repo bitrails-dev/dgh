@@ -65,4 +65,18 @@ Dev env var:
 
 - `PUBLIC_PORTAL_API_BASE` (example: `http://localhost:8080`)
 
-Run the API from `api/` (see `api/README.md`).\n
+Run the API from `api/` (see `api/README.md`).
+
+## Admin Tools
+
+- Admin portal: `/{lang}/portal/admin/`
+- Requires `PORTAL_ADMIN_KEY` for the backend admin endpoints.
+- Use `POST /v1/admin/bootstrap-demo` to seed demo clinics, providers, and slots.
+
+## Admin Schedule Editor
+
+- Admin portal: `/{lang}/portal/admin/`
+- Use `POST /v1/admin/bootstrap-demo` first to seed a test clinic/provider set.
+- The schedule editor can then create, list, and delete unbooked slots.
+
+- Patient appointments can be cancelled or rescheduled from the portal.

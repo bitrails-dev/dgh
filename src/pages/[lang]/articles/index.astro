@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import FilteredCardGrid from '../../../components/ui/FilteredCardGrid.vue';
 import { getCollection } from 'astro:content';
@@ -54,12 +55,14 @@ const breadcrumbs = [
   description={lang === 'ar' ? 'اقرأ أحدث المقالات الطبية والأخبار من مستشفانا' : 'Read the latest medical articles and news from our hospital'}
 >
   <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/articles`}>
-    <PageHeader
-      title={lang === 'ar' ? 'المقالات' : 'Articles'}
-      subtitle={lang === 'ar' ? 'أحدث المقالات الطبية والمعلومات الصحية' : 'Latest medical articles and health information'}
-    />
+    <div class="px-6 pt-8">
+      <PageHeader
+        title={lang === 'ar' ? 'المقالات' : 'Articles'}
+        subtitle={lang === 'ar' ? 'أحدث المقالات الطبية والمعلومات الصحية' : 'Latest medical articles and health information'}
+      />
+    </div>
 
-    <section class="container mx-auto px-4 py-12">
+    <section class="container mx-auto px-4 pb-12">
       <FilteredCardGrid
         client:visible
         items={items}
@@ -70,5 +73,6 @@ const breadcrumbs = [
         cardType="article"
       />
     </section>
+    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

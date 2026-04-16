@@ -133,8 +133,14 @@
       "whatsapp": "+20 57 222 4340",
       "email": "nrmenelabd1234@yahoo.com",
       "hours": [
-        { "day": "Saturday - Thursday", "time": "8:00 AM - 9:00 PM" },
-        { "day": "Friday", "time": "9:00 AM - 6:00 PM" }
+        {
+          "day": "Saturday - Thursday",
+          "time": "8:00 AM - 9:00 PM"
+        },
+        {
+          "day": "Friday",
+          "time": "9:00 AM - 6:00 PM"
+        }
       ]
     },
     "whatsappMessage": {
@@ -208,7 +214,8 @@
       "appointments": "My appointments",
       "signIn": "Sign in",
       "signOut": "Sign out",
-      "signUp": "Create account"
+      "signUp": "Create account",
+      "admin": "Admin"
     },
     "banner": {
       "pendingVerification": "Reception activation is required before booking (NID verification)."
@@ -273,7 +280,47 @@
     "appointments": {
       "title": "My appointments",
       "description": "View upcoming and past appointments.",
-      "empty": "No appointments yet."
+      "empty": "No appointments yet.",
+      "cancel": "Cancel appointment",
+      "reschedule": "Reschedule appointment",
+      "chooseSlot": "Choose a new slot",
+      "close": "Close",
+      "loadSlots": "Load slots",
+      "noRescheduleSlots": "No alternate slots available in the selected range.",
+      "confirmReschedule": "Confirm reschedule"
+    },
+    "admin": {
+      "title": "Admin tools",
+      "description": "Seed clinics, doctors, and appointment slots, and verify NIDs at reception.",
+      "bootstrapTitle": "Seed demo data",
+      "bootstrapBody": "Creates clinics, providers, and bookable slots for end-to-end portal testing.",
+      "adminKey": "Admin key",
+      "bootstrapAction": "Seed data",
+      "bootstrapSuccess": "Bootstrap complete. Created:",
+      "verifyTitle": "Reception NID activation",
+      "verifyBody": "Use this to activate an account after checking the national ID at reception.",
+      "verifyAction": "Activate NID",
+      "verifySuccess": "Account activated.",
+      "scheduleTitle": "Schedule management",
+      "scheduleBody": "View slots, add new slots, and remove unbooked slots.",
+      "slotDate": "Slot date",
+      "slotTime": "Slot time",
+      "durationMinutes": "Duration (min)",
+      "capacity": "Capacity",
+      "createSlot": "Add slot",
+      "deleteSlot": "Delete",
+      "noSlots": "No slots in the selected range.",
+      "slotCountSuffix": "slots",
+      "anyDoctor": "Any doctor",
+      "createSuccess": "Slot added.",
+      "deleteSuccess": "Slot deleted.",
+      "slotTable": {
+        "startAt": "Start",
+        "capacity": "Capacity",
+        "reference": "Reference"
+      },
+      "refreshSlots": "Refresh slots",
+      "loadSlots": "Load slots"
     }
   }
 }

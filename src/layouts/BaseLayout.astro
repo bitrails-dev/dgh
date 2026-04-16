@@ -1,6 +1,5 @@
 ---
 import "../styles/global.css";
-import SidebarLayout from './SidebarLayout.astro';
 
 interface Props {
   lang?: "ar" | "en";
@@ -101,9 +100,7 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
       {lang === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
     </a>
 
-    <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={currentPath}>
-      <slot />
-    </SidebarLayout>
+    <slot />
 
     <!-- Back to top -->
     <button

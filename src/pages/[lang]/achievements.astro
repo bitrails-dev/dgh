@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../layouts/SidebarLayout.astro';
+import TheFooter from '../../components/layout/TheFooter.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import AchievementsTimeline from '../../components/sections/AchievementsTimeline.vue';
 import { getCollection } from 'astro:content';
@@ -29,6 +31,11 @@ const items = sorted.map((a) => ({
 }));
 ---
 <BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/achievements`} title={`${strings.achievements.title} | ${strings.site.name}`} description={strings.achievements.subtitle}>
-  <PageHeader title={strings.achievements.title} subtitle={strings.achievements.subtitle} />
-  <AchievementsTimeline items={items} lang={lang} strings={strings} client:visible />
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/achievements`}>
+    <div class="px-6 py-8">
+      <PageHeader title={strings.achievements.title} subtitle={strings.achievements.subtitle} />
+      <AchievementsTimeline items={items} lang={lang} strings={strings} client:visible />
+    </div>
+    <TheFooter lang={lang} strings={strings} />
+  </SidebarLayout>
 </BaseLayout>

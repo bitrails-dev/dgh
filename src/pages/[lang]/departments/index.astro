@@ -1,5 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import CardDepartment from '../../../components/ui/CardDepartment.astro';
 import { getCollection } from 'astro:content';
@@ -20,16 +22,21 @@ const breadcrumbs = [
 const departments = await getCollection('departments');
 ---
 <BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/departments`} title={`${strings.departments.title} | ${strings.site.name}`} description={strings.departments.subtitle}>
-  <PageHeader title={strings.departments.title} subtitle={strings.departments.subtitle} />
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/departments`}>
+    <div class="px-6 py-8">
+      <PageHeader title={strings.departments.title} subtitle={strings.departments.subtitle} />
 
-  <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-    {departments.map((dept) => (
-      <CardDepartment
-        dept={dept}
-        lang={lang}
-        centerLabel={strings.departments.centerOfExcellence}
-        linkLabel={strings.links.viewDepartment}
-      />
-    ))}
-  </div>
+      <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {departments.map((dept) => (
+          <CardDepartment
+            dept={dept}
+            lang={lang}
+            centerLabel={strings.departments.centerOfExcellence}
+            linkLabel={strings.links.viewDepartment}
+          />
+        ))}
+      </div>
+    </div>
+    <TheFooter lang={lang} strings={strings} />
+  </SidebarLayout>
 </BaseLayout>

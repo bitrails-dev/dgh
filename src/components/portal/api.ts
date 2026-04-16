@@ -36,5 +36,38 @@ export const portalApi = {
     return request<{ slots: any[] }>(`/v1/slots?${qs}`);
   },
   createAppointment: (payload: any) => request<{ appointment: any }>("/v1/appointments", { method: "POST", body: JSON.stringify(payload) }),
+  cancelAppointment: (payload: { appointment_id: string }) => request<{ ok: boolean }>("/v1/appointments/cancel", { method: "POST", body: JSON.stringify(payload) }),
+  rescheduleAppointment: (payload: { appointment_id: string; slot_id: string }) => request<{ ok: boolean }>("/v1/appointments/reschedule", { method: "POST", body: JSON.stringify(payload) }),
   appointments: () => request<{ appointments: any[] }>("/v1/appointments"),
+  bootstrapDemo: (adminKey: string) =>
+    request<{ ok: boolean; seeded: { clinics: number; providers: number; slots: number; visitTypes: number } }>("/v1/admin/bootstrap-demo", {
+      method: "POST",
+      headers: { "X-Admin-Key": adminKey },
+      body: "{}",
+    }),
+  verifyReception: (adminKey: string, nid: string) =>
+    request<{ ok: boolean }>("/v1/admin/reception/verify", {
+      method: "POST",
+      headers: { "X-Admin-Key": adminKey },
+      body: JSON.stringify({ nid }),
+    }),
+  adminSlots: (adminKey: string, params: Record<string, string>) => {
+    const qs = new URLSearchParams(params).toString();
+    return request<{ slots: any[] }>(`/v1/admin/slots?${qs}`, {
+      headers: { "X-Admin-Key": adminKey },
+    });
+  },
+  createAdminSlot: (adminKey: string, payload: any) =>
+    request<{ ok: boolean; slot: any }>("/v1/admin/slots", {
+      method: "POST",
+      headers: { "X-Admin-Key": adminKey },
+      body: JSON.stringify(payload),
+    }),
+  deleteAdminSlot: (adminKey: string, slotId: string) =>
+    request<{ ok: boolean }>("/v1/admin/slots/delete", {
+      method: "POST",
+      headers: { "X-Admin-Key": adminKey },
+      body: JSON.stringify({ slot_id: slotId }),
+    }),
 };
+

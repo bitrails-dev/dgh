@@ -15,6 +15,7 @@
         <a :href="`/${lang}/portal/`" class="hover:text-primary">{{ strings.portal.nav.home }}</a>
         <a :href="`/${lang}/portal/book/`" class="hover:text-primary">{{ strings.portal.nav.book }}</a>
         <a :href="`/${lang}/portal/appointments/`" class="hover:text-primary">{{ strings.portal.nav.appointments }}</a>
+        <a :href="`/${lang}/portal/admin/`" class="hover:text-primary">{{ strings.portal.nav.admin }}</a>
       </nav>
 
       <div class="flex items-center gap-2">
