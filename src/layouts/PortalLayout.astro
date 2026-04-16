@@ -1,0 +1,24 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import PortalNav from "../components/portal/PortalNav.vue";
+import TheFooter from "../components/layout/TheFooter.astro";
+
+interface Props {
+  lang: "ar" | "en";
+  strings: any;
+  title: string;
+  description: string;
+  noindex?: boolean;
+}
+
+const { lang, strings, title, description, noindex = true } = Astro.props;
+---
+<BaseLayout lang={lang} title={title} description={description} noindex={noindex}>
+  <PortalNav lang={lang} strings={strings} client:load />
+  <section class="pt-24">
+    <div class="container mx-auto px-4">
+      <slot />
+    </div>
+  </section>
+  <TheFooter lang={lang} strings={strings} />
+</BaseLayout>

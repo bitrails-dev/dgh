@@ -194,5 +194,85 @@
     "expand": "Expand menu",
     "collapse": "Collapse menu",
     "emergency": "Emergency"
-  }
-}
+  },
+  "portal": {
+    "title": "Patient Portal",
+    "description": "Book and manage appointments using your mobile number and national ID.",
+    "loading": "Loading...",
+    "signedOut": "Sign in to manage your appointments or book a new one.",
+    "welcome": "Welcome",
+    "minutes": "min",
+    "nav": {
+      "home": "Home",
+      "book": "Book",
+      "appointments": "My appointments",
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "signUp": "Create account"
+    },
+    "banner": {
+      "pendingVerification": "Reception activation is required before booking (NID verification)."
+    },
+    "status": {
+      "verified": "Your account is active and you can book.",
+      "pending": "Your account is not active yet."
+    },
+    "fields": {
+      "nid": "National ID",
+      "fullNameAr": "Full name (Arabic)",
+      "dob": "Date of birth",
+      "gender": "Gender",
+      "mobile": "Mobile",
+      "otp": "OTP",
+      "clinic": "Clinic",
+      "doctor": "Doctor",
+      "visitType": "Visit type",
+      "dateFrom": "From",
+      "dateTo": "To"
+    },
+    "placeholders": {
+      "mobile": "e.g., 01xxxxxxxxx",
+      "otp": "Enter code",
+      "nid": "Enter NID",
+      "fullNameAr": "Enter name",
+      "select": "Select"
+    },
+    "gender": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "signIn": {
+      "title": "Sign in",
+      "description": "Sign in using your mobile number.",
+      "requestOtp": "Send code",
+      "verifyOtp": "Verify code",
+      "noAccount": "No account?"
+    },
+    "signUp": {
+      "title": "Create account",
+      "description": "Create your account, then activate it at reception.",
+      "submit": "Create account",
+      "otpSent": "A verification code was sent to your mobile.",
+      "verify": "Verify code",
+      "haveAccount": "Already have an account?"
+    },
+    "book": {
+      "title": "Book appointment",
+      "description": "Pick a clinic/doctor and choose an available slot.",
+      "search": "Show available slots",
+      "availableSlots": "Available slots",
+      "noSlots": "No slots available in the selected range.",
+      "remaining": "Remaining",
+      "success": "Booked successfully. Reference",
+      "mode": {
+        "label": "Booking mode",
+        "byClinic": "By clinic",
+        "byDoctor": "By doctor"
+      }
+    },
+    "appointments": {
+      "title": "My appointments",
+      "description": "View upcoming and past appointments.",
+      "empty": "No appointments yet."
+    }
+  }\n}

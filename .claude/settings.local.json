@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /d/WORKSPACE/projects/hospital/codex/src/pages/[lang]/news/)",
+      "Bash(ls -la /d/WORKSPACE/projects/hospital/codex/src/pages/[lang]/articles/)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
+    ]
+  }
+}

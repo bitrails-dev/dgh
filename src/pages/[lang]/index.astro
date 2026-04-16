@@ -9,7 +9,6 @@ import AchievementsSection from "../../components/sections/AchievementsSection.a
 import DepartmentsSection from "../../components/sections/DepartmentsSection.astro";
 import TeamSection from "../../components/sections/TeamSection.astro";
 import TestimonialsSection from "../../components/sections/TestimonialsSection.vue";
-import NewsSection from "../../components/sections/NewsSection.astro";
 import ContactSection from "../../components/sections/ContactSection.vue";
 import { getStrings } from "../../i18n";
 
@@ -35,7 +34,6 @@ const breadcrumbs = [
     <DepartmentsSection lang={lang} strings={strings} />
     <TeamSection lang={lang} strings={strings} />
     <TestimonialsSection strings={strings} items={strings.testimonials.items} client:visible />
-    <NewsSection lang={lang} strings={strings} />
     <ContactSection strings={strings} lang={lang} client:visible />
     <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
