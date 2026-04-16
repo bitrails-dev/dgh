@@ -1,6 +1,5 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
-import TheNavbar from "../../../components/layout/TheNavbar.vue";
 import TheFooter from "../../../components/layout/TheFooter.astro";
 import WaveDivider from "../../../components/layout/WaveDivider.astro";
 import { getCollection } from "astro:content";
@@ -25,8 +24,7 @@ const specialty = lang === "ar" ? entry.data.specialtyAr : entry.data.specialty;
 const bio = lang === "ar" ? entry.data.bioAr : entry.data.bio;
 const basePath = `/${lang}`;
 ---
-<BaseLayout lang={lang} title={`${name} — ${strings.site.name}`} description={bio} ogImage={entry.data.photo}>
-  <TheNavbar lang={lang} strings={strings} client:load />
+<BaseLayout lang={lang} title={`${name} — ${strings.site.name}`} description={bio} ogImage={entry.data.photo} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.team }]} currentPath={`/${lang}/doctors/${entry.id}`}>
 
   <!-- Hero banner -->
   <section class="bg-primary text-white section-stripes py-20">
@@ -35,7 +33,7 @@ const basePath = `/${lang}`;
       <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
         <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
         <span aria-hidden="true">/</span>
-        <a href={`${basePath}/#team`} class="hover:text-accent transition-colors">{strings.nav.team}</a>
+        <a href={`/${lang}/team`} class="hover:text-accent transition-colors">{strings.nav.team}</a>
         <span aria-hidden="true">/</span>
         <span class="text-white/90">{name}</span>
       </nav>
@@ -76,7 +74,7 @@ const basePath = `/${lang}`;
             {lang === "ar" ? "تواصل مع المستشفى لحجز موعد مع الدكتور" : "Contact the hospital to schedule an appointment"}
           </p>
           <a
-            href={`${basePath}/#contact`}
+            href={`/${lang}/contact`}
             class="mt-4 flex items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-primary transition-transform hover:-translate-y-0.5"
           >
             {lang === "ar" ? "تواصل معنا" : "Contact Us"}
@@ -133,7 +131,7 @@ const basePath = `/${lang}`;
 
     <!-- Back link -->
     <div class="mt-10">
-      <a href={`${basePath}/#team`} class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-secondary transition-colors">
+      <a href={`/${lang}/team`} class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-secondary transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
         {lang === "ar" ? "العودة إلى الفريق الطبي" : "Back to Medical Team"}
       </a>
