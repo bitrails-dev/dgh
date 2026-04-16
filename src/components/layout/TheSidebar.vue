@@ -1,9 +1,9 @@
 <template>
-  <!-- Mobile backdrop -->
+  <!-- Mobile + tablet backdrop -->
   <Transition name="fade">
     <div
       v-if="uiStore.mobileMenuOpen"
-      class="fixed inset-0 z-40 bg-black/40 md:hidden"
+      class="fixed inset-0 z-40 bg-black/40 xl:hidden"
       @click="uiStore.closeMenu"
     />
   </Transition>
@@ -12,10 +12,8 @@
     ref="sidebarEl"
     class="sidebar-root"
     :class="sidebarClasses"
-    @mouseenter="onMouseEnter"
-    @mouseleave="onMouseLeave"
   >
-    <!-- Logo -->
+    <!-- Logo + close/collapse button -->
     <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-4">
       <a :href="`/${lang}/`" class="flex items-center gap-3 group min-w-0">
         <img
@@ -31,14 +29,27 @@
         </span>
       </a>
 
-      <!-- Mobile close -->
+      <!-- Mobile/tablet close -->
       <button
-        v-if="isMobile"
+        v-if="isMobile || isTablet"
         class="ms-auto rounded-lg p-1.5 text-muted hover:text-primary"
         :aria-label="strings.sidebar?.collapse ?? 'Close'"
         @click="uiStore.closeMenu"
       >
         <X class="h-5 w-5" />
+      </button>
+
+      <!-- Desktop collapse toggle -->
+      <button
+        v-if="isDesktop"
+        class="ms-auto rounded-lg p-1.5 text-muted hover:text-primary transition-colors"
+        :aria-label="desktopCollapsed ? (strings.sidebar?.expand ?? 'Expand') : (strings.sidebar?.collapse ?? 'Collapse')"
+        @click="toggleDesktop"
+      >
+        <ChevronLeft
+          class="h-5 w-5 transition-transform duration-300"
+          :class="desktopCollapsed ? 'rtl:rotate-0 rotate-180' : 'rtl:rotate-180'"
+        />
       </button>
     </div>
 
@@ -58,6 +69,7 @@
         <li v-for="item in navItems" :key="item.id">
           <a
             :href="item.href"
+            :title="!showLabels ? item.label : undefined"
             class="nav-link flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
             :class="isActive(item.href)
               ? 'active-link bg-[rgba(212,168,67,0.08)] text-primary border-inline-start-3 border-accent'
@@ -75,6 +87,7 @@
     <div class="mt-auto border-t border-gray-100 px-3 py-4">
       <a
         href="tel:12345"
+        :title="!showLabels ? (strings.sidebar?.emergency ?? strings.nav?.emergency) : undefined"
         class="flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-white"
         :class="showLabels ? '' : 'justify-center'"
       >
@@ -102,6 +115,7 @@ import {
   CalendarDays,
   Phone,
   X,
+  ChevronLeft,
 } from 'lucide-vue-next';
 import { useLocaleStore } from '../../stores/locale';
 import { useUiStore } from '../../stores/ui';
@@ -115,13 +129,16 @@ const props = defineProps<{
 const localeStore = useLocaleStore();
 const uiStore = useUiStore();
 const sidebarEl = ref<HTMLElement | null>(null);
-const hovered = ref(false);
 const windowWidth = ref(1280);
+const desktopCollapsed = ref(false);
 
 const isMobile = computed(() => windowWidth.value < 768);
 const isTablet = computed(() => windowWidth.value >= 768 && windowWidth.value < 1280);
-const isExpanded = computed(() => windowWidth.value >= 1280);
-const showLabels = computed(() => isExpanded.value || hovered.value || uiStore.mobileMenuOpen);
+const isDesktop = computed(() => windowWidth.value >= 1280);
+const showLabels = computed(() => {
+  if (isMobile.value || isTablet.value) return uiStore.mobileMenuOpen;
+  return !desktopCollapsed.value;
+});
 
 const navItems = computed(() => [
   { id: 'home',          href: `/${props.lang}/`,              label: props.strings.nav?.home,          icon: Home },
@@ -143,17 +160,16 @@ function isActive(href: string): boolean {
 }
 
 function onNavClick() {
-  if (isMobile.value) {
+  if (isMobile.value || isTablet.value) {
     uiStore.closeMenu();
   }
 }
 
-function onMouseEnter() {
-  if (isExpanded.value) hovered.value = true;
-}
-
-function onMouseLeave() {
-  if (isExpanded.value) hovered.value = false;
+function toggleDesktop() {
+  desktopCollapsed.value = !desktopCollapsed.value;
+  try {
+    localStorage.setItem('sidebar-collapsed', String(desktopCollapsed.value));
+  } catch {}
 }
 
 function toggleLocale() {
@@ -175,7 +191,6 @@ function onResize() {
   windowWidth.value = window.innerWidth;
 }
 
-// Listen for toggle-sidebar custom event from TheTopBar
 function onToggleSidebar() {
   uiStore.toggleMenu();
 }
@@ -184,6 +199,9 @@ onMounted(() => {
   localeStore.init();
   if (typeof window !== 'undefined') {
     windowWidth.value = window.innerWidth;
+    try {
+      desktopCollapsed.value = localStorage.getItem('sidebar-collapsed') === 'true';
+    } catch {}
     window.addEventListener('resize', onResize, { passive: true });
     window.addEventListener('toggle-sidebar', onToggleSidebar);
   }
@@ -197,7 +215,7 @@ onUnmounted(() => {
 });
 
 const sidebarClasses = computed(() => {
-  // Mobile + tablet drawer (hidden by default, slides in when toggled)
+  // Mobile + tablet: hidden drawer, slides in when toggled
   if (isMobile.value || isTablet.value) {
     return [
       'fixed inset-block-0 z-50 flex w-[240px] flex-col bg-white shadow-deep transition-transform duration-300',
@@ -207,9 +225,10 @@ const sidebarClasses = computed(() => {
       'inset-inline-start-0',
     ];
   }
-  // Full sidebar (xl+) - always visible
+  // Desktop: toggleable between full and compact icon rail
   return [
-    'sticky top-0 z-30 flex h-screen w-[240px] flex-col bg-white border-inline-end border-gray-200',
+    'sticky top-0 z-30 flex h-screen flex-col bg-white border-inline-end border-gray-200 transition-all duration-300 overflow-hidden',
+    desktopCollapsed.value ? 'w-16' : 'w-[240px]',
   ];
 });
 </script>
