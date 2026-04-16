@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import SidebarLayout from './SidebarLayout.astro';
 
 interface Props {
   lang?: "ar" | "en";
@@ -7,6 +8,9 @@ interface Props {
   description: string;
   ogImage?: string;
   noindex?: boolean;
+  breadcrumbs?: { label: string; href?: string }[];
+  currentPath?: string;
+  strings?: any;
 }
 
 const {
@@ -15,6 +19,9 @@ const {
   description,
   ogImage = "/images/og-default.svg",
   noindex = false,
+  breadcrumbs,
+  currentPath = Astro.url.pathname,
+  strings = {},
 } = Astro.props;
 
 const dir = lang === "ar" ? "rtl" : "ltr";
@@ -94,9 +101,9 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
       {lang === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
     </a>
 
-    <main id="main-content">
+    <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={currentPath}>
       <slot />
-    </main>
+    </SidebarLayout>
 
     <!-- Back to top -->
     <button
