@@ -32,7 +32,7 @@ const detailPoints = [
 const allDoctors = await getCollection("doctors");
 const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 ---
-<BaseLayout lang={lang} title={`${title} — ${strings.site.name}`} description={description} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.departments }]} currentPath={`/${lang}/departments/${entry.id}`}>
+<BaseLayout lang={lang} strings={strings} title={`${title} — ${strings.site.name}`} description={description} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.departments }]} currentPath={`/${lang}/departments/${entry.id}`}>
 
   <!-- Hero banner -->
   <section class="bg-primary text-white section-stripes py-20">

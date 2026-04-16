@@ -24,7 +24,7 @@ const specialty = lang === "ar" ? entry.data.specialtyAr : entry.data.specialty;
 const bio = lang === "ar" ? entry.data.bioAr : entry.data.bio;
 const basePath = `/${lang}`;
 ---
-<BaseLayout lang={lang} title={`${name} — ${strings.site.name}`} description={bio} ogImage={entry.data.photo} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.team }]} currentPath={`/${lang}/doctors/${entry.id}`}>
+<BaseLayout lang={lang} strings={strings} title={`${name} — ${strings.site.name}`} description={bio} ogImage={entry.data.photo} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.team }]} currentPath={`/${lang}/doctors/${entry.id}`}>
 
   <!-- Hero banner -->
   <section class="bg-primary text-white section-stripes py-20">

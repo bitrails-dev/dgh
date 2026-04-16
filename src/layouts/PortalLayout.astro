@@ -13,7 +13,7 @@ interface Props {
 
 const { lang, strings, title, description, noindex = true } = Astro.props;
 ---
-<BaseLayout lang={lang} title={title} description={description} noindex={noindex}>
+<BaseLayout lang={lang} strings={strings} title={title} description={description} noindex={noindex}>
   <PortalNav lang={lang} strings={strings} client:load />
   <section class="pt-24">
     <div class="container mx-auto px-4">

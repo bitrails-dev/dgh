@@ -104,11 +104,13 @@ const breadcrumbs = [
           )}
 
           <!-- Article body -->
-          <div class="rounded-2xl bg-surface p-8 shadow-soft">
-            <div class="prose prose-sm dark:prose-invert max-w-none text-muted">
-              <article.default />
+          {article.data.body && (
+            <div class="rounded-2xl bg-surface p-8 shadow-soft">
+              <div class="prose prose-sm dark:prose-invert max-w-none text-muted">
+                <p>{article.data.body}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           <!-- Back link -->
           <div>

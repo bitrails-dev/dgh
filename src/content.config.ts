@@ -12,6 +12,7 @@ const articles = defineCollection({
     category: z.enum(["hospital-news", "health-tips", "research", "events"]),
     thumbnail: z.string(),
     featured: z.boolean().default(false),
+    body: z.string().optional(),
   }),
 });
 

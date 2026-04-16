@@ -275,4 +275,5 @@
       "description": "View upcoming and past appointments.",
       "empty": "No appointments yet."
     }
-  }\n}
+  }
+}
