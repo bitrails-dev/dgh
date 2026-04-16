@@ -119,7 +119,7 @@ const hovered = ref(false);
 const windowWidth = ref(1280);
 
 const isMobile = computed(() => windowWidth.value < 768);
-const isCollapsed = computed(() => windowWidth.value >= 768 && windowWidth.value < 1280);
+const isTablet = computed(() => windowWidth.value >= 768 && windowWidth.value < 1280);
 const isExpanded = computed(() => windowWidth.value >= 1280);
 const showLabels = computed(() => isExpanded.value || hovered.value || uiStore.mobileMenuOpen);
 
@@ -149,11 +149,11 @@ function onNavClick() {
 }
 
 function onMouseEnter() {
-  if (isCollapsed.value) hovered.value = true;
+  if (isExpanded.value) hovered.value = true;
 }
 
 function onMouseLeave() {
-  if (isCollapsed.value) hovered.value = false;
+  if (isExpanded.value) hovered.value = false;
 }
 
 function toggleLocale() {
@@ -197,8 +197,8 @@ onUnmounted(() => {
 });
 
 const sidebarClasses = computed(() => {
-  // Mobile drawer
-  if (isMobile.value) {
+  // Mobile + tablet drawer (hidden by default, slides in when toggled)
+  if (isMobile.value || isTablet.value) {
     return [
       'fixed inset-block-0 z-50 flex w-[240px] flex-col bg-white shadow-deep transition-transform duration-300',
       uiStore.mobileMenuOpen
@@ -207,14 +207,7 @@ const sidebarClasses = computed(() => {
       'inset-inline-start-0',
     ];
   }
-  // Collapsed rail (md–lg)
-  if (isCollapsed.value) {
-    return [
-      'sticky top-0 z-30 flex h-screen flex-col bg-white border-inline-end border-gray-200 transition-all duration-300 overflow-hidden',
-      hovered.value ? 'w-[240px] shadow-layered' : 'w-16',
-    ];
-  }
-  // Full sidebar (xl+)
+  // Full sidebar (xl+) - always visible
   return [
     'sticky top-0 z-30 flex h-screen w-[240px] flex-col bg-white border-inline-end border-gray-200',
   ];
