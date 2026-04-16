@@ -1,0 +1,29 @@
+---
+import TheSidebar from '../components/layout/TheSidebar.vue';
+import TheTopBar from '../components/layout/TheTopBar.astro';
+import TheFooter from '../components/layout/TheFooter.astro';
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  lang: string;
+  strings: any;
+  breadcrumbs?: BreadcrumbItem[];
+  currentPath: string;
+}
+
+const { lang, strings, breadcrumbs = [], currentPath } = Astro.props;
+---
+<div class="mx-auto flex max-w-[1440px]">
+  <TheSidebar lang={lang} currentPath={currentPath} strings={strings} client:load />
+  <div class="min-h-screen flex-1">
+    <TheTopBar breadcrumbs={breadcrumbs} lang={lang} strings={strings} />
+    <main id="main-content" class="px-6 py-8 lg:px-8">
+      <slot />
+    </main>
+    <TheFooter lang={lang} strings={strings} />
+  </div>
+</div>

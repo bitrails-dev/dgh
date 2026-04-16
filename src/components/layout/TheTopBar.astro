@@ -1,0 +1,113 @@
+---
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface Props {
+  breadcrumbs?: BreadcrumbItem[];
+  lang: string;
+  strings: any;
+}
+
+const { breadcrumbs = [], lang, strings } = Astro.props;
+
+const otherLang = lang === 'ar' ? 'en' : 'ar';
+const currentUrl = Astro.url.pathname;
+const segments = currentUrl.split('/').filter(Boolean);
+const langSwitchUrl = segments.length && (segments[0] === 'ar' || segments[0] === 'en')
+  ? `/${[otherLang, ...segments.slice(1)].join('/')}`
+  : `/${otherLang}${currentUrl}`;
+
+const emergencyNumber = strings.contact?.details?.emergencyNumber ?? '12345';
+
+// JSON-LD BreadcrumbList
+const breadcrumbJsonLd = breadcrumbs.length > 0
+  ? JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbs.map((item, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.label,
+        ...(item.href ? { item: new URL(item.href, Astro.site ?? Astro.url.origin).href } : {}),
+      })),
+    })
+  : null;
+---
+
+<header class="sticky top-0 z-40 border-b border-gray-200 bg-white">
+  <div class="flex items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
+    <!-- Left: Hamburger (mobile) + Breadcrumb -->
+    <div class="flex items-center gap-3 min-w-0">
+      <!-- Hamburger for mobile -->
+      <button
+        id="sidebar-hamburger"
+        class="rounded-lg p-1.5 text-muted hover:text-primary md:hidden"
+        aria-label={strings.sidebar?.expand ?? 'Open menu'}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+
+      {breadcrumbs.length > 0 && (
+        <nav aria-label="Breadcrumb">
+          <ol class="flex flex-wrap items-center gap-1.5 text-sm">
+            {breadcrumbs.map((item, index) => (
+              <li class="flex items-center gap-1.5">
+                {index > 0 && (
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-muted/50 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                )}
+                {index < breadcrumbs.length - 1 && item.href ? (
+                  <a href={item.href} class="text-muted hover:text-primary transition-colors">{item.label}</a>
+                ) : (
+                  <span class="font-medium text-text">{item.label}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
+    </div>
+
+    <!-- Right: Language toggle + Emergency -->
+    <div class="flex items-center gap-2">
+      <!-- Language toggle -->
+      <a
+        href={langSwitchUrl}
+        class="rounded-full border border-primary/20 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+      >
+        {lang === 'ar' ? strings.nav?.toggleToEn : strings.nav?.toggleToAr}
+      </a>
+
+      <!-- Emergency call -->
+      <a
+        href={`tel:${emergencyNumber}`}
+        class="hidden items-center gap-1.5 rounded-full bg-red-600/10 px-3 py-1.5 text-xs font-semibold text-red-700 sm:inline-flex"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+        </svg>
+        <span>{strings.nav?.emergency} {emergencyNumber}</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+{breadcrumbJsonLd && (
+  <script type="application/ld+json" set:html={breadcrumbJsonLd} />
+)}
+
+<script>
+  const hamburger = document.getElementById('sidebar-hamburger');
+  if (hamburger) {
+    hamburger.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('toggle-sidebar'));
+    });
+  }
+</script>
