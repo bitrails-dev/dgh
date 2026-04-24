@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
-import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import CardDoctor from '../../../components/ui/CardDoctor.astro';
 import { getCollection } from 'astro:content';
@@ -81,6 +80,5 @@ const others = doctors.filter((d) => !d.data.featured).sort(sortByOrder);
     </section>
   )}
     </div>
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

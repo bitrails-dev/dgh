@@ -36,14 +36,14 @@ const breadcrumbJsonLd = breadcrumbs.length > 0
   : null;
 ---
 
-<header class="sticky top-0 z-40 border-b border-gray-200 bg-white">
-  <div class="flex items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
+<header data-sidebar-topbar class="sticky top-0 z-40 border-b border-gray-200 bg-white">
+  <div class="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
     <!-- Left: Hamburger (mobile) + Breadcrumb -->
     <div class="flex items-center gap-3 min-w-0">
       <!-- Hamburger for mobile -->
       <button
         id="sidebar-hamburger"
-        class="rounded-lg p-1.5 text-muted hover:text-primary xl:hidden"
+        class="rounded-lg p-1.5 text-muted hover:text-primary"
         aria-label={strings.sidebar?.expand ?? 'Open menu'}
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

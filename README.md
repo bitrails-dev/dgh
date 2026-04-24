@@ -80,3 +80,7 @@ Run the API from `api/` (see `api/README.md`).
 - The schedule editor can then create, list, and delete unbooked slots.
 
 - Patient appointments can be cancelled or rescheduled from the portal.
+
+## Audit Trail
+
+- The portal backend now records audit events for account and scheduling actions.

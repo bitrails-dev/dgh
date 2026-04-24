@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SidebarLayout from "../../layouts/SidebarLayout.astro";
-import TheFooter from "../../components/layout/TheFooter.astro";
 import WaveDivider from "../../components/layout/WaveDivider.astro";
 import HeroSection from "../../components/sections/HeroSection.astro";
 import MissionStrip from "../../components/sections/MissionStrip.astro";
@@ -35,6 +34,5 @@ const breadcrumbs = [
     <TeamSection lang={lang} strings={strings} />
     <TestimonialsSection strings={strings} items={strings.testimonials.items} client:visible />
     <ContactSection strings={strings} lang={lang} client:visible />
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

@@ -1,6 +1,7 @@
 ---
 import TheSidebar from '../components/layout/TheSidebar.vue';
 import TheTopBar from '../components/layout/TheTopBar.astro';
+import TheFooter from '../components/layout/TheFooter.astro';
 
 interface BreadcrumbItem {
   label: string;
@@ -16,12 +17,69 @@ interface Props {
 
 const { lang, strings, breadcrumbs = [], currentPath } = Astro.props;
 ---
-<div class="mx-auto flex max-w-[1440px]">
-  <TheSidebar lang={lang} currentPath={currentPath} strings={strings} client:load />
-  <div class="min-h-screen flex-1 flex flex-col">
-    <TheTopBar breadcrumbs={breadcrumbs} lang={lang} strings={strings} />
-    <main id="main-content">
-      <slot />
-    </main>
-  </div>
+<style is:global>
+  :root {
+    --sidebar-topbar-height: 56px;
+  }
+
+  /* Before Vue hydration, override the SSR mobile-first sidebar classes so desktop
+     gets a sticky sidebar from the very first paint — no slide-in animation.
+     The offset is updated at runtime from the actual topbar height. */
+  @media (min-width: 1280px) {
+    .sidebar-root {
+      position: sticky !important;
+      top: var(--sidebar-topbar-height, 56px) !important;
+      transform: none !important;
+      height: calc(100vh - var(--sidebar-topbar-height, 56px)) !important;
+    }
+  }
+</style>
+
+<!-- Full-width topbar: background spans full viewport, content aligns with layout -->
+<TheTopBar breadcrumbs={breadcrumbs} lang={lang} strings={strings} />
+
+<!-- Sidebar + main content — constrained to max-width, grows to fill remaining height -->
+<div class="mx-auto flex flex-1 w-full max-w-[1440px]">
+  <TheSidebar lang={lang} currentPath={currentPath} strings={strings} client:load transition:persist />
+  <main id="main-content" class="flex-1 min-w-0">
+    <slot />
+  </main>
 </div>
+
+<script>
+  const topbarSelector = '[data-sidebar-topbar]';
+
+  function updateSidebarTopbarHeight() {
+    const topbar = document.querySelector(topbarSelector);
+    if (!topbar) return;
+
+    const height = `${Math.ceil(topbar.getBoundingClientRect().height)}px`;
+    document.documentElement.style.setProperty('--sidebar-topbar-height', height);
+  }
+
+  function bindSidebarTopbarHeight() {
+    updateSidebarTopbarHeight();
+
+    const topbar = document.querySelector(topbarSelector);
+    if (!topbar) return;
+
+    if (!window.__sidebarTopbarHeightObserver) {
+      window.__sidebarTopbarHeightObserver = new ResizeObserver(updateSidebarTopbarHeight);
+    } else {
+      window.__sidebarTopbarHeightObserver.disconnect();
+    }
+
+    window.__sidebarTopbarHeightObserver.observe(topbar);
+  }
+
+  if (!window.__sidebarTopbarHeightObserverReady) {
+    window.__sidebarTopbarHeightObserverReady = true;
+    window.addEventListener('resize', updateSidebarTopbarHeight, { passive: true });
+    document.addEventListener('astro:page-load', bindSidebarTopbarHeight);
+  }
+
+  bindSidebarTopbarHeight();
+</script>
+
+<!-- Full-width footer: background spans full viewport, content aligns with layout -->
+<TheFooter lang={lang} strings={strings} />

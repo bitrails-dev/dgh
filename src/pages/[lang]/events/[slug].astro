@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
-import TheFooter from '../../../components/layout/TheFooter.astro';
 import YouTubeEmbed from '../../../components/ui/YouTubeEmbed.astro';
 import ImageGallery from '../../../components/ui/ImageGallery.vue';
 import WaveDivider from '../../../components/layout/WaveDivider.astro';
@@ -75,7 +74,7 @@ const galleryImages = event.data.gallery?.map((img) => ({
   <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/events/${event.id}`}>
     <!-- Hero banner -->
     <section class="bg-gradient-to-br from-primary/90 to-secondary/90 text-white section-stripes py-16">
-      <div class="container mx-auto px-4">
+      <div class="px-6">
         <div class="flex flex-col gap-4">
           <div class="flex items-center gap-3">
             <span class={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${categoryColors[event.data.category] || 'bg-muted/10 text-muted'}`}>
@@ -92,7 +91,7 @@ const galleryImages = event.data.gallery?.map((img) => ({
     <WaveDivider class="text-background" />
 
     <!-- Main content -->
-    <section class="container mx-auto px-4 py-12">
+    <section class="px-6 py-12">
       <div class="grid gap-8 lg:grid-cols-3">
         <!-- Main column -->
         <div class="lg:col-span-2 space-y-8">
@@ -183,6 +182,5 @@ const galleryImages = event.data.gallery?.map((img) => ({
       </div>
     </section>
 
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

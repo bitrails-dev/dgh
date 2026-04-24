@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../layouts/SidebarLayout.astro';
-import TheFooter from '../../components/layout/TheFooter.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import { getStrings } from '../../i18n';
 import type { Locale } from '../../i18n';
@@ -58,6 +57,5 @@ const breadcrumbs = [
         </div>
       </div>
     </div>
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
-import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import CardDepartment from '../../../components/ui/CardDepartment.astro';
 import { getCollection } from 'astro:content';
@@ -37,6 +36,5 @@ const departments = await getCollection('departments');
         ))}
       </div>
     </div>
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

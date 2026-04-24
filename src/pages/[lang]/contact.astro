@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../layouts/SidebarLayout.astro';
-import TheFooter from '../../components/layout/TheFooter.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import ContactSection from '../../components/sections/ContactSection.vue';
 import { getStrings } from '../../i18n';
@@ -24,6 +23,5 @@ const breadcrumbs = [
       <PageHeader title={strings.contact.title} subtitle={strings.contact.subtitle} />
       <ContactSection lang={lang} strings={strings} client:visible />
     </div>
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

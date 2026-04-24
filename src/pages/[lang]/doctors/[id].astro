@@ -1,7 +1,6 @@
 ---
 import BaseLayout from "../../../layouts/BaseLayout.astro";
 import SidebarLayout from "../../../layouts/SidebarLayout.astro";
-import TheFooter from "../../../components/layout/TheFooter.astro";
 import WaveDivider from "../../../components/layout/WaveDivider.astro";
 import { getCollection } from "astro:content";
 import { getStrings } from "../../../i18n";
@@ -29,7 +28,7 @@ const basePath = `/${lang}`;
 <SidebarLayout lang={lang} strings={strings} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.team }]} currentPath={`/${lang}/doctors/${entry.id}`}>
   <!-- Hero banner -->
   <section class="bg-primary text-white section-stripes py-20">
-    <div class="container mx-auto">
+    <div class="px-6">
       <!-- Breadcrumb -->
       <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
         <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
@@ -52,7 +51,7 @@ const basePath = `/${lang}`;
   <WaveDivider class="text-background" />
 
   <!-- Content -->
-  <section class="container mx-auto py-12">
+  <section class="px-6 py-12">
     <div class="grid gap-10 lg:grid-cols-3">
 
       <!-- Photo + quick contact -->
@@ -139,6 +138,5 @@ const basePath = `/${lang}`;
     </div>
   </section>
 
-  <TheFooter lang={lang} strings={strings} />
 </SidebarLayout>
 </BaseLayout>

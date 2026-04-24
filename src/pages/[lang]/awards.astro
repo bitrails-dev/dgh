@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../layouts/SidebarLayout.astro';
-import TheFooter from '../../components/layout/TheFooter.astro';
 import PageHeader from '../../components/ui/PageHeader.astro';
 import AwardsWall from '../../components/sections/AwardsWall.astro';
 import { getStrings } from '../../i18n';
@@ -24,6 +23,5 @@ const breadcrumbs = [
       <PageHeader title={strings.achievements.awardsTitle} />
       <AwardsWall lang={lang} strings={strings} />
     </div>
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>

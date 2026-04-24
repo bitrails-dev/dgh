@@ -14,7 +14,10 @@
     :class="sidebarClasses"
   >
     <!-- Logo + close/collapse button -->
-    <div class="flex items-center gap-3 border-b border-gray-100 px-4 py-4">
+    <div
+      class="flex items-center border-b border-gray-100 py-4"
+      :class="isDesktop && desktopCollapsed ? 'justify-center gap-2 px-1' : 'gap-3 px-4'"
+    >
       <a :href="`/${lang}/`" class="flex items-center gap-3 group min-w-0">
         <img
           src="/icon.png"
@@ -42,7 +45,8 @@
       <!-- Desktop collapse toggle -->
       <button
         v-if="isDesktop"
-        class="ms-auto rounded-lg p-1.5 text-muted hover:text-primary transition-colors"
+        class="rounded-lg p-1.5 text-muted hover:text-primary transition-colors"
+        :class="desktopCollapsed ? '' : 'ms-auto'"
         :aria-label="desktopCollapsed ? (strings.sidebar?.expand ?? 'Expand') : (strings.sidebar?.collapse ?? 'Collapse')"
         @click="toggleDesktop"
       >
@@ -50,16 +54,6 @@
           class="h-5 w-5 transition-transform duration-300"
           :class="desktopCollapsed ? 'rtl:rotate-0 rotate-180' : 'rtl:rotate-180'"
         />
-      </button>
-    </div>
-
-    <!-- Language toggle -->
-    <div class="px-3 py-2" v-show="showLabels">
-      <button
-        class="w-full rounded-lg border border-primary/20 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
-        @click="toggleLocale"
-      >
-        {{ localeStore.current === 'ar' ? strings.nav?.toggleToEn : strings.nav?.toggleToAr }}
       </button>
     </div>
 
@@ -129,8 +123,12 @@ const props = defineProps<{
 const localeStore = useLocaleStore();
 const uiStore = useUiStore();
 const sidebarEl = ref<HTMLElement | null>(null);
-const windowWidth = ref(1280);
+const windowWidth = ref(0); // 0 = mobile-first SSR (sidebar is fixed/off-screen before hydration)
 const desktopCollapsed = ref(false);
+const isHydrated = ref(false);
+// Tracks the current page path — updated via astro:page-load so the persisted
+// component highlights the correct nav item after View Transition navigations.
+const livePath = ref(props.currentPath);
 
 const isMobile = computed(() => windowWidth.value < 768);
 const isTablet = computed(() => windowWidth.value >= 768 && windowWidth.value < 1280);
@@ -154,7 +152,7 @@ const navItems = computed(() => [
 ]);
 
 function isActive(href: string): boolean {
-  const path = props.currentPath.replace(/\/$/, '') || '/';
+  const path = livePath.value.replace(/\/$/, '') || '/';
   const target = href.replace(/\/$/, '') || '/';
   return path === target;
 }
@@ -172,27 +170,22 @@ function toggleDesktop() {
   } catch {}
 }
 
-function toggleLocale() {
-  const next = localeStore.current === 'ar' ? 'en' : 'ar';
-  localeStore.setLocale(next);
-  if (typeof window === 'undefined') return;
-  const url = new URL(window.location.href);
-  const segments = url.pathname.split('/').filter(Boolean);
-  if (segments.length && (segments[0] === 'ar' || segments[0] === 'en')) {
-    segments[0] = next;
-  } else {
-    segments.unshift(next);
-  }
-  url.pathname = `/${segments.join('/')}`;
-  window.location.href = url.toString();
-}
-
 function onResize() {
   windowWidth.value = window.innerWidth;
 }
 
 function onToggleSidebar() {
-  uiStore.toggleMenu();
+  if (isDesktop.value) {
+    toggleDesktop();
+  } else {
+    uiStore.toggleMenu();
+  }
+}
+
+function onPageLoad() {
+  livePath.value = window.location.pathname;
+  // Close mobile drawer on navigation
+  uiStore.closeMenu();
 }
 
 onMounted(() => {
@@ -204,6 +197,9 @@ onMounted(() => {
     } catch {}
     window.addEventListener('resize', onResize, { passive: true });
     window.addEventListener('toggle-sidebar', onToggleSidebar);
+    document.addEventListener('astro:page-load', onPageLoad);
+    // Enable transitions after initial layout settles to avoid the SSR→hydration animation
+    requestAnimationFrame(() => { isHydrated.value = true; });
   }
 });
 
@@ -211,6 +207,7 @@ onUnmounted(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', onResize);
     window.removeEventListener('toggle-sidebar', onToggleSidebar);
+    document.removeEventListener('astro:page-load', onPageLoad);
   }
 });
 
@@ -218,17 +215,18 @@ const sidebarClasses = computed(() => {
   // Mobile + tablet: hidden drawer, slides in when toggled
   if (isMobile.value || isTablet.value) {
     return [
-      'fixed inset-block-0 z-50 flex w-[240px] flex-col bg-white shadow-deep transition-transform duration-300',
+      'fixed top-0 h-screen z-50 flex w-[240px] flex-col bg-white shadow-deep inset-inline-start-0',
+      isHydrated.value ? 'transition-transform duration-300' : '',
       uiStore.mobileMenuOpen
         ? 'translate-x-0 rtl:translate-x-0'
         : '-translate-x-full rtl:translate-x-full',
-      'inset-inline-start-0',
     ];
   }
   // Desktop: toggleable between full and compact icon rail
   return [
-    'sticky top-0 z-30 flex h-screen flex-col bg-white border-inline-end border-gray-200 transition-all duration-300 overflow-hidden',
-    desktopCollapsed.value ? 'w-16' : 'w-[240px]',
+    'sticky top-[var(--sidebar-topbar-height,56px)] z-30 flex h-[calc(100vh-var(--sidebar-topbar-height,56px))] flex-col bg-white border-inline-end border-gray-200 overflow-hidden',
+    isHydrated.value ? 'transition-all duration-300' : '',
+    desktopCollapsed.value ? 'w-20' : 'w-[240px]',
   ];
 });
 </script>

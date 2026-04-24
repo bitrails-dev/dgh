@@ -1,7 +1,6 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
-import TheFooter from '../../../components/layout/TheFooter.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import FilteredCardGrid from '../../../components/ui/FilteredCardGrid.vue';
 import { getCollection } from 'astro:content';
@@ -61,7 +60,7 @@ const breadcrumbs = [
       />
     </div>
 
-    <section class="container mx-auto px-4 pb-12">
+    <section class="px-6 pb-12">
       <FilteredCardGrid
         client:visible
         items={items}
@@ -72,6 +71,5 @@ const breadcrumbs = [
         cardType="event"
       />
     </section>
-    <TheFooter lang={lang} strings={strings} />
   </SidebarLayout>
 </BaseLayout>
