@@ -12,6 +12,18 @@ export default defineConfig({
 	site,
 	base,
 	output: 'static',
+	server: {
+		host: true,
+		port: 4321,
+	},
+	vite: {
+		optimizeDeps: {
+			force: true,
+		},
+		server: {
+			hmr: { protocol: 'ws' },
+		},
+	},
 	integrations: [
 		sitemap({
 			i18n: {

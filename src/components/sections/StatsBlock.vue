@@ -4,7 +4,7 @@
     class="grid grid-cols-2 sm:grid-cols-4 gap-0 rounded-2xl overflow-hidden"
     :class="dark
       ? 'border border-white/20 bg-white/10 backdrop-blur-md'
-      : 'border border-primary/20 bg-primary/[0.07] backdrop-blur-sm'"
+      : 'border border-navy-900/20 bg-navy-900/[0.07] backdrop-blur-sm'"
   >
     <div
       v-for="(stat, i) in enriched"
@@ -14,17 +14,17 @@
       <!-- Number + suffix inline -->
       <div class="flex items-baseline gap-0.5 leading-none">
         <span
-          class="stat-counter text-4xl font-black text-accent"
+          class="stat-counter text-4xl font-black text-gold"
           :data-target="stat.target"
           :data-decimals="stat.decimals"
         >0</span>
-        <span class="text-3xl font-black text-accent">{{ stat.suffix }}</span>
+        <span class="text-3xl font-black text-gold">{{ stat.suffix }}</span>
       </div>
 
       <!-- Label -->
       <p
         class="text-xs font-semibold leading-tight"
-        :class="dark ? 'text-white/55' : 'text-primary/60'"
+        :class="dark ? 'text-white/55' : 'text-navy-900/60'"
       >
         {{ stat.label }}
       </p>

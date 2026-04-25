@@ -1,53 +1,89 @@
 ---
-import { getCollection } from "astro:content";
-import GoldHeading from "../ui/GoldHeading.astro";
-
 const { lang, strings } = Astro.props;
-const awards = await getCollection("awards");
+const isAr = lang === "ar";
+
+// Static article data using the events section strings + sample data
+const articles = [
+	{
+		category: isAr ? 'تقارير' : 'Reports',
+		date: '2025-03-15',
+		title: isAr ? 'تطوير منظومة العناية المركزة' : 'ICU Modernization Initiative',
+		excerpt: isAr ? 'مشروع شامل لتجديد وتطوير أقسام العناية المركزة بأحدث الأجهزة والتقنيات الطبية.' : 'A comprehensive project to renovate ICU departments with state-of-the-art medical equipment and technology.',
+	},
+	{
+		category: isAr ? 'أبحاث' : 'Research',
+		date: '2025-02-20',
+		title: isAr ? 'إنجاز جراحي فريد في قسم القلب' : 'Landmark Cardiac Surgery Achievement',
+		excerpt: isAr ? 'فريق جراحة القلب يحقق نجاحًا في عملية جراحية معقدة لأول مرة في المنطقة.' : 'The cardiac surgery team succeeds in a complex surgical procedure, a first in the region.',
+	},
+	{
+		category: isAr ? 'أخبار' : 'News',
+		date: '2025-01-10',
+		title: isAr ? 'المستشفى تحصل على اعتماد جديد' : 'Hospital Receives New Accreditation',
+		excerpt: isAr ? 'حصول المستشفى على اعتماد إقليمي جديد يعكس التزامها بمعايير الجودة العالمية.' : 'The hospital earns a new regional accreditation reflecting its commitment to global quality standards.',
+	},
+];
 ---
-<section class="bg-primary text-white section-stripes py-16">
-  <div class="container mx-auto" data-animate="fade">
-    <GoldHeading text={strings.achievements.awardsTitle} class="text-white border-accent" />
-    <div class="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {awards.map((award) => (
-        <div class="group relative overflow-hidden rounded-2xl frosted-card transition-all duration-300 hover:border-accent/80 hover:-translate-y-1">
-          <!-- Shimmer on hover -->
-          <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,rgba(255,255,255,0.15)_50%,transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
 
-          <!-- Badge image area -->
-          <div class="relative h-48 overflow-hidden">
-            {award.data.badgeImage ? (
-              <img
-                src={award.data.badgeImage}
-                alt={strings.achievements.badgeAlt}
-                width="400"
-                height="400"
-                class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                loading="lazy"
-              />
-            ) : (
-              <div class="flex h-full w-full items-center justify-center bg-accent/20">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <circle cx="12" cy="8" r="6"/>
-                  <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/>
-                </svg>
-              </div>
-            )}
-          </div>
+<!-- Articles section -->
+<section class="bg-ivory-50" style="padding: 96px 0;">
+	<div class="container mx-auto">
+		<!-- Section header: split grid -->
+		<div class="grid gap-8 mb-14" style="grid-template-columns: 1fr 1.6fr;">
+			<div>
+				<div class="inline-flex items-center gap-2.5 mb-4">
+					<div class="w-8 h-px bg-teal-600"></div>
+					<p class="h-eyebrow">{isAr ? 'آخر الأخبار' : 'Latest News'}</p>
+				</div>
+				<h2 class="font-display-ar font-medium text-navy-900 leading-none tracking-tight" style="font-size: clamp(36px, 4vw, 56px); line-height: 1.1;">
+					{isAr ? 'مقالات وأخبار' : 'Articles & News'}
+				</h2>
+			</div>
+			<div class="flex items-end">
+				<p class="text-body-lg text-ink-500 leading-relaxed">{strings.events.subtitle}</p>
+			</div>
+		</div>
 
-          <!-- Content -->
-          <div class="p-5">
-            <h3 class="text-lg font-semibold leading-snug">
-              {lang === "ar" ? award.data.nameAr : award.data.name}
-            </h3>
-            <p class="mt-1.5 text-sm text-white/70">{award.data.body}</p>
-            <p class="mt-3 inline-flex items-center rounded-full bg-accent/15 px-3 py-0.5 text-xs font-semibold text-accent">
-              {award.data.year}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-
-  </div>
+		<!-- 3-col articles grid -->
+		<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem;">
+			{articles.map((article) => (
+				<article class="bg-ivory-50 overflow-hidden border border-ink-100 group transition-colors duration-200 hover:bg-white">
+					<!-- Cover with teal gradient -->
+					<div class="relative h-48 overflow-hidden">
+						<div class="absolute inset-0 bg-gradient-to-br from-teal-900 via-teal-700 to-teal-600">
+							<div class="absolute inset-0" style="background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 2px, transparent 2px, transparent 14px)"></div>
+						</div>
+						<!-- Category chip -->
+						<div class="absolute top-4 start-4 bg-white px-3 py-1 rounded-full text-xs font-semibold text-navy-900">
+							{article.category}
+						</div>
+					</div>
+					<!-- Content -->
+					<div class="p-6">
+						<div class="font-mono text-xs text-ink-400 mb-3">{article.date}</div>
+						<h3 class="font-display-ar text-lg font-medium text-navy-900 mb-3 leading-snug">{article.title}</h3>
+						<p class="text-sm text-ink-500 leading-relaxed mb-4 line-clamp-2">{article.excerpt}</p>
+						<div class="mb-2">
+						<a href="#" class="btn-text text-sm">
+							{strings.links.readMore} &rarr;
+						</a>
+					</div>
+					</div>
+				</article>
+			))}
+		</div>
+	</div>
 </section>
+
+<style>
+	@media (max-width: 900px) {
+		div[style*="grid-template-columns: repeat(3"] {
+			grid-template-columns: repeat(2, 1fr) !important;
+		}
+	}
+	@media (max-width: 600px) {
+		div[style*="grid-template-columns: repeat(3"] {
+			grid-template-columns: 1fr !important;
+		}
+	}
+</style>

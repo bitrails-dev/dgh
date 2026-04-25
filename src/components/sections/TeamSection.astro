@@ -1,104 +1,64 @@
 ---
 import { getCollection } from "astro:content";
-import GoldHeading from "../ui/GoldHeading.astro";
-import CardDoctor from "../ui/CardDoctor.astro";
-import CardNurse from "../ui/CardNurse.astro";
+import CardBase from "../ui/CardBase.astro";
+import CardGrid from "../ui/CardGrid.astro";
 
 const { lang, strings } = Astro.props;
+const isAr = lang === "ar";
 const doctors = await getCollection("doctors");
-const nursing = await getCollection("nursing");
 const sortByOrder = (a: any, b: any) => (a.data.order ?? 999) - (b.data.order ?? 999);
 const featured = doctors.filter((doc) => doc.data.featured).sort(sortByOrder);
-const others   = doctors.filter((doc) => !doc.data.featured).sort(sortByOrder);
+const others = doctors.filter((doc) => !doc.data.featured).sort(sortByOrder);
+const displayDoctors = featured.length > 0 ? featured.slice(0, 3) : others.slice(0, 3);
 ---
-<section id="team" class="bg-background py-20">
-  <div class="container mx-auto">
 
-    <div data-animate="fade">
-      <GoldHeading text={strings.team.title} />
-      <p class="mt-4 max-w-2xl text-sm text-muted">{strings.team.subtitle}</p>
-    </div>
+<section id="team" class="bg-ivory-50" style="padding: 96px 0;">
+	<div class="container mx-auto">
+		<!-- Section header: split grid -->
+		<div class="section-header grid gap-8 mb-14" style="grid-template-columns: 1fr 1.6fr;">
+			<div>
+				<div class="inline-flex items-center gap-2.5 mb-4">
+					<div class="w-8 h-px bg-teal-600"></div>
+					<p class="h-eyebrow">{isAr ? 'فريقنا الطبي' : 'Our Medical Team'}</p>
+				</div>
+				<h2 class="font-display-ar font-medium text-navy-900 leading-none tracking-tight" style="font-size: clamp(36px, 4vw, 56px); line-height: 1.1;">
+					{strings.team.title}
+				</h2>
+			</div>
+			<div class="flex items-end">
+				<p class="text-body-lg text-ink-500 leading-relaxed">{strings.team.subtitle}</p>
+			</div>
+		</div>
 
-    <!-- Featured / leadership -->
-    {featured.length > 0 && (
-      <div class="mt-12" data-animate="fade">
-        <h3 class="mb-6 text-lg font-bold text-text">{strings.team.featuredTitle}</h3>
-        <div class="grid gap-6 lg:grid-cols-3">
-          {featured.map((doctor) => {
-            const name      = lang === "ar" ? doctor.data.nameAr    : doctor.data.name;
-            const specialty = lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty;
-            const bio       = lang === "ar" ? doctor.data.bioAr     : doctor.data.bio;
-            const href      = `/${lang}/doctors/${doctor.id}`;
-            return (
-              <article class="group overflow-hidden rounded-2xl bg-surface shadow-layered transition-all duration-300 hover:-translate-y-1 hover:shadow-deep">
-                <div class="relative overflow-hidden">
-                  <img
-                    src={doctor.data.photo}
-                    alt={name}
-                    width="400"
-                    height="240"
-                    class="h-60 w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  {doctor.data.certified && (
-                    <span class="absolute top-3 end-3 inline-flex items-center gap-1 rounded-full bg-accent/90 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
-                      <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-white" aria-hidden="true">
-                        <path d="M12 2l2.9 6.2 6.6.6-5 4.3 1.6 6.4-6.1-3.4-6.1 3.4 1.6-6.4-5-4.3 6.6-.6L12 2z"/>
-                      </svg>
-                      {strings.team.certified}
-                    </span>
-                  )}
-                </div>
-                <div class="p-6">
-                  <h4 class="text-xl font-bold text-text">{name}</h4>
-                  <p class="mt-1 text-sm font-medium text-secondary">{specialty}</p>
-                  <p class="mt-3 text-sm text-muted line-clamp-3">{bio}</p>
-                  <a
-                    href={href}
-                    class="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:gap-3 transition-all"
-                  >
-                    {strings.team.profileLabel}
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                  </a>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </div>
-    )}
-
-    <!-- All other doctors -->
-    {others.length > 0 && (
-      <div class="mt-14" data-animate="fade">
-        <h3 class="mb-6 text-lg font-bold text-text">{strings.team.doctorsTitle}</h3>
-        <div class="grid gap-5 md:grid-cols-2">
-          {others.map((doctor) => (
-            <CardDoctor
-              doctor={doctor}
-              lang={lang}
-              certifiedLabel={strings.team.certified}
-              profileLabel={strings.team.profileLabel}
-              imageAlt={lang === "ar" ? doctor.data.nameAr : doctor.data.name}
-            />
-          ))}
-        </div>
-      </div>
-    )}
-
-    <!-- Nursing staff -->
-    {nursing.length > 0 && (
-      <div class="mt-14" data-animate="fade">
-        <h3 class="mb-6 text-lg font-bold text-text">
-          {lang === "ar" ? "الفريق التمريضي" : "Nursing Team"}
-        </h3>
-        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {nursing.map((staff) => (
-            <CardNurse staff={staff} lang={lang} />
-          ))}
-        </div>
-      </div>
-    )}
-
-  </div>
+		<CardGrid cols={3} gap="md">
+			{displayDoctors.map((doctor) => {
+				const name = isAr ? doctor.data.nameAr : doctor.data.name;
+				const specialty = isAr ? doctor.data.specialtyAr : doctor.data.specialty;
+				const bio = isAr ? doctor.data.bioAr : doctor.data.bio;
+				const href = `/${lang}/doctors/${doctor.id}`;
+				const imageBadge = doctor.data.certified
+					? { label: strings.team.certified, iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }
+					: undefined;
+				return (
+					<CardBase
+						href={href}
+						image={doctor.data.photo}
+						imageAlt={name}
+						title={name}
+						preTitle={specialty}
+						description={bio}
+						ctaLabel={`${strings.team.profileLabel} →`}
+						imageBadge={imageBadge}
+						imageHeight="h-96"
+					/>
+				);
+			})}
+		</CardGrid>
+	</div>
 </section>
+
+<style>
+	@media (max-width: 900px) {
+		.section-header { grid-template-columns: 1fr !important; gap: 16px !important; }
+	}
+</style>

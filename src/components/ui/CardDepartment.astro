@@ -1,29 +1,31 @@
 ---
+import CardBase from './CardBase.astro';
+
 const { dept, lang, centerLabel, linkLabel } = Astro.props;
-const name = lang === "ar" ? dept.data.nameAr : dept.data.name;
-const description = lang === "ar" ? dept.data.descriptionAr : dept.data.description;
+const name = lang === 'ar' ? dept.data.nameAr : dept.data.name;
+const description = lang === 'ar' ? dept.data.descriptionAr : dept.data.description;
 const href = `/${lang}/departments/${dept.id}`;
-const iconPaths = {
-  "heart-pulse": "M12 21s-6.5-4.4-9-8.3C1.2 10.6 1 8 2.5 6.2 4 4.4 6.8 4.1 8.7 5.5L12 8l3.3-2.5c2-1.4 4.7-1.1 6.2.7 1.5 1.8 1.3 4.4-.5 6.5-2.5 3-9 8.3-9 8.3z",
-  stethoscope: "M6 2v5a4 4 0 008 0V2M12 12v2a4 4 0 008 0v-1M20 13a3 3 0 11-6 0 3 3 0 016 0z",
-  radiation: "M12 12a2 2 0 100-4 2 2 0 000 4zm0 2a3.5 3.5 0 01-3.3-2.3l-3.1.8a6.5 6.5 0 005.9 4.5l.5-3zm3.3-4.3a3.5 3.5 0 01-3.3 2.3l.5 3a6.5 6.5 0 005.9-4.5l-3.1-.8zM11 4.1l1 2.8a6.5 6.5 0 00-2.6.7L7.7 4.9a9.5 9.5 0 013.3-.8z",
-  baby: "M12 5a4 4 0 100 8 4 4 0 000-8zm-5.5 9.5a7.5 7.5 0 0111 0M9 8h.01M15 8h.01",
-  scan: "M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M8 12h8",
-  flower: "M12 12a3 3 0 100-6 3 3 0 000 6zm0 0a3 3 0 100 6 3 3 0 000-6zm0 0a3 3 0 10-6 0 3 3 0 006 0zm0 0a3 3 0 106 0 3 3 0 00-6 0z",
+
+const iconPaths: Record<string, string> = {
+  'heart-pulse': 'M12 21s-6.5-4.4-9-8.3C1.2 10.6 1 8 2.5 6.2 4 4.4 6.8 4.1 8.7 5.5L12 8l3.3-2.5c2-1.4 4.7-1.1 6.2.7 1.5 1.8 1.3 4.4-.5 6.5-2.5 3-9 8.3-9 8.3z',
+  stethoscope: 'M6 2v5a4 4 0 008 0V2M12 12v2a4 4 0 008 0v-1M20 13a3 3 0 11-6 0 3 3 0 016 0z',
+  radiation: 'M12 12a2 2 0 100-4 2 2 0 000 4zm0 2a3.5 3.5 0 01-3.3-2.3l-3.1.8a6.5 6.5 0 005.9 4.5l.5-3zm3.3-4.3a3.5 3.5 0 01-3.3 2.3l.5 3a6.5 6.5 0 005.9-4.5l-3.1-.8zM11 4.1l1 2.8a6.5 6.5 0 00-2.6.7L7.7 4.9a9.5 9.5 0 013.3-.8z',
+  baby: 'M12 5a4 4 0 100 8 4 4 0 000-8zm-5.5 9.5a7.5 7.5 0 0111 0M9 8h.01M15 8h.01',
+  scan: 'M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M8 12h8',
+  flower: 'M12 12a3 3 0 100-6 3 3 0 000 6zm0 0a3 3 0 100 6 3 3 0 000-6zm0 0a3 3 0 10-6 0 3 3 0 006 0zm0 0a3 3 0 106 0 3 3 0 00-6 0z',
 };
-const iconPath = iconPaths[dept.data.icon as keyof typeof iconPaths] ?? "M12 2l8 4v6c0 5-3.5 9.7-8 12-4.5-2.3-8-7-8-12V6l8-4z";
+const iconPath = iconPaths[dept.data.icon as string] ?? 'M12 2l8 4v6c0 5-3.5 9.7-8 12-4.5-2.3-8-7-8-12V6l8-4z';
+
+const imageBadge = dept.data.centerOfExcellence
+  ? { label: centerLabel, iconPath: 'M12 2l2.9 6.2 6.6.6-5 4.3 1.6 6.4-6.1-3.4-6.1 3.4 1.6-6.4-5-4.3 6.6-.6L12 2z', color: 'bg-gold/15 text-gold' }
+  : undefined;
 ---
-<article class="group rounded-2xl bg-surface p-6 shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-layered">
-  <div class="flex items-center justify-between">
-    <svg viewBox="0 0 24 24" class="h-9 w-9 text-primary" aria-hidden="true">
-      <path d={iconPath} fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-    {dept.data.centerOfExcellence && <span class="text-xs font-semibold text-accent">{centerLabel}</span>}
-  </div>
-  <h3 class="mt-4 text-xl font-semibold text-text">{name}</h3>
-  <p class="mt-2 text-sm text-muted">{description}</p>
-  <a href={href} class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-secondary">
-    <span>↗</span>
-    <span>{linkLabel}</span>
-  </a>
-</article>
+
+<CardBase
+  href={href}
+  iconPath={iconPath}
+  title={name}
+  description={description}
+  ctaLabel={`${linkLabel} →`}
+  imageBadge={imageBadge}
+/>

@@ -1,10 +1,10 @@
 <template>
   <div class="mx-auto max-w-4xl">
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h1 class="text-xl font-extrabold text-text">{{ strings.portal.book.title }}</h1>
-      <p class="mt-1 text-sm text-muted">{{ strings.portal.book.description }}</p>
+    <div class="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+      <h1 class="text-xl font-extrabold text-ink-900">{{ strings.portal.book.title }}</h1>
+      <p class="mt-1 text-sm text-ink-500">{{ strings.portal.book.description }}</p>
 
-      <div v-if="state === 'loading'" class="mt-6 text-sm text-muted">{{ strings.portal.loading }}</div>
+      <div v-if="state === 'loading'" class="mt-6 text-sm text-ink-500">{{ strings.portal.loading }}</div>
 
       <div v-else class="mt-6 grid gap-6 lg:grid-cols-[360px_1fr]">
         <div class="space-y-4">
@@ -12,19 +12,19 @@
             {{ strings.portal.banner.pendingVerification }}
           </div>
 
-          <div class="rounded-2xl border border-gray-200 p-4">
-            <p class="text-xs font-bold text-text">{{ strings.portal.book.mode.label }}</p>
+          <div class="rounded-2xl border border-ink-200 p-4">
+            <p class="text-xs font-bold text-ink-900">{{ strings.portal.book.mode.label }}</p>
             <div class="mt-2 flex gap-2">
               <button
                 class="flex-1 rounded-xl border px-3 py-2 text-xs font-semibold"
-                :class="mode === 'clinic' ? 'border-primary text-primary bg-primary/5' : 'border-gray-200 text-text'"
+                :class="mode === 'clinic' ? 'border-primary text-navy-900 bg-navy-900/5' : 'border-ink-200 text-ink-900'"
                 @click="mode='clinic'"
               >
                 {{ strings.portal.book.mode.byClinic }}
               </button>
               <button
                 class="flex-1 rounded-xl border px-3 py-2 text-xs font-semibold"
-                :class="mode === 'doctor' ? 'border-primary text-primary bg-primary/5' : 'border-gray-200 text-text'"
+                :class="mode === 'doctor' ? 'border-primary text-navy-900 bg-navy-900/5' : 'border-ink-200 text-ink-900'"
                 @click="mode='doctor'"
               >
                 {{ strings.portal.book.mode.byDoctor }}
@@ -33,7 +33,7 @@
           </div>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.clinic }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.clinic }}</span>
             <select v-model="clinicId" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm">
               <option value="">{{ strings.portal.placeholders.select }}</option>
               <option v-for="c in clinics" :key="c.clinic_id" :value="c.clinic_id">
@@ -43,7 +43,7 @@
           </label>
 
           <label v-if="mode === 'doctor'" class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.doctor }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.doctor }}</span>
             <select v-model="providerId" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :disabled="!clinicId">
               <option value="">{{ strings.portal.placeholders.select }}</option>
               <option v-for="p in providers" :key="p.provider_id" :value="p.provider_id">
@@ -53,7 +53,7 @@
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.visitType }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.visitType }}</span>
             <select v-model="visitTypeId" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm">
               <option value="">{{ strings.portal.placeholders.select }}</option>
               <option v-for="v in visitTypes" :key="v.visit_type_id" :value="v.visit_type_id">
@@ -64,29 +64,29 @@
 
           <div class="grid grid-cols-2 gap-3">
             <label class="block">
-              <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateFrom }}</span>
+              <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dateFrom }}</span>
               <input v-model="dateFrom" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
             </label>
             <label class="block">
-              <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateTo }}</span>
+              <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dateTo }}</span>
               <input v-model="dateTo" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
             </label>
           </div>
 
           <button
-            class="w-full rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            class="w-full rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             :disabled="busy || notVerified || !canSearch"
             @click="searchSlots"
           >
             {{ strings.portal.book.search }}
           </button>
 
-          <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
+          <p v-if="error" class="text-sm text-coral">{{ error }}</p>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 p-4">
-          <p class="text-sm font-bold text-text">{{ strings.portal.book.availableSlots }}</p>
-          <div v-if="slots.length === 0" class="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-muted">
+        <div class="rounded-2xl border border-ink-200 p-4">
+          <p class="text-sm font-bold text-ink-900">{{ strings.portal.book.availableSlots }}</p>
+          <div v-if="slots.length === 0" class="mt-3 rounded-xl border border-ink-200 bg-gray-50 p-4 text-sm text-ink-500">
             {{ strings.portal.book.noSlots }}
           </div>
 
@@ -94,15 +94,15 @@
             <button
               v-for="s in slots"
               :key="s.slot_id"
-              class="w-full rounded-xl border border-gray-200 p-3 text-start hover:border-primary/40"
+              class="w-full rounded-xl border border-ink-200 p-3 text-start hover:border-primary/40"
               :disabled="busy"
               @click="book(s)"
             >
               <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-semibold text-text">{{ s.start_at }}</span>
-                <span class="text-xs text-muted">{{ s.duration_minutes }} {{ strings.portal.minutes }}</span>
+                <span class="text-sm font-semibold text-ink-900">{{ s.start_at }}</span>
+                <span class="text-xs text-ink-500">{{ s.duration_minutes }} {{ strings.portal.minutes }}</span>
               </div>
-              <div class="mt-1 text-xs text-muted">{{ strings.portal.book.remaining }}: {{ s.remaining_capacity }}</div>
+              <div class="mt-1 text-xs text-ink-500">{{ strings.portal.book.remaining }}: {{ s.remaining_capacity }}</div>
             </button>
           </div>
 

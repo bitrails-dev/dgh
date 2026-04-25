@@ -3,6 +3,7 @@
     "name": "Dumyat Public Hospital",
     "nameAr": "مستشفى دمياط العام",
     "initials": "DP",
+    "established": "Est. 1959 · Damietta",
     "tagline": "A national beacon of public health excellence",
     "description": "A prestige showcase of Dumyat Public Hospital, celebrating its medical achievements, people, and public service."
   },
@@ -27,17 +28,18 @@
     "readMore": "Read More"
   },
   "hero": {
-    "label": "Public Health Pillar",
-    "headline": "A hospital built on service, science, and national pride",
-    "subhead": "For decades, Dumyat Public Hospital has carried Egypt's mission of accessible, high-quality healthcare with unwavering dignity and compassion.",
-    "ctaPrimary": "Discover Our Story",
-    "ctaSecondary": "Meet Our Doctors",
+    "label": "Welcome to Damietta General Hospital",
+    "title1": "Care that anchors in",
+    "title2": "human dignity",
+    "subhead": "For more than six decades we have carried the mission of public health at the heart of Damietta — specialized, humane care for every citizen, around the clock, across 28 departments.",
+    "ctaPrimary": "Explore departments",
+    "ctaSecondary": "Meet our doctors",
+    "since": "Serving Damietta since 1959",
     "stats": {
-      "years": "Years of Service",
-      "departments": "Departments",
-      "patients": "Patients Served",
-      "staff": "Dedicated Staff",
-      "awards": "National Awards"
+      "years": "Years in public service",
+      "departments": "Specialized departments",
+      "patients": "Patients treated",
+      "staff": "Doctors & nurses"
     }
   },
   "mission": {

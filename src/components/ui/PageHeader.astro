@@ -1,12 +1,19 @@
 ---
 interface Props {
+  preTitle?: string;
   title: string;
   subtitle?: string;
 }
-const { title, subtitle } = Astro.props;
+const { preTitle, title, subtitle } = Astro.props;
 ---
-<header class="mb-8">
-  <h1 class="text-section font-bold text-primary">{title}</h1>
-  {subtitle && <p class="mt-3 max-w-2xl text-sm text-muted">{subtitle}</p>}
+<header class="mb-10">
+  {preTitle && (
+    <div class="inline-flex items-center gap-2.5 mb-5">
+      <div class="w-8 h-px bg-teal-600"></div>
+      <p class="h-eyebrow">{preTitle}</p>
+    </div>
+  )}
+  <h1 class="font-display-ar text-section font-medium text-navy-900 leading-none tracking-tight">{title}</h1>
+  {subtitle && <p class="mt-3 max-w-2xl text-body text-ink-500">{subtitle}</p>}
   <slot />
 </header>

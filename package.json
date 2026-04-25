@@ -21,6 +21,7 @@
     "astro": "^6.1.5",
     "astro-i18next": "^1.0.0-beta.21",
     "gsap": "^3.14.2",
+    "i18next": "^26.0.7",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^3.0.4",
     "tailwindcss-rtl": "^0.9.0",

@@ -1,28 +1,28 @@
 <template>
   <div class="mx-auto max-w-md">
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h1 class="text-xl font-extrabold text-text">{{ strings.portal.signUp.title }}</h1>
-      <p class="mt-2 text-sm text-muted">{{ strings.portal.signUp.description }}</p>
+    <div class="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+      <h1 class="text-xl font-extrabold text-ink-900">{{ strings.portal.signUp.title }}</h1>
+      <p class="mt-2 text-sm text-ink-500">{{ strings.portal.signUp.description }}</p>
 
       <form class="mt-6 space-y-4" @submit.prevent="onSubmit">
         <label class="block">
-          <span class="text-xs font-semibold text-text">{{ strings.portal.fields.nid }}</span>
+          <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.nid }}</span>
           <input v-model.trim="nid" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :placeholder="strings.portal.placeholders.nid" />
         </label>
 
         <label class="block">
-          <span class="text-xs font-semibold text-text">{{ strings.portal.fields.fullNameAr }}</span>
+          <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.fullNameAr }}</span>
           <input v-model.trim="fullNameAr" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :placeholder="strings.portal.placeholders.fullNameAr" />
         </label>
 
         <div class="grid grid-cols-2 gap-3">
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dob }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dob }}</span>
             <input v-model.trim="dob" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.gender }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.gender }}</span>
             <select v-model="gender" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm">
               <option value="male">{{ strings.portal.gender.male }}</option>
               <option value="female">{{ strings.portal.gender.female }}</option>
@@ -31,12 +31,12 @@
         </div>
 
         <label class="block">
-          <span class="text-xs font-semibold text-text">{{ strings.portal.fields.mobile }}</span>
+          <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.mobile }}</span>
           <input v-model.trim="mobile" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :placeholder="strings.portal.placeholders.mobile" />
         </label>
 
         <button
-          class="w-full rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          class="w-full rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           :disabled="busy || !canSubmit"
           type="submit"
         >
@@ -44,17 +44,17 @@
         </button>
 
         <div v-if="step === 'otp'" class="space-y-3">
-          <div class="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-muted">
+          <div class="rounded-xl border border-ink-200 bg-gray-50 p-3 text-xs text-ink-500">
             {{ strings.portal.signUp.otpSent }}
           </div>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.otp }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.otp }}</span>
             <input v-model.trim="code" inputmode="numeric" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :placeholder="strings.portal.placeholders.otp" />
           </label>
 
           <button
-            class="w-full rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            class="w-full rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             :disabled="busy || code.length < 4"
             type="button"
             @click="verify"
@@ -63,11 +63,11 @@
           </button>
         </div>
 
-        <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
+        <p v-if="error" class="text-sm text-coral">{{ error }}</p>
 
-        <p class="text-xs text-muted">
+        <p class="text-xs text-ink-500">
           {{ strings.portal.signUp.haveAccount }}
-          <a :href="`/${lang}/portal/sign-in/`" class="font-semibold text-primary hover:underline">{{ strings.portal.nav.signIn }}</a>
+          <a :href="`/${lang}/portal/sign-in/`" class="font-semibold text-navy-900 hover:underline">{{ strings.portal.nav.signIn }}</a>
         </p>
       </form>
     </div>

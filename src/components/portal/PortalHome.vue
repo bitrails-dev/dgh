@@ -1,27 +1,27 @@
 <template>
   <div class="mx-auto max-w-3xl">
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h1 class="text-2xl font-extrabold text-text">{{ strings.portal.title }}</h1>
-      <p class="mt-2 text-sm text-muted">{{ strings.portal.description }}</p>
+    <div class="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+      <h1 class="text-2xl font-extrabold text-ink-900">{{ strings.portal.title }}</h1>
+      <p class="mt-2 text-sm text-ink-500">{{ strings.portal.description }}</p>
 
-      <div v-if="state === 'loading'" class="mt-6 text-sm text-muted">{{ strings.portal.loading }}</div>
+      <div v-if="state === 'loading'" class="mt-6 text-sm text-ink-500">{{ strings.portal.loading }}</div>
 
       <div v-else-if="state === 'signed_out'" class="mt-6">
-        <p class="text-sm text-text">{{ strings.portal.signedOut }}</p>
+        <p class="text-sm text-ink-900">{{ strings.portal.signedOut }}</p>
         <div class="mt-4 flex flex-wrap gap-2">
-          <a :href="`/${lang}/portal/sign-in/`" class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white">
+          <a :href="`/${lang}/portal/sign-in/`" class="rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white">
             {{ strings.portal.nav.signIn }}
           </a>
-          <a :href="`/${lang}/portal/sign-up/`" class="rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary">
+          <a :href="`/${lang}/portal/sign-up/`" class="rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-navy-900">
             {{ strings.portal.nav.signUp }}
           </a>
         </div>
       </div>
 
       <div v-else class="mt-6">
-        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-          <p class="text-sm font-semibold text-text">{{ strings.portal.welcome }}</p>
-          <p class="mt-1 text-sm text-muted">
+        <div class="rounded-xl border border-ink-200 bg-gray-50 p-4">
+          <p class="text-sm font-semibold text-ink-900">{{ strings.portal.welcome }}</p>
+          <p class="mt-1 text-sm text-ink-500">
             <span v-if="verificationStatus === 'verified'">{{ strings.portal.status.verified }}</span>
             <span v-else>{{ strings.portal.status.pending }}</span>
           </p>
@@ -30,19 +30,19 @@
         <div class="mt-4 grid gap-3 sm:grid-cols-2">
           <a
             :href="`/${lang}/portal/book/`"
-            class="rounded-2xl border border-gray-200 bg-white p-4 hover:border-primary/40 hover:shadow-sm"
+            class="rounded-2xl border border-ink-200 bg-white p-4 hover:border-primary/40 hover:shadow-sm"
             :class="verificationStatus !== 'verified' ? 'opacity-60 pointer-events-none' : ''"
           >
-            <p class="text-sm font-bold text-text">{{ strings.portal.nav.book }}</p>
-            <p class="mt-1 text-xs text-muted">{{ strings.portal.book.description }}</p>
+            <p class="text-sm font-bold text-ink-900">{{ strings.portal.nav.book }}</p>
+            <p class="mt-1 text-xs text-ink-500">{{ strings.portal.book.description }}</p>
           </a>
 
           <a
             :href="`/${lang}/portal/appointments/`"
-            class="rounded-2xl border border-gray-200 bg-white p-4 hover:border-primary/40 hover:shadow-sm"
+            class="rounded-2xl border border-ink-200 bg-white p-4 hover:border-primary/40 hover:shadow-sm"
           >
-            <p class="text-sm font-bold text-text">{{ strings.portal.nav.appointments }}</p>
-            <p class="mt-1 text-xs text-muted">{{ strings.portal.appointments.description }}</p>
+            <p class="text-sm font-bold text-ink-900">{{ strings.portal.nav.appointments }}</p>
+            <p class="mt-1 text-xs text-ink-500">{{ strings.portal.appointments.description }}</p>
           </a>
         </div>
 

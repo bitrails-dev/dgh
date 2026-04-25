@@ -1,27 +1,63 @@
 ---
-import { getCollection } from "astro:content";
-import GoldHeading from "../ui/GoldHeading.astro";
-import AchievementsTimeline from "./AchievementsTimeline.vue";
-import AwardsWall from "./AwardsWall.astro";
-
 const { lang, strings } = Astro.props;
-const achievements = await getCollection("achievements");
-const timelineItems = achievements
-  .sort((a, b) => a.data.year - b.data.year)
-  .map((entry) => ({
-    year: entry.data.year,
-    title: lang === "ar" ? entry.data.titleAr : entry.data.title,
-    description: lang === "ar" ? entry.data.descriptionAr : entry.data.description,
-  }));
+const isAr = lang === 'ar';
+
+const stats = [
+	{ value: isAr ? '٦٧' : '67', unit: '+', label: strings.hero.stats.years },
+	{ value: isAr ? '٢٨' : '28', unit: '', label: strings.hero.stats.departments },
+	{ value: isAr ? '١٫٢' : '1.2', unit: isAr ? 'م+' : 'M+', label: strings.hero.stats.patients },
+	{ value: isAr ? '٢٤٠٠' : '2,400', unit: '+', label: strings.hero.stats.staff },
+];
 ---
-<section id="achievements" class="bg-background py-20">
-  <div class="container mx-auto">
-    <GoldHeading text={strings.achievements.title} />
-    <p class="mt-4 max-w-2xl text-sm text-muted">{strings.achievements.subtitle}</p>
-    <div class="mt-10">
-      <AchievementsTimeline items={timelineItems} client:visible />
-    </div>
-  </div>
+
+<!-- Stats Band -->
+<section class="bg-navy-900 relative overflow-hidden" style="padding: 96px 0;">
+	<!-- Subtle radial gradient overlays -->
+	<div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+		<div class="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full" style="background: radial-gradient(circle, rgba(30,106,102,0.15) 0%, transparent 70%);"></div>
+		<div class="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full" style="background: radial-gradient(circle, rgba(30,106,102,0.1) 0%, transparent 70%);"></div>
+	</div>
+	<!-- Stripes overlay -->
+	<div class="absolute inset-0 pointer-events-none" style="background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0, rgba(255,255,255,0.03) 2px, transparent 2px, transparent 14px);"></div>
+
+	<div class="container mx-auto relative z-10">
+		<!-- Section header -->
+		<div class="text-center mb-20">
+			<div class="inline-flex items-center gap-2.5 mb-4 justify-center">
+				<div class="w-8 h-px bg-teal-400"></div>
+				<p class="text-[13px] uppercase text-teal-400 font-medium tracking-widest">{strings.achievements.statsTitle}</p>
+				<div class="w-8 h-px bg-teal-400"></div>
+			</div>
+			<h2 class="font-display-ar font-medium text-white leading-none tracking-tight" style="font-size: clamp(36px, 4vw, 56px); line-height: 1.1;">
+				{strings.achievements.title}
+			</h2>
+		</div>
+
+		<!-- Stats grid -->
+		<div class="stats-grid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 32px;">
+			{stats.map((s) => (
+				<div class="text-center">
+					<div class="font-display-ar font-medium text-white leading-none" style="font-size: 72px; line-height: 1;">
+						{s.value}<span class="text-teal-400 text-[0.5em]">{s.unit}</span>
+					</div>
+					<div class="text-navy-200 text-[15px] mt-4">{s.label}</div>
+				</div>
+			))}
+		</div>
+	</div>
 </section>
 
-<AwardsWall lang={lang} strings={strings} />
+<style>
+	@media (max-width: 900px) {
+		.stats-grid {
+			grid-template-columns: repeat(2, 1fr) !important;
+			gap: 40px !important;
+		}
+	}
+	@media (max-width: 500px) {
+		.stats-grid {
+			grid-template-columns: 1fr !important;
+			gap: 32px !important;
+		}
+	}
+</style>

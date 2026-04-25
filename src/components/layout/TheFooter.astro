@@ -5,43 +5,44 @@ const { lang, strings } = Astro.props;
 const year = new Date().getFullYear();
 const basePath = `/${lang}`;
 ---
-<footer class="bg-primary text-white">
+<footer class="bg-navy-900 text-navy-200">
   <div class="mx-auto w-full max-w-[1440px] px-6 py-16">
     <div class="grid gap-10 lg:grid-cols-4">
 
       <!-- Brand -->
       <div>
         <div class="flex items-center gap-3">
-          <!-- Hospital cross icon -->
-          <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/20">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <rect x="10" y="3" width="4" height="18" rx="1.5"/>
-              <rect x="3" y="10" width="18" height="4" rx="1.5"/>
-            </svg>
-          </div>
-          <p class="text-xl font-bold leading-tight">{strings.site.name}</p>
+          <svg class="h-10 w-10 flex-shrink-0" viewBox="0 0 100 100" aria-hidden="true">
+            <defs><linearGradient id="footer-hex" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a8f87"/><stop offset="1" stop-color="#112a4d"/></linearGradient></defs>
+            <path d="M50 4 L88 25 L88 75 L50 96 L12 75 L12 25 Z" fill="url(#footer-hex)"/>
+            <path d="M50 4 L88 25 L88 75 L50 96 L12 75 L12 25 Z" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+            <path d="M54 22 L54 56 L34 56 Z" fill="#fff"/>
+            <path d="M56 30 L56 56 L68 56 Z" fill="#fff" opacity="0.55"/>
+            <path d="M14 66 L34 66 L38 58 L44 74 L50 62 L56 70 L62 66 L86 66" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="text-xl font-bold leading-tight text-white">{strings.site.name}</p>
         </div>
-        <p class="mt-3 text-sm text-white/60 leading-relaxed">{strings.site.tagline}</p>
+        <p class="mt-3 text-sm text-navy-200/60 leading-relaxed">{strings.site.tagline}</p>
       </div>
 
       <!-- Quick links -->
       <div>
         <SectionLabel text={strings.footer.quickLinks} class="text-white/70" />
         <ul class="mt-4 space-y-2 text-sm">
-          <li><a href={`/${lang}/about`} class="text-white/70 transition-colors hover:text-accent">{strings.nav.about}</a></li>
-          <li><a href={`/${lang}/departments`} class="text-white/70 transition-colors hover:text-accent">{strings.nav.departments}</a></li>
-          <li><a href={`/${lang}/achievements`} class="text-white/70 transition-colors hover:text-accent">{strings.nav.achievements}</a></li>
-          <li><a href={`/${lang}/team`} class="text-white/70 transition-colors hover:text-accent">{strings.nav.team}</a></li>
-          <li><a href={`/${lang}/events`} class="text-white/70 transition-colors hover:text-accent">{strings.nav.events}</a></li>
-          <li><a href={`${basePath}/privacy`} class="text-white/70 transition-colors hover:text-accent">{strings.footer.privacy}</a></li>
-          <li><a href={`${basePath}/terms`} class="text-white/70 transition-colors hover:text-accent">{strings.footer.terms}</a></li>
+          <li><a href={`/${lang}/about`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.about}</a></li>
+          <li><a href={`/${lang}/departments`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.departments}</a></li>
+          <li><a href={`/${lang}/achievements`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.achievements}</a></li>
+          <li><a href={`/${lang}/team`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.team}</a></li>
+          <li><a href={`/${lang}/events`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.events}</a></li>
+          <li><a href={`${basePath}/privacy`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.footer.privacy}</a></li>
+          <li><a href={`${basePath}/terms`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.footer.terms}</a></li>
         </ul>
       </div>
 
       <!-- Departments -->
       <div>
         <SectionLabel text={strings.footer.departments} class="text-white/70" />
-        <ul class="mt-4 space-y-2 text-sm text-white/60">
+        <ul class="mt-4 space-y-2 text-sm text-navy-200/60">
           {strings.footer.departmentList.map((item) => (
             <li>{item}</li>
           ))}
@@ -51,16 +52,16 @@ const basePath = `/${lang}`;
       <!-- Contact -->
       <div>
         <SectionLabel text={strings.footer.contact} class="text-white/70" />
-        <ul class="mt-4 space-y-2 text-sm text-white/60">
+        <ul class="mt-4 space-y-2 text-sm text-navy-200/60">
           {strings.footer.contactLines.map((item) => (
             <li>{item}</li>
           ))}
         </ul>
         <!-- Emergency badge -->
-        <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-red-600/15 px-3 py-1.5 text-xs font-semibold text-red-400">
+        <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-coral/15 px-3 py-1.5 text-xs font-semibold text-coral">
           <span class="relative flex h-2 w-2">
-            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-            <span class="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-coral opacity-75"></span>
+            <span class="relative inline-flex h-2 w-2 rounded-full bg-coral"></span>
           </span>
           {lang === "ar" ? "طوارئ: 12345" : "Emergency: 12345"}
         </div>
@@ -69,13 +70,13 @@ const basePath = `/${lang}`;
     </div>
 
     <!-- Social + bottom bar -->
-    <div class="mt-10 flex flex-wrap items-center justify-between gap-6 border-t border-white/10 pt-8">
+    <div class="mt-10 flex flex-wrap items-center justify-between gap-6 border-t border-white/8 pt-8">
       <!-- Social icons -->
-      <div class="flex items-center gap-4 text-white/60">
+      <div class="flex items-center gap-4 text-navy-200/60">
         <a
           href="#"
           aria-label={strings.footer.social.facebook}
-          class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-accent hover:text-accent"
+          class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
         >
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true">
             <path d="M13 9h3V6h-3c-2.2 0-4 1.8-4 4v2H7v3h2v6h3v-6h3l1-3h-4v-2c0-.6.4-1 1-1z"/>
@@ -84,7 +85,7 @@ const basePath = `/${lang}`;
         <a
           href="#"
           aria-label={strings.footer.social.x}
-          class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-accent hover:text-accent"
+          class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
         >
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true">
             <path d="M4 4l7.5 8.5L4.5 20H8l5.5-6.3L19 20h3L14 11.4 21.1 4h-3.5l-4.9 5.7L8.1 4H4z"/>
@@ -93,7 +94,7 @@ const basePath = `/${lang}`;
         <a
           href="#"
           aria-label={strings.footer.social.youtube}
-          class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-accent hover:text-accent"
+          class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
         >
           <svg viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor" aria-hidden="true">
             <path d="M22.5 7.2a2.8 2.8 0 00-2-2C18.6 4.7 12 4.7 12 4.7s-6.6 0-8.5.5a2.8 2.8 0 00-2 2A29 29 0 001 12a29 29 0 00.5 4.8 2.8 2.8 0 002 2c1.9.5 8.5.5 8.5.5s6.6 0 8.5-.5a2.8 2.8 0 002-2A29 29 0 0023 12a29 29 0 00-.5-4.8zM10 15.5V8.5l6 3.5-6 3.5z"/>

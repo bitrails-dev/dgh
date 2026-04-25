@@ -1,42 +1,42 @@
 <template>
   <div class="mx-auto max-w-3xl">
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div class="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h1 class="text-xl font-extrabold text-text">{{ strings.portal.appointments.title }}</h1>
-          <p class="mt-1 text-sm text-muted">{{ strings.portal.appointments.description }}</p>
+          <h1 class="text-xl font-extrabold text-ink-900">{{ strings.portal.appointments.title }}</h1>
+          <p class="mt-1 text-sm text-ink-500">{{ strings.portal.appointments.description }}</p>
         </div>
-        <a :href="`/${lang}/portal/book/`" class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white">
+        <a :href="`/${lang}/portal/book/`" class="rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white">
           {{ strings.portal.nav.book }}
         </a>
       </div>
 
-      <div v-if="state === 'loading'" class="mt-6 text-sm text-muted">{{ strings.portal.loading }}</div>
+      <div v-if="state === 'loading'" class="mt-6 text-sm text-ink-500">{{ strings.portal.loading }}</div>
 
       <div v-else class="mt-6 space-y-3">
-        <div v-if="items.length === 0" class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-muted">
+        <div v-if="items.length === 0" class="rounded-xl border border-ink-200 bg-gray-50 p-4 text-sm text-ink-500">
           {{ strings.portal.appointments.empty }}
         </div>
 
-        <div v-for="a in items" :key="a.appointment_id" class="rounded-2xl border border-gray-200 p-4">
+        <div v-for="a in items" :key="a.appointment_id" class="rounded-2xl border border-ink-200 p-4">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-sm font-bold text-text">{{ a.reference_number }}</p>
-            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-text">{{ a.status }}</span>
+            <p class="text-sm font-bold text-ink-900">{{ a.reference_number }}</p>
+            <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-ink-900">{{ a.status }}</span>
           </div>
-          <p class="mt-2 text-sm text-text">{{ a.clinic?.name_ar || a.clinic?.name_en }}</p>
-          <p class="mt-1 text-xs text-muted">{{ a.start_at }}</p>
+          <p class="mt-2 text-sm text-ink-900">{{ a.clinic?.name_ar || a.clinic?.name_en }}</p>
+          <p class="mt-1 text-xs text-ink-500">{{ a.start_at }}</p>
 
           <div class="mt-4 flex flex-wrap gap-2">
             <button
               v-if="a.status !== 'cancelled'"
-              class="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-red-700 disabled:opacity-60"
+              class="rounded-xl border border-red-200 px-4 py-2 text-xs font-semibold text-coral disabled:opacity-60"
               :disabled="busy"
               @click="cancel(a.appointment_id)"
             >
               {{ strings.portal.appointments.cancel }}</button>
             <button
               v-if="a.status !== 'cancelled'"
-              class="rounded-xl border border-primary px-4 py-2 text-xs font-semibold text-primary disabled:opacity-60"
+              class="rounded-xl border border-primary px-4 py-2 text-xs font-semibold text-navy-900 disabled:opacity-60"
               :disabled="busy"
               @click="openReschedule(a)"
             >
@@ -44,25 +44,25 @@
             </button>
           </div>
 
-          <div v-if="rescheduleTarget?.appointment_id === a.appointment_id" class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+          <div v-if="rescheduleTarget?.appointment_id === a.appointment_id" class="mt-4 rounded-2xl border border-ink-200 bg-gray-50 p-4">
             <div class="flex items-center justify-between gap-2">
-              <h3 class="text-sm font-bold text-text">{{ strings.portal.appointments.chooseSlot }}</h3>
-              <button class="text-xs font-semibold text-primary" @click="closeReschedule">
+              <h3 class="text-sm font-bold text-ink-900">{{ strings.portal.appointments.chooseSlot }}</h3>
+              <button class="text-xs font-semibold text-navy-900" @click="closeReschedule">
                 {{ strings.portal.appointments.close }}
               </button>
             </div>
 
             <div class="mt-4 grid gap-3 lg:grid-cols-3">
               <label class="block">
-                <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateFrom }}</span>
+                <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dateFrom }}</span>
                 <input v-model="rescheduleFrom" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
               </label>
               <label class="block">
-                <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateTo }}</span>
+                <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dateTo }}</span>
                 <input v-model="rescheduleTo" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
               </label>
               <button
-                class="self-end rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
+                class="self-end rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-navy-900 disabled:opacity-60"
                 :disabled="rescheduleLoading || !rescheduleFrom || !rescheduleTo"
                 @click="loadRescheduleSlots"
               >
@@ -70,9 +70,9 @@
               </button>
             </div>
 
-            <div v-if="rescheduleLoading" class="mt-4 text-sm text-muted">{{ strings.portal.loading }}</div>
+            <div v-if="rescheduleLoading" class="mt-4 text-sm text-ink-500">{{ strings.portal.loading }}</div>
             <div v-else class="mt-4 space-y-2">
-              <div v-if="rescheduleSlots.length === 0" class="rounded-xl border border-dashed border-gray-300 bg-white p-4 text-sm text-muted">
+              <div v-if="rescheduleSlots.length === 0" class="rounded-xl border border-dashed border-gray-300 bg-white p-4 text-sm text-ink-500">
                 {{ strings.portal.appointments.noRescheduleSlots }}
               </div>
 
@@ -80,22 +80,22 @@
                 v-for="slot in rescheduleSlots"
                 :key="slot.slot_id"
                 class="flex w-full items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left text-sm"
-                :class="selectedSlotId === slot.slot_id ? 'border-primary bg-primary/5' : 'border-gray-200 bg-white'"
+                :class="selectedSlotId === slot.slot_id ? 'border-primary bg-navy-900/5' : 'border-ink-200 bg-white'"
                 @click="selectedSlotId = slot.slot_id"
               >
                 <div>
-                  <p class="font-semibold text-text">{{ slot.start_at }}</p>
-                  <p class="mt-1 text-xs text-muted">{{ labelFor(providers, slot.provider_id) }}</p>
+                  <p class="font-semibold text-ink-900">{{ slot.start_at }}</p>
+                  <p class="mt-1 text-xs text-ink-500">{{ labelFor(providers, slot.provider_id) }}</p>
                 </div>
-                <span class="text-xs font-semibold text-muted">{{ slot.remaining_capacity }} {{ strings.portal.remaining }}</span>
+                <span class="text-xs font-semibold text-ink-500">{{ slot.remaining_capacity }} {{ strings.portal.remaining }}</span>
               </button>
             </div>
 
-            <p v-if="rescheduleError" class="mt-4 text-sm text-red-700">{{ rescheduleError }}</p>
+            <p v-if="rescheduleError" class="mt-4 text-sm text-coral">{{ rescheduleError }}</p>
 
             <div class="mt-4 flex justify-end">
               <button
-                class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                class="rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 :disabled="busy || !selectedSlotId"
                 @click="confirmReschedule"
               >
@@ -105,7 +105,7 @@
           </div>
         </div>
 
-        <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
+        <p v-if="error" class="text-sm text-coral">{{ error }}</p>
       </div>
     </div>
   </div>

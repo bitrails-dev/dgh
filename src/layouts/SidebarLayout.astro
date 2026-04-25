@@ -16,70 +16,58 @@ interface Props {
 }
 
 const { lang, strings, breadcrumbs = [], currentPath } = Astro.props;
+
+// Only render breadcrumb strip on sub-pages (2+ items)
+const showBreadcrumb = breadcrumbs.length >= 2;
+
+// JSON-LD BreadcrumbList
+const breadcrumbJsonLd = showBreadcrumb
+  ? JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbs.map((item, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.label,
+        ...(item.href ? { item: new URL(item.href, Astro.site ?? Astro.url.origin).href } : {}),
+      })),
+    })
+  : null;
 ---
-<style is:global>
-  :root {
-    --sidebar-topbar-height: 56px;
-  }
 
-  /* Before Vue hydration, override the SSR mobile-first sidebar classes so desktop
-     gets a sticky sidebar from the very first paint — no slide-in animation.
-     The offset is updated at runtime from the actual topbar height. */
-  @media (min-width: 1280px) {
-    .sidebar-root {
-      position: sticky !important;
-      top: var(--sidebar-topbar-height, 56px) !important;
-      transform: none !important;
-      height: calc(100vh - var(--sidebar-topbar-height, 56px)) !important;
-    }
-  }
-</style>
+<TheTopBar lang={lang} strings={strings} />
 
-<!-- Full-width topbar: background spans full viewport, content aligns with layout -->
-<TheTopBar breadcrumbs={breadcrumbs} lang={lang} strings={strings} />
-
-<!-- Sidebar + main content — constrained to max-width, grows to fill remaining height -->
-<div class="mx-auto flex flex-1 w-full max-w-[1440px]">
-  <TheSidebar lang={lang} currentPath={currentPath} strings={strings} client:load transition:persist />
+<div class="flex flex-1">
+  <TheSidebar lang={lang} currentPath={currentPath} strings={strings} client:load />
   <main id="main-content" class="flex-1 min-w-0">
+    {showBreadcrumb && (
+      <div class="bg-ivory-50 px-6 lg:px-8 py-3">
+        <nav aria-label="Breadcrumb" class="mx-auto flex max-w-[1440px] items-center">
+          <ol class="flex flex-wrap items-center gap-1.5 text-xs text-ink-400">
+            {breadcrumbs.map((item, index) => (
+              <li class="flex items-center gap-1.5">
+                {index > 0 && (
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-ink-300 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                )}
+                {index < breadcrumbs.length - 1 && item.href ? (
+                  <a href={item.href} class="hover:text-teal-700 transition-colors">{item.label}</a>
+                ) : (
+                  <span class="font-medium text-ink-600">{item.label}</span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </div>
+    )}
     <slot />
   </main>
 </div>
 
-<script>
-  const topbarSelector = '[data-sidebar-topbar]';
+{breadcrumbJsonLd && (
+  <script type="application/ld+json" set:html={breadcrumbJsonLd} />
+)}
 
-  function updateSidebarTopbarHeight() {
-    const topbar = document.querySelector(topbarSelector);
-    if (!topbar) return;
-
-    const height = `${Math.ceil(topbar.getBoundingClientRect().height)}px`;
-    document.documentElement.style.setProperty('--sidebar-topbar-height', height);
-  }
-
-  function bindSidebarTopbarHeight() {
-    updateSidebarTopbarHeight();
-
-    const topbar = document.querySelector(topbarSelector);
-    if (!topbar) return;
-
-    if (!window.__sidebarTopbarHeightObserver) {
-      window.__sidebarTopbarHeightObserver = new ResizeObserver(updateSidebarTopbarHeight);
-    } else {
-      window.__sidebarTopbarHeightObserver.disconnect();
-    }
-
-    window.__sidebarTopbarHeightObserver.observe(topbar);
-  }
-
-  if (!window.__sidebarTopbarHeightObserverReady) {
-    window.__sidebarTopbarHeightObserverReady = true;
-    window.addEventListener('resize', updateSidebarTopbarHeight, { passive: true });
-    document.addEventListener('astro:page-load', bindSidebarTopbarHeight);
-  }
-
-  bindSidebarTopbarHeight();
-</script>
-
-<!-- Full-width footer: background spans full viewport, content aligns with layout -->
 <TheFooter lang={lang} strings={strings} />

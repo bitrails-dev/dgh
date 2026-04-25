@@ -1,36 +1,36 @@
 <template>
   <div class="mx-auto max-w-6xl">
-    <div class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div class="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl font-extrabold text-text">{{ strings.portal.admin.title }}</h1>
-          <p class="mt-2 text-sm text-muted">{{ strings.portal.admin.description }}</p>
+          <h1 class="text-2xl font-extrabold text-ink-900">{{ strings.portal.admin.title }}</h1>
+          <p class="mt-2 text-sm text-ink-500">{{ strings.portal.admin.description }}</p>
         </div>
-        <a :href="`/${lang}/portal/`" class="rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary">
+        <a :href="`/${lang}/portal/`" class="rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-navy-900">
           {{ strings.portal.nav.home }}
         </a>
       </div>
 
       <div class="mt-6 grid gap-6 xl:grid-cols-2">
-        <section class="rounded-2xl border border-gray-200 p-4">
-          <h2 class="text-sm font-bold text-text">{{ strings.portal.admin.bootstrapTitle }}</h2>
-          <p class="mt-1 text-xs text-muted">{{ strings.portal.admin.bootstrapBody }}</p>
+        <section class="rounded-2xl border border-ink-200 p-4">
+          <h2 class="text-sm font-bold text-ink-900">{{ strings.portal.admin.bootstrapTitle }}</h2>
+          <p class="mt-1 text-xs text-ink-500">{{ strings.portal.admin.bootstrapBody }}</p>
 
           <label class="mt-4 block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.admin.adminKey }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.admin.adminKey }}</span>
             <input v-model.trim="adminKey" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
 
           <div class="mt-4 flex gap-2">
             <button
-              class="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              class="flex-1 rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
               :disabled="busy || !adminKey"
               @click="bootstrap"
             >
               {{ strings.portal.admin.bootstrapAction }}
             </button>
             <button
-              class="flex-1 rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
+              class="flex-1 rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-navy-900 disabled:opacity-60"
               :disabled="busy || !adminKey || !clinicId"
               @click="loadSlots"
             >
@@ -39,17 +39,17 @@
           </div>
         </section>
 
-        <section class="rounded-2xl border border-gray-200 p-4">
-          <h2 class="text-sm font-bold text-text">{{ strings.portal.admin.verifyTitle }}</h2>
-          <p class="mt-1 text-xs text-muted">{{ strings.portal.admin.verifyBody }}</p>
+        <section class="rounded-2xl border border-ink-200 p-4">
+          <h2 class="text-sm font-bold text-ink-900">{{ strings.portal.admin.verifyTitle }}</h2>
+          <p class="mt-1 text-xs text-ink-500">{{ strings.portal.admin.verifyBody }}</p>
 
           <label class="mt-4 block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.nid }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.nid }}</span>
             <input v-model.trim="nid" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :placeholder="strings.portal.placeholders.nid" />
           </label>
 
           <button
-            class="mt-4 w-full rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
+            class="mt-4 w-full rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-navy-900 disabled:opacity-60"
             :disabled="busy || !adminKey || !nid"
             @click="verify"
           >
@@ -58,18 +58,18 @@
         </section>
       </div>
 
-      <div class="mt-6 rounded-2xl border border-gray-200 p-4">
+      <div class="mt-6 rounded-2xl border border-ink-200 p-4">
         <div class="flex items-start justify-between gap-4">
           <div>
-            <h2 class="text-sm font-bold text-text">{{ strings.portal.admin.scheduleTitle }}</h2>
-            <p class="mt-1 text-xs text-muted">{{ strings.portal.admin.scheduleBody }}</p>
+            <h2 class="text-sm font-bold text-ink-900">{{ strings.portal.admin.scheduleTitle }}</h2>
+            <p class="mt-1 text-xs text-ink-500">{{ strings.portal.admin.scheduleBody }}</p>
           </div>
-          <span class="text-xs font-semibold text-muted">{{ slots.length }} {{ strings.portal.admin.slotCountSuffix }}</span>
+          <span class="text-xs font-semibold text-ink-500">{{ slots.length }} {{ strings.portal.admin.slotCountSuffix }}</span>
         </div>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-3">
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.clinic }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.clinic }}</span>
             <select v-model="clinicId" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm">
               <option value="">{{ strings.portal.placeholders.select }}</option>
               <option v-for="c in clinics" :key="c.clinic_id" :value="c.clinic_id">
@@ -79,41 +79,41 @@
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateFrom }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dateFrom }}</span>
             <input v-model="dateFrom" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.dateTo }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.dateTo }}</span>
             <input v-model="dateTo" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
         </div>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-4">
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.admin.slotDate }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.admin.slotDate }}</span>
             <input v-model="slotDate" type="date" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.admin.slotTime }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.admin.slotTime }}</span>
             <input v-model="slotTime" type="time" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.admin.durationMinutes }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.admin.durationMinutes }}</span>
             <input v-model.number="durationMinutes" type="number" min="5" step="5" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.admin.capacity }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.admin.capacity }}</span>
             <input v-model.number="capacity" type="number" min="1" step="1" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" />
           </label>
         </div>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-3">
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.doctor }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.doctor }}</span>
             <select v-model="providerId" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm" :disabled="!clinicId">
               <option value="">{{ strings.portal.admin.anyDoctor }}</option>
               <option v-for="p in providers" :key="p.provider_id" :value="p.provider_id">
@@ -122,7 +122,7 @@
           </label>
 
           <label class="block">
-            <span class="text-xs font-semibold text-text">{{ strings.portal.fields.visitType }}</span>
+            <span class="text-xs font-semibold text-ink-900">{{ strings.portal.fields.visitType }}</span>
             <select v-model="visitTypeId" class="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm">
               <option value="">{{ strings.portal.placeholders.select }}</option>
               <option v-for="v in visitTypes" :key="v.visit_type_id" :value="v.visit_type_id">
@@ -133,14 +133,14 @@
 
           <div class="flex items-end gap-2">
             <button
-              class="flex-1 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              class="flex-1 rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
               :disabled="busy || !adminKey || !clinicId || !visitTypeId || !slotDate || !slotTime"
               @click="createSlot"
             >
               {{ strings.portal.admin.createSlot }}
             </button>
             <button
-              class="rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-primary disabled:opacity-60"
+              class="rounded-xl border border-primary px-4 py-2 text-sm font-semibold text-navy-900 disabled:opacity-60"
               :disabled="busy || !adminKey || !clinicId"
               @click="loadSlots"
             >
@@ -156,9 +156,9 @@
           {{ error }}
         </div>
 
-        <div class="mt-6 overflow-x-auto rounded-2xl border border-gray-200">
+        <div class="mt-6 overflow-x-auto rounded-2xl border border-ink-200">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
-            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-muted">
+            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wide text-ink-500">
               <tr>
                 <th class="px-4 py-3">{{ strings.portal.admin.slotTable.startAt }}</th>
                 <th class="px-4 py-3">{{ strings.portal.fields.visitType }}</th>
@@ -170,14 +170,14 @@
             </thead>
             <tbody class="divide-y divide-gray-100 bg-white">
               <tr v-for="slot in slots" :key="slot.slot_id">
-                <td class="px-4 py-3 font-medium text-text">{{ slot.start_at }}</td>
-                <td class="px-4 py-3 text-muted">{{ labelFor(visitTypes, slot.visit_type_id) }}</td>
-                <td class="px-4 py-3 text-muted">{{ labelFor(providers, slot.provider_id) }}</td>
-                <td class="px-4 py-3 text-muted">{{ slot.remaining_capacity }}/{{ slot.capacity }}</td>
-                <td class="px-4 py-3 text-muted">{{ slot.reference_number || '-' }}</td>
+                <td class="px-4 py-3 font-medium text-ink-900">{{ slot.start_at }}</td>
+                <td class="px-4 py-3 text-ink-500">{{ labelFor(visitTypes, slot.visit_type_id) }}</td>
+                <td class="px-4 py-3 text-ink-500">{{ labelFor(providers, slot.provider_id) }}</td>
+                <td class="px-4 py-3 text-ink-500">{{ slot.remaining_capacity }}/{{ slot.capacity }}</td>
+                <td class="px-4 py-3 text-ink-500">{{ slot.reference_number || '-' }}</td>
                 <td class="px-4 py-3 text-right">
                   <button
-                    class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 disabled:opacity-60"
+                    class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-coral disabled:opacity-60"
                     :disabled="busy || slot.appointment_id"
                     @click="deleteSlot(slot.slot_id)"
                   >
@@ -186,7 +186,7 @@
                 </td>
               </tr>
               <tr v-if="slots.length === 0">
-                <td colspan="6" class="px-4 py-8 text-center text-sm text-muted">{{ strings.portal.admin.noSlots }}</td>
+                <td colspan="6" class="px-4 py-8 text-center text-sm text-ink-500">{{ strings.portal.admin.noSlots }}</td>
               </tr>
             </tbody>
           </table>

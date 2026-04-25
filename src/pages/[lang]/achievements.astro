@@ -31,7 +31,7 @@ const items = sorted.map((a) => ({
 ---
 <BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/achievements`} title={`${strings.achievements.title} | ${strings.site.name}`} description={strings.achievements.subtitle}>
   <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/achievements`}>
-    <div class="px-6 py-8">
+    <div class="mx-auto max-w-[1440px] px-6 py-8">
       <PageHeader title={strings.achievements.title} subtitle={strings.achievements.subtitle} />
       <AchievementsTimeline items={items} lang={lang} strings={strings} client:visible />
     </div>

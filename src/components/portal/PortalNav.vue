@@ -2,25 +2,25 @@
   <header class="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-md shadow-sm">
     <div class="container mx-auto flex items-center justify-between px-4 py-3">
       <a :href="`/${lang}/`" class="flex items-center gap-3">
-        <div class="h-10 w-10 rounded-full bg-primary overflow-hidden">
+        <div class="h-10 w-10 rounded-full bg-navy-900 overflow-hidden">
           <img src="/icon.png" :alt="strings.site.name" class="h-full w-full object-cover" />
         </div>
         <div>
-          <p class="text-sm font-bold text-primary leading-tight">{{ strings.site.name }}</p>
-          <p class="text-xs text-muted">{{ strings.portal.title }}</p>
+          <p class="text-sm font-bold text-navy-900 leading-tight">{{ strings.site.name }}</p>
+          <p class="text-xs text-ink-500">{{ strings.portal.title }}</p>
         </div>
       </a>
 
       <nav class="hidden md:flex items-center gap-4 text-sm font-semibold">
-        <a :href="`/${lang}/portal/`" class="hover:text-primary">{{ strings.portal.nav.home }}</a>
-        <a :href="`/${lang}/portal/book/`" class="hover:text-primary">{{ strings.portal.nav.book }}</a>
-        <a :href="`/${lang}/portal/appointments/`" class="hover:text-primary">{{ strings.portal.nav.appointments }}</a>
-        <a :href="`/${lang}/portal/admin/`" class="hover:text-primary">{{ strings.portal.nav.admin }}</a>
+        <a :href="`/${lang}/portal/`" class="hover:text-navy-900">{{ strings.portal.nav.home }}</a>
+        <a :href="`/${lang}/portal/book/`" class="hover:text-navy-900">{{ strings.portal.nav.book }}</a>
+        <a :href="`/${lang}/portal/appointments/`" class="hover:text-navy-900">{{ strings.portal.nav.appointments }}</a>
+        <a :href="`/${lang}/portal/admin/`" class="hover:text-navy-900">{{ strings.portal.nav.admin }}</a>
       </nav>
 
       <div class="flex items-center gap-2">
         <a
-          class="rounded-full border border-primary px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary hover:text-white transition-colors"
+          class="rounded-full border border-primary px-3 py-1.5 text-xs font-semibold text-navy-900 hover:bg-navy-900 hover:text-white transition-colors"
           :href="switchHref"
         >
           {{ lang === 'ar' ? strings.nav.toggleToEn : strings.nav.toggleToAr }}
@@ -28,7 +28,7 @@
 
         <a
           v-if="status === 'signed_out'"
-          class="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90"
+          class="rounded-full bg-navy-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy-900/90"
           :href="`/${lang}/portal/sign-in/`"
         >
           {{ strings.portal.nav.signIn }}
@@ -36,7 +36,7 @@
 
         <button
           v-else
-          class="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-text hover:bg-gray-50"
+          class="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-semibold text-ink-900 hover:bg-gray-50"
           @click="onLogout"
         >
           {{ strings.portal.nav.signOut }}
