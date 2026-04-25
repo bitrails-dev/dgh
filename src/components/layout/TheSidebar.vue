@@ -27,7 +27,7 @@
           <div class="font-display-ar font-semibold text-sm text-navy-900 leading-tight truncate">
             {{ strings.site?.name }}
           </div>
-          <div class="mt-0.5 inline-block rounded-sm border border-teal-600/40 px-1.5 py-px text-[9px] tracking-widest text-teal-700 uppercase font-semibold leading-none">
+          <div class="mt-0.5 text-[10px] tracking-widest text-teal-700 uppercase font-medium leading-none">
             {{ strings.site?.established }}
           </div>
         </div>
