@@ -1,14 +1,14 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import SidebarLayout from "../../layouts/SidebarLayout.astro";
-import WaveDivider from "../../components/layout/WaveDivider.astro";
 import HeroSection from "../../components/sections/HeroSection.astro";
 import MissionStrip from "../../components/sections/MissionStrip.astro";
 import AchievementsSection from "../../components/sections/AchievementsSection.astro";
 import DepartmentsSection from "../../components/sections/DepartmentsSection.astro";
 import TeamSection from "../../components/sections/TeamSection.astro";
 import TestimonialsSection from "../../components/sections/TestimonialsSection.vue";
-import ContactSection from "../../components/sections/ContactSection.vue";
+import AwardsWall from "../../components/sections/AwardsWall.astro";
+import AwardsListSection from "../../components/sections/AwardsListSection.astro";
 import { getStrings } from "../../i18n";
 
 export const getStaticPaths = () => [
@@ -26,13 +26,29 @@ const breadcrumbs = [
 
 <BaseLayout lang={lang} strings={strings} title={strings.site.name} description={strings.site.description} breadcrumbs={breadcrumbs} currentPath={`/${lang}/`}>
   <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={`/${lang}/`}>
+    <!-- 1. Hero — ivory-50 editorial split -->
     <HeroSection lang={lang} strings={strings} />
-    <WaveDivider class="text-background" />
-    <MissionStrip strings={strings} />
-    <AchievementsSection lang={lang} strings={strings} />
+
+    <!-- 2. Departments — 3-col grid with 1px gap separators -->
     <DepartmentsSection lang={lang} strings={strings} />
+
+    <!-- 3. About Spread — white bg, 2-col photo+text -->
+    <MissionStrip strings={strings} lang={lang} />
+
+    <!-- 4. Stats Band — navy-900 with large numbers -->
+    <AchievementsSection lang={lang} strings={strings} />
+
+    <!-- 5. Team — 3-col doctor cards -->
     <TeamSection lang={lang} strings={strings} />
-    <TestimonialsSection strings={strings} items={strings.testimonials.items} client:visible />
-    <ContactSection strings={strings} lang={lang} client:visible />
+
+    <!-- 6. Testimonial — ivory-100, 2-col photo+quote -->
+    <TestimonialsSection strings={strings} items={strings.testimonials.items} lang={lang} client:visible />
+
+    <!-- 7. Articles — 3-col cards with teal gradient covers -->
+    <AwardsWall lang={lang} strings={strings} />
+
+    <!-- 8. Awards — list layout with mono year -->
+    <AwardsListSection lang={lang} strings={strings} />
+
   </SidebarLayout>
 </BaseLayout>

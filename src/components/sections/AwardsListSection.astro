@@ -1,0 +1,59 @@
+---
+import { getCollection } from "astro:content";
+
+const { lang, strings } = Astro.props;
+const isAr = lang === "ar";
+const awards = await getCollection("awards");
+const sortedAwards = awards.sort((a, b) => b.data.year - a.data.year);
+---
+
+<!-- Awards list section -->
+<section class="bg-white border-y border-ink-100" style="padding: 96px 0;">
+	<div class="container mx-auto">
+		<!-- Section header: split grid -->
+		<div class="grid gap-8 mb-14" style="grid-template-columns: 1fr 1.6fr;">
+			<div>
+				<div class="inline-flex items-center gap-2.5 mb-4">
+					<div class="w-8 h-px bg-teal-600"></div>
+					<p class="h-eyebrow">{isAr ? 'تقدير وتميز' : 'Recognition'}</p>
+				</div>
+				<h2 class="font-display-ar font-medium text-navy-900 leading-none tracking-tight" style="font-size: clamp(36px, 4vw, 56px); line-height: 1.1;">
+					{strings.achievements.awardsTitle}
+				</h2>
+			</div>
+			<div class="flex items-end">
+				<p class="text-body-lg text-ink-500 leading-relaxed">{strings.achievements.subtitle}</p>
+			</div>
+		</div>
+
+		<!-- Awards list -->
+		<div class="space-y-0">
+			{sortedAwards.map((award, i) => {
+				const title = isAr ? award.data.nameAr : award.data.name;
+				return (
+					<div class="awards-row grid items-center gap-6 py-6 border-t border-ink-100 first:border-t-0" style="grid-template-columns: 80px 1fr auto auto;">
+						<!-- Year -->
+						<div class="font-mono text-teal-700 text-sm font-medium">{award.data.year}</div>
+						<!-- Title -->
+						<h3 class="font-display-ar text-lg font-medium text-navy-900">{title}</h3>
+						<!-- Issuer / Body -->
+						<p class="text-sm text-ink-400 hidden lg:block">{award.data.body}</p>
+						<!-- Kind badge -->
+						<div class="hidden md:flex items-center">
+							<span class="inline-flex items-center gap-1.5 bg-teal-700/10 text-teal-700 px-3 py-1 rounded-full text-xs font-semibold">{strings.achievements.badgeAlt}</span>
+						</div>
+					</div>
+				);
+			})}
+		</div>
+	</div>
+</section>
+
+<style>
+	@media (max-width: 768px) {
+		.awards-row {
+			grid-template-columns: 60px 1fr !important;
+			gap: 8px !important;
+		}
+	}
+</style>

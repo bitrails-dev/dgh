@@ -1,0 +1,36 @@
+---
+interface Props {
+  cols?: 2 | 3 | 4;
+  gap?: 'none' | 'sm' | 'md';
+  class?: string;
+}
+
+const { cols = 3, gap = 'md', class: className = '' } = Astro.props;
+
+const colsClass = {
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-2 lg:grid-cols-3',
+  4: 'sm:grid-cols-2 lg:grid-cols-4',
+}[cols];
+
+const gapClass = {
+  none: 'border-t border-ink-200 bordered-grid',
+  sm: 'gap-3',
+  md: 'gap-5',
+}[gap];
+---
+
+<div class={`grid grid-cols-1 ${colsClass} ${gapClass} ${className}`}>
+  <slot />
+</div>
+
+<style>
+  .bordered-grid {
+    border-inline-start: 1px solid #d9dfe6;
+  }
+  .bordered-grid > :global(*) {
+    border-width: 0 !important;
+    border-inline-end: 1px solid #d9dfe6 !important;
+    border-bottom: 1px solid #d9dfe6 !important;
+  }
+</style>

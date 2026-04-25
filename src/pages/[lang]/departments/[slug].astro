@@ -1,13 +1,12 @@
 ---
-import BaseLayout from "../../../layouts/BaseLayout.astro";
-import SidebarLayout from "../../../layouts/SidebarLayout.astro";
-import WaveDivider from "../../../components/layout/WaveDivider.astro";
-import { getCollection } from "astro:content";
-import { getStrings } from "../../../i18n";
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import { getCollection } from 'astro:content';
+import { getStrings } from '../../../i18n';
 
 export const getStaticPaths = async () => {
-  const entries = await getCollection("departments");
-  const langs = ["ar", "en"];
+  const entries = await getCollection('departments');
+  const langs = ['ar', 'en'];
   return entries.flatMap((entry) =>
     langs.map((lang) => ({
       params: { lang, slug: entry.id },
@@ -19,69 +18,67 @@ export const getStaticPaths = async () => {
 const { lang } = Astro.params;
 const { entry } = Astro.props;
 const strings = getStrings(lang);
-const title = lang === "ar" ? entry.data.nameAr : entry.data.name;
-const description = lang === "ar" ? entry.data.descriptionAr : entry.data.description;
+const title = lang === 'ar' ? entry.data.nameAr : entry.data.name;
+const description = lang === 'ar' ? entry.data.descriptionAr : entry.data.description;
 const basePath = `/${lang}`;
 
 const detailPoints = [
-  { icon: "🔬", text: strings.departments.detailPoints[0] },
-  { icon: "👥", text: strings.departments.detailPoints[1] },
-  { icon: "💊", text: strings.departments.detailPoints[2] },
+  { icon: '🔬', text: strings.departments.detailPoints[0] },
+  { icon: '👥', text: strings.departments.detailPoints[1] },
+  { icon: '💊', text: strings.departments.detailPoints[2] },
 ];
 
-const allDoctors = await getCollection("doctors");
+const allDoctors = await getCollection('doctors');
 const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 ---
-<BaseLayout lang={lang} strings={strings} title={`${title} — ${strings.site.name}`} description={description} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.departments }]} currentPath={`/${lang}/departments/${entry.id}`}>
-<SidebarLayout lang={lang} strings={strings} breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.departments }]} currentPath={`/${lang}/departments/${entry.id}`}>
-  <!-- Hero banner -->
-  <section class="bg-primary text-white section-stripes py-20">
-    <div class="px-6">
-      <!-- Breadcrumb -->
-      <nav aria-label="breadcrumb" class="mb-6 flex items-center gap-2 text-xs text-white/60">
-        <a href={`${basePath}/`} class="hover:text-accent transition-colors">{strings.site.name}</a>
-        <span aria-hidden="true">/</span>
-        <a href={`/${lang}/departments`} class="hover:text-accent transition-colors">{strings.nav.departments}</a>
-        <span aria-hidden="true">/</span>
-        <span class="text-white/90">{title}</span>
-      </nav>
-
-      <div class="flex flex-wrap items-start gap-4">
-        <div>
-          <h1 class="text-4xl font-extrabold">{title}</h1>
-          {entry.data.centerOfExcellence && (
-            <span class="mt-3 inline-flex items-center gap-1.5 rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold text-accent">
-              <span aria-hidden="true">★</span>
-              {strings.departments.centerOfExcellence}
-            </span>
-          )}
-        </div>
-      </div>
+<BaseLayout
+  lang={lang}
+  strings={strings}
+  title={`${title} — ${strings.site.name}`}
+  description={description}
+  breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.departments, href: `/${lang}/departments` }, { label: title }]}
+  currentPath={`/${lang}/departments/${entry.id}`}
+>
+<SidebarLayout
+  lang={lang}
+  strings={strings}
+  breadcrumbs={[{ label: strings.breadcrumb.home, href: `/${lang}/` }, { label: strings.breadcrumb.departments, href: `/${lang}/departments` }, { label: title }]}
+  currentPath={`/${lang}/departments/${entry.id}`}
+>
+  <!-- Page header -->
+  <section class="mx-auto max-w-[1440px] px-6 pt-12 pb-2" data-animate="fade">
+    <div class="inline-flex items-center gap-2.5 mb-5">
+      <div class="w-8 h-px bg-teal-600"></div>
+      <p class="h-eyebrow">{strings.nav.departments}</p>
     </div>
+    <h1 class="font-display-ar font-medium text-navy-900 leading-none tracking-tight" style="font-size: clamp(36px, 4vw, 56px); line-height: 1.1;">{title}</h1>
+    {entry.data.centerOfExcellence && (
+      <span class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-3 py-1 text-xs font-semibold text-gold">
+        <span aria-hidden="true">★</span>
+        {strings.departments.centerOfExcellence}
+      </span>
+    )}
   </section>
 
-  <WaveDivider class="text-background" />
-
   <!-- Content -->
-  <section class="px-6 py-12">
+  <section class="mx-auto max-w-[1440px] px-6 py-10">
     <div class="grid gap-8 lg:grid-cols-3">
 
       <!-- Main description -->
       <div class="lg:col-span-2 space-y-6">
-        <div class="rounded-2xl bg-surface p-8 shadow-soft" data-animate="fade">
-          <h2 class="mb-4 text-lg font-bold text-text">{lang === "ar" ? "نبذة عن القسم" : "About the Department"}</h2>
-          <p class="text-sm leading-relaxed text-muted">{description}</p>
+        <div class="bg-ivory-50 p-8 border border-ink-100" data-animate="fade">
+          <h2 class="mb-4 text-lg font-bold text-ink-900 font-display-ar">{lang === 'ar' ? 'نبذة عن القسم' : 'About the Department'}</h2>
+          <p class="text-sm leading-relaxed text-ink-500">{description}</p>
         </div>
 
-        <!-- Detail points -->
-        <div class="rounded-2xl bg-white p-8 shadow-soft" data-animate="fade">
-          <h2 class="mb-5 text-lg font-bold text-text">
-            {lang === "ar" ? "ما يميّزنا" : "What We Offer"}
+        <div class="bg-ivory-50 p-8 border border-ink-100" data-animate="fade">
+          <h2 class="mb-5 text-lg font-bold text-ink-900 font-display-ar">
+            {lang === 'ar' ? 'ما يميّزنا' : 'What We Offer'}
           </h2>
           <ul class="space-y-4">
             {detailPoints.map(({ icon, text }) => (
-              <li class="flex items-start gap-3 text-sm text-muted">
-                <span class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-base" aria-hidden="true">{icon}</span>
+              <li class="flex items-start gap-3 text-sm text-ink-500">
+                <span class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center bg-teal-700/10 text-base" aria-hidden="true">{icon}</span>
                 <span>{text}</span>
               </li>
             ))}
@@ -91,33 +88,27 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 
       <!-- Sidebar CTA -->
       <div class="space-y-6" data-animate="fade">
-        <div class="rounded-2xl bg-primary p-8 text-white shadow-deep">
-          <h3 class="text-lg font-bold">
-            {lang === "ar" ? "احجز موعدك" : "Book an Appointment"}
+        <div class="bg-teal-800 p-8 text-ivory-50 shadow-deep">
+          <h3 class="text-lg font-bold font-display-ar">
+            {lang === 'ar' ? 'احجز موعدك' : 'Book an Appointment'}
           </h3>
-          <p class="mt-2 text-sm text-white/70">
-            {lang === "ar"
-              ? "فريقنا المتخصص متاح لمساعدتك. تواصل معنا الآن لحجز موعدك."
-              : "Our specialist team is ready to help. Contact us now to schedule your visit."}
+          <p class="mt-2 text-sm text-ivory-100/70">
+            {lang === 'ar'
+              ? 'فريقنا المتخصص متاح لمساعدتك. تواصل معنا الآن لحجز موعدك.'
+              : 'Our specialist team is ready to help. Contact us now to schedule your visit.'}
           </p>
-          <a
-            href={`/${lang}/contact`}
-            class="mt-5 flex items-center justify-center gap-2 rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-primary shadow-soft transition-transform hover:-translate-y-0.5"
-          >
-            {lang === "ar" ? "تواصل معنا" : "Contact Us"}
+          <a href={`/${lang}/contact`} class="btn btn-teal mt-5 w-full justify-center">
+            {lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}
           </a>
-          <a
-            href={`/${lang}/team`}
-            class="mt-3 flex items-center justify-center gap-2 rounded-lg border border-white/30 px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-80"
-          >
-            {lang === "ar" ? "تعرّف على الفريق الطبي" : "Meet Our Doctors"}
+          <a href={`/${lang}/team`} class="btn btn-ghost mt-3 w-full justify-center border-ivory-100/30 text-ivory-50 hover:bg-ivory-50/10 hover:text-ivory-50 hover:border-ivory-100/50">
+            {lang === 'ar' ? 'تعرّف على الفريق الطبي' : 'Meet Our Doctors'}
           </a>
         </div>
 
-        <div class="rounded-2xl bg-surface p-6 shadow-soft text-sm text-muted">
-          <p class="font-semibold text-text mb-2">{lang === "ar" ? "خط الطوارئ" : "Emergency Line"}</p>
-          <a href="tel:12345" class="text-2xl font-extrabold text-red-600 hover:underline">12345</a>
-          <p class="mt-1 text-xs text-muted/70">{lang === "ar" ? "متاح على مدار الساعة" : "Available 24/7"}</p>
+        <div class="bg-ivory-50 p-6 border border-ink-100 text-sm text-ink-500">
+          <p class="font-semibold text-ink-900 mb-2">{lang === 'ar' ? 'خط الطوارئ' : 'Emergency Line'}</p>
+          <a href="tel:12345" class="text-2xl font-extrabold text-coral hover:underline">12345</a>
+          <p class="mt-1 text-xs text-ink-400">{lang === 'ar' ? 'متاح على مدار الساعة' : 'Available 24/7'}</p>
         </div>
       </div>
 
@@ -125,36 +116,39 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 
     <!-- Department doctors -->
     {deptDoctors.length > 0 && (
-      <div class="mt-10" data-animate="fade">
-        <h2 class="mb-6 text-lg font-bold text-text">
-          {lang === "ar" ? "أطباء القسم" : "Department Doctors"}
+      <div class="mt-12" data-animate="fade">
+        <h2 class="mb-6 text-lg font-bold text-ink-900 font-display-ar">
+          {lang === 'ar' ? 'أطباء القسم' : 'Department Doctors'}
         </h2>
-        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="dept-doctor-grid grid border-t border-ink-200 sm:grid-cols-2 lg:grid-cols-3">
           {deptDoctors.map((doctor) => {
-            const name = lang === "ar" ? doctor.data.nameAr : doctor.data.name;
-            const specialty = lang === "ar" ? doctor.data.specialtyAr : doctor.data.specialty;
+            const name = lang === 'ar' ? doctor.data.nameAr : doctor.data.name;
+            const specialty = lang === 'ar' ? doctor.data.specialtyAr : doctor.data.specialty;
             return (
-              <article class="rounded-2xl bg-surface p-5 shadow-soft transition-all hover:shadow-layered">
+              <article class="bg-ivory-50 p-5 border-0 transition-colors hover:bg-white">
                 <div class="flex items-start gap-4">
                   <img
                     src={doctor.data.photo}
                     alt={name}
                     width="64"
                     height="64"
-                    class="h-16 w-16 rounded-full object-cover flex-shrink-0"
+                    class="h-16 w-16 object-cover flex-shrink-0"
                     loading="lazy"
                   />
                   <div>
-                    <h3 class="font-bold text-text">{name}</h3>
-                    <p class="text-sm text-secondary">{specialty}</p>
+                    <h3 class="font-bold text-ink-900">{name}</h3>
+                    <p class="text-sm text-teal-700">{specialty}</p>
                     {doctor.data.certified && (
-                      <span class="mt-1 inline-flex items-center gap-1 text-xs text-accent">
-                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-accent" aria-hidden="true">
+                      <span class="mt-1 inline-flex items-center gap-1 text-xs text-gold">
+                        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-gold" aria-hidden="true">
                           <path d="M12 2l2.9 6.2 6.6.6-5 4.3 1.6 6.4-6.1-3.4-6.1 3.4 1.6-6.4-5-4.3 6.6-.6L12 2z"/>
                         </svg>
                         {strings.team.certified}
                       </span>
                     )}
+                    <a href={`${basePath}/doctors/${doctor.id}`} class="mt-2 inline-block btn-text text-xs">
+                      {lang === 'ar' ? 'الملف الشخصي →' : 'Profile →'}
+                    </a>
                   </div>
                 </div>
               </article>
@@ -166,12 +160,25 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 
     <!-- Back link -->
     <div class="mt-10">
-      <a href={`/${lang}/departments`} class="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-secondary transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-        {lang === "ar" ? "العودة إلى الأقسام" : "Back to Departments"}
+      <a href={`/${lang}/departments`} class="btn-text text-sm">
+        <span class="inline-flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+          {lang === 'ar' ? 'العودة إلى الأقسام' : 'Back to Departments'}
+        </span>
       </a>
     </div>
   </section>
 
 </SidebarLayout>
 </BaseLayout>
+
+<style>
+  .dept-doctor-grid {
+    border-inline-start: 1px solid #d9dfe6;
+  }
+  .dept-doctor-grid > article {
+    border-width: 0 !important;
+    border-inline-end: 1px solid #d9dfe6 !important;
+    border-bottom: 1px solid #d9dfe6 !important;
+  }
+</style>

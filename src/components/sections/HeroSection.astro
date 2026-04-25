@@ -1,366 +1,182 @@
 ---
-import StatsBlock from './StatsBlock.vue';
-import SectionLabel from '../ui/SectionLabel.astro';
-import HeroParticles from './HeroParticles.vue';
-
 const { lang, strings } = Astro.props;
 const isAr = lang === 'ar';
 const stats = [
-	{ label: strings.hero.stats.years, value: 67 },
-	{ label: strings.hero.stats.departments, value: 18 },
-	{ label: strings.hero.stats.patients, value: 1200000 },
-	{ label: strings.hero.stats.staff, value: 2400 },
+	{ label: strings.hero.stats.years, value: isAr ? '٦٧' : '67', unit: '+' },
+	{
+		label: strings.hero.stats.departments,
+		value: isAr ? '٢٨' : '28',
+		unit: '',
+	},
+	{
+		label: strings.hero.stats.patients,
+		value: isAr ? '١٫٢' : '1.2',
+		unit: isAr ? 'م+' : 'M+',
+	},
+	{
+		label: strings.hero.stats.staff,
+		value: isAr ? '٢٤٠٠' : '2,400',
+		unit: '+',
+	},
 ];
 ---
 
 <section
-	id='about'
-	class='relative min-h-screen bg-primary text-white section-stripes overflow-hidden'
+	class='hero-section bg-ivory-50 overflow-hidden'
+	style='padding: 72px 0 96px;'
 >
-	<HeroParticles client:visible />
-
-	<div
-		class='container mx-auto relative z-10 grid gap-12 py-32 lg:grid-cols-2 lg:items-center'
-	>
-		<!-- Text content -->
-		<div :class="isAr ? 'text-right' : 'text-left'" class='rtl:text-right'>
-			<SectionLabel text={strings.hero.label} class='text-white/70' />
-			<h1 class='mt-4 text-display font-extrabold leading-tight'>
-				<span class=''>{strings.hero.headline}</span>
-			</h1>
-			<p class='mt-5 max-w-xl text-body text-white/80'>
-				{strings.hero.subhead}
-			</p>
-			<div class='mt-8 flex flex-wrap gap-4'>
-				<a
-					href={`/${lang}/achievements`}
-					class='rounded-xl bg-accent px-7 py-3.5 text-sm font-bold text-primary shadow-deep transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_32px_rgba(212,168,67,0.4)] focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-primary'
-				>
-					{strings.hero.ctaPrimary}
-				</a>
-				<a
-					href={`/${lang}/team`}
-					class='rounded-xl border-2 border-white/30 px-7 py-3.5 text-sm font-bold text-white transition-all hover:border-white/70 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/50'
-				>
-					{strings.hero.ctaSecondary}
-				</a>
-			</div>
-		</div>
-
-		<!-- Hero illustration -->
-		<div class='relative flex items-center justify-center'>
-			<!-- Decorative rings -->
-			<div
-				class='absolute h-[440px] w-[440px] rounded-full border border-white/10'
-			>
-			</div>
-			<div
-				class='absolute h-[360px] w-[360px] rounded-full border border-accent/20'
-			>
-			</div>
-
-			<!-- Card frame -->
-			<div class='relative z-10 w-full max-w-sm'>
-				<div
-					class='absolute -inset-3 rounded-[32px] border-2 border-accent/50 shadow-[0_0_60px_rgba(212,168,67,0.15)]'
-				>
+	<div class='container mx-auto'>
+		<div
+			class='hero-grid'
+			style='display:grid; grid-template-columns: 1.15fr 1fr; gap:64px; align-items:center;'
+		>
+			<!-- Text side -->
+			<div>
+				<!-- Eyebrow with line -->
+				<div class='inline-flex items-center gap-2.5 mb-7'>
+					<div class='w-8 h-px bg-teal-600'></div>
+					<p class='h-eyebrow'>{strings.hero.label}</p>
 				</div>
-				<div
-					class='relative overflow-hidden rounded-[28px] bg-white/10 backdrop-blur-sm shadow-deep'
+				<!-- Title — two-line with accent -->
+				<h1
+					class='font-display-ar font-medium text-navy-900 leading-none tracking-tight mb-7'
+					style='font-size: clamp(44px, 5.2vw, 82px); line-height: 1.04; text-wrap: balance;'
 				>
-					<!-- Hospital SVG illustration -->
-					<svg
-						viewBox='0 0 400 340'
-						xmlns='http://www.w3.org/2000/svg'
-						class='w-full'
-						role='img'
-						aria-label={strings.site.name}
-					>
-						<!-- Sky gradient -->
-						<defs>
-							<linearGradient id='sky' x1='0%' y1='0%' x2='0%' y2='100%'>
-								<stop offset='0%' style='stop-color:#1B3F6E;stop-opacity:1'
-								></stop>
-								<stop offset='100%' style='stop-color:#2A5A9E;stop-opacity:1'
-								></stop>
-							</linearGradient>
-							<linearGradient id='building' x1='0%' y1='0%' x2='0%' y2='100%'>
-								<stop offset='0%' style='stop-color:#FFFFFF;stop-opacity:0.15'
-								></stop>
-								<stop offset='100%' style='stop-color:#FFFFFF;stop-opacity:0.05'
-								></stop>
-							</linearGradient>
-						</defs>
-
-						<!-- Background -->
-						<rect width='400' height='340' fill='url(#sky)'></rect>
-
-						<!-- Ground -->
-						<rect y='280' width='400' height='60' fill='rgba(42,93,158,0.6)'
-						></rect>
-						<rect y='276' width='400' height='6' fill='rgba(212,168,67,0.3)'
-						></rect>
-
-						<!-- Main building body -->
-						<rect
-							x='80'
-							y='90'
-							width='240'
-							height='190'
-							rx='4'
-							fill='url(#building)'
-							stroke='rgba(255,255,255,0.2)'
-							stroke-width='1'></rect>
-
-						<!-- Building floors (windows) -->
-						{
-							[110, 145, 180, 215, 250].map(y => (
-								<>
-									<rect
-										x='105'
-										y={y}
-										width='28'
-										height='22'
-										rx='3'
-										fill='rgba(212,168,67,0.35)'
-									/>
-									<rect
-										x='148'
-										y={y}
-										width='28'
-										height='22'
-										rx='3'
-										fill='rgba(255,255,255,0.15)'
-									/>
-									<rect
-										x='192'
-										y={y}
-										width='28'
-										height='22'
-										rx='3'
-										fill='rgba(212,168,67,0.25)'
-									/>
-									<rect
-										x='236'
-										y={y}
-										width='28'
-										height='22'
-										rx='3'
-										fill='rgba(255,255,255,0.15)'
-									/>
-									<rect
-										x='268'
-										y={y}
-										width='28'
-										height='22'
-										rx='3'
-										fill='rgba(212,168,67,0.2)'
-									/>
-								</>
-							))
-						}
-
-						<!-- Entrance -->
-						<rect
-							x='168'
-							y='242'
-							width='64'
-							height='38'
-							rx='4'
-							fill='rgba(212,168,67,0.4)'></rect>
-						<rect
-							x='176'
-							y='250'
-							width='20'
-							height='30'
-							rx='2'
-							fill='rgba(255,255,255,0.2)'></rect>
-						<rect
-							x='204'
-							y='250'
-							width='20'
-							height='30'
-							rx='2'
-							fill='rgba(255,255,255,0.2)'></rect>
-
-						<!-- Rooftop -->
-						<rect
-							x='100'
-							y='78'
-							width='200'
-							height='16'
-							rx='3'
-							fill='rgba(255,255,255,0.2)'></rect>
-
-						<!-- Hospital cross on top -->
-						<rect x='188' y='42' width='24' height='52' rx='4' fill='#D4A843'
-						></rect>
-						<rect x='168' y='58' width='64' height='24' rx='4' fill='#D4A843'
-						></rect>
-						<!-- Cross shine -->
-						<rect
-							x='188'
-							y='42'
-							width='8'
-							height='52'
-							rx='4'
-							fill='rgba(255,255,255,0.3)'></rect>
-
-						<!-- Left wing -->
-						<rect
-							x='20'
-							y='150'
-							width='60'
-							height='130'
-							rx='4'
-							fill='rgba(255,255,255,0.08)'
-							stroke='rgba(255,255,255,0.15)'
-							stroke-width='1'></rect>
-						<rect
-							x='32'
-							y='165'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(255,255,255,0.2)'></rect>
-						<rect
-							x='58'
-							y='165'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(212,168,67,0.3)'></rect>
-						<rect
-							x='32'
-							y='195'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(212,168,67,0.3)'></rect>
-						<rect
-							x='58'
-							y='195'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(255,255,255,0.2)'></rect>
-
-						<!-- Right wing -->
-						<rect
-							x='320'
-							y='150'
-							width='60'
-							height='130'
-							rx='4'
-							fill='rgba(255,255,255,0.08)'
-							stroke='rgba(255,255,255,0.15)'
-							stroke-width='1'></rect>
-						<rect
-							x='330'
-							y='165'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(212,168,67,0.3)'></rect>
-						<rect
-							x='356'
-							y='165'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(255,255,255,0.2)'></rect>
-						<rect
-							x='330'
-							y='195'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(255,255,255,0.2)'></rect>
-						<rect
-							x='356'
-							y='195'
-							width='18'
-							height='18'
-							rx='2'
-							fill='rgba(212,168,67,0.3)'></rect>
-
-						<!-- Ambulance / driveway -->
-						<rect
-							x='150'
-							y='285'
-							width='100'
-							height='8'
-							rx='2'
-							fill='rgba(255,255,255,0.1)'></rect>
-
-						<!-- Stars / ambient dots -->
-						<circle cx='40' cy='30' r='2' fill='rgba(255,255,255,0.5)'></circle>
-						<circle cx='80' cy='50' r='1.5' fill='rgba(255,255,255,0.4)'
-						></circle>
-						<circle cx='340' cy='25' r='2' fill='rgba(255,255,255,0.5)'
-						></circle>
-						<circle cx='370' cy='60' r='1.5' fill='rgba(255,255,255,0.3)'
-						></circle>
-						<circle cx='20' cy='80' r='1' fill='rgba(212,168,67,0.6)'></circle>
-						<circle cx='380' cy='90' r='1' fill='rgba(212,168,67,0.6)'></circle>
-
-						<!-- Crescent (Islamic medical symbol) -->
-						<circle cx='354' cy='32' r='12' fill='rgba(212,168,67,0.25)'
-						></circle>
-						<circle cx='360' cy='28' r='9' fill='#1B3F6E'></circle>
-
-						<!-- Flag on top -->
-						<line
-							x1='200'
-							y1='20'
-							x2='200'
-							y2='42'
-							stroke='rgba(255,255,255,0.5)'
-							stroke-width='2'></line>
-						<rect x='200' y='20' width='20' height='12' rx='1' fill='#D4A843'
-						></rect>
-					</svg>
-
-					<!-- Overlay badge -->
-					<div
-						class='absolute bottom-4 start-4 flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm'
-					>
-						<div
-							class='h-2.5 w-2.5 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]'
+					{strings.hero.title1}<br />
+					<span class='text-teal-700'>{strings.hero.title2}</span>
+				</h1>
+				<!-- Lede -->
+				<p
+					class='text-body-lg text-ink-700 leading-relaxed max-w-[48ch] mb-10'
+					style='text-wrap: pretty;'
+				>
+					{strings.hero.subhead}
+				</p>
+				<!-- Actions -->
+				<div class='flex flex-wrap gap-3.5'>
+					<a href={`/${lang}/departments`} class='btn btn-primary'>
+						{strings.hero.ctaPrimary}
+						<svg
+							xmlns='http://www.w3.org/2000/svg'
+							class='h-4 w-4 rtl:rotate-180'
+							viewBox='0 0 24 24'
+							fill='none'
+							stroke='currentColor'
+							stroke-width='2.5'
+							stroke-linecap='round'
+							stroke-linejoin='round'
+							aria-hidden='true'
+							><polyline points='9 18 15 12 9 6'></polyline></svg
 						>
-						</div>
-						<span class='text-xs font-semibold text-white'>
-							{isAr ? 'خدمة على مدار الساعة' : '24/7 Service'}
-						</span>
-					</div>
-
-					<!-- Top badge -->
-					<div
-						class='absolute top-4 end-4 rounded-xl bg-accent/90 px-3 py-1.5 text-xs font-bold text-primary backdrop-blur-sm'
+					</a>
+					<a href={`/${lang}/team`} class='btn btn-ghost'
+						>{strings.hero.ctaSecondary}</a
 					>
-						{
-							isAr
-								? `${strings.hero.stats.years} 67`
-								: `67 ${strings.hero.stats.years}`
-						}
+				</div>
+				<!-- Since pill -->
+				<div
+					class='mt-10 flex items-center gap-4 p-4 bg-white border border-ink-100 rounded-full w-fit'
+					style='box-shadow: 0 1px 2px rgba(15,59,61,0.04), 0 1px 3px rgba(15,59,61,0.06);'
+				>
+					<div class='font-display-ar text-3xl text-teal-700 font-medium lnum'>
+						1959
+					</div>
+					<div class='text-[13px] text-ink-500 leading-snug'>
+						{strings.hero.since}
+					</div>
+				</div>
+			</div>
+
+			<!-- Photo side -->
+			<div class='relative aspect-[4/5] rounded-none overflow-hidden'>
+				<div
+					class='absolute inset-0 bg-gradient-to-br from-teal-900 via-teal-700 to-teal-600 flex items-end p-7'
+				>
+					<!-- Stripes overlay -->
+					<div
+						class='absolute inset-0'
+						style='background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 2px, transparent 2px, transparent 14px)'
+					>
+					</div>
+					<!-- Top badge -->
+					<div class='absolute top-7 left-7 right-7 flex justify-between'>
+						<div
+							class='inline-flex gap-2 items-center px-3.5 py-2 bg-white/10 backdrop-blur border border-white/20 rounded-full text-white text-xs font-medium'
+						>
+							<span
+								class='w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse-dot'
+							></span>
+							{isAr ? 'مفتوح الآن — استقبال الطوارئ' : 'Open now — ER intake'}
+						</div>
+					</div>
+					<!-- Label -->
+					<div
+						class='font-mono text-white/55 text-xs tracking-wide relative z-10'
+					>
+						[ HERO_IMAGE &middot; facade-at-dusk.jpg &middot; 4:5 ]
 					</div>
 				</div>
 			</div>
 		</div>
-	</div>
 
-	<!-- Stats strip — floats on hero background -->
-	<div class='relative z-10 w-full pb-16'>
-		<div class='container mx-auto flex justify-center'>
-			<div class='w-full max-w-4xl'>
-				<StatsBlock stats={stats} dark client:visible />
-			</div>
+		<!-- Stats rail -->
+		<div
+			class='hero-stat-rail mt-16 pt-10 border-t border-ink-200 grid grid-cols-4 gap-8'
+		>
+			{
+				stats.map(s => (
+					<div>
+						<div class='font-display-ar font-medium text-4xl text-navy-900 leading-none lnum'>
+							{s.value}
+							{s.unit && (
+								<span class='text-teal-600 text-[0.7em]'>{s.unit}</span>
+							)}
+						</div>
+						<div class='text-[13px] text-ink-500 mt-2'>{s.label}</div>
+					</div>
+				))
+			}
 		</div>
-	</div>
-
-	<!-- Bottom fade -->
-	<div
-		class='absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background/20 to-transparent pointer-events-none'
-	>
 	</div>
 </section>
+
+<style>
+	@media (max-width: 900px) {
+		.hero-grid {
+			grid-template-columns: 1fr !important;
+			gap: 40px !important;
+		}
+		.hero-grid > div:last-child {
+			order: -1;
+			max-height: 320px;
+			max-width: 320px;
+			margin-inline: auto;
+			width: 100%;
+		}
+		.hero-stat-rail {
+			grid-template-columns: repeat(2, 1fr) !important;
+			gap: 24px !important;
+		}
+	}
+	@keyframes pulse-dot {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.4;
+		}
+	}
+	.animate-pulse-dot {
+		animation: pulse-dot 2s ease-in-out infinite;
+	}
+	/* English title uses display-en font with italic accent */
+	:global(.lang-en) .hero-section h1 {
+		font-family: var(--font-display-en, 'Fraunces', 'Georgia', serif);
+		font-weight: 400;
+		font-style: italic;
+	}
+	:global(.lang-en) .hero-section h1 span {
+		font-style: normal;
+	}
+</style>

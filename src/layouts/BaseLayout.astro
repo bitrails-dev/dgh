@@ -31,7 +31,7 @@ const canonicalUrl = new URL(Astro.url.pathname, siteUrl).href;
 const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteUrl).href;
 ---
 <!doctype html>
-<html lang={lang} dir={dir} class={lang === "ar" ? "font-cairo" : "font-sans"}>
+<html lang={lang} dir={dir} class={lang === "ar" ? "font-body-ar" : "font-body-en"}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -41,7 +41,7 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
     <meta name="description" content={description} />
     {noindex ? <meta name="robots" content="noindex, nofollow" /> : <meta name="robots" content="index, follow" />}
     <link rel="canonical" href={canonicalUrl} />
-    <meta name="theme-color" content="#1B3F6E" />
+    <meta name="theme-color" content="#15504f" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -62,16 +62,14 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
     <ClientRouter />
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/icon.png" />
-    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-    <link rel="apple-touch-icon" href="/icon.png" />
-    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/logo/logo-primary-on-IVORY.svg" />
+    <link rel="apple-touch-icon" href="/logo/logo-primary-on-IVORY.svg" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&family=Fraunces:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
 
@@ -81,7 +79,7 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
       "@type": "Hospital",
       "name": lang === "ar" ? "مستشفى دمياط العام" : "Dumyat Public Hospital",
       "url": siteUrl,
-      "logo": `${siteUrl}/icon.png`,
+      "logo": `${siteUrl}/logo/logo-primary-on-IVORY.svg`,
       "image": ogImageUrl,
       "description": description,
       "address": {
@@ -94,11 +92,11 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
       "sameAs": []
     })} />
   </head>
-  <body class="flex flex-col min-h-screen">
+  <body class:list={["flex", "flex-col", "min-h-screen", "bg-ivory-50", "text-ink-900", lang === "ar" ? "" : "lang-en"]}>
     <!-- Skip to main content (accessibility) -->
     <a
       href="#main-content"
-      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:rounded-lg focus:bg-navy-900 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-ivory-50"
     >
       {lang === "ar" ? "تخطَّ إلى المحتوى" : "Skip to content"}
     </a>
@@ -109,7 +107,7 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
     <button
       id="back-to-top"
       aria-label={lang === "ar" ? "العودة للأعلى" : "Back to top"}
-      class="fixed bottom-24 end-6 z-40 hidden h-10 w-10 items-center justify-center rounded-full bg-primary/90 text-white shadow-deep transition-all hover:bg-primary focus:outline-none focus:ring-2 focus:ring-accent"
+      class="fixed bottom-6 end-6 z-40 hidden h-10 w-10 items-center justify-center rounded-full bg-navy-900 text-ivory-50 shadow-deep transition-all hover:bg-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-600"
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <polyline points="18 15 12 9 6 15" />
@@ -118,8 +116,11 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
 
     <script>
       function initScrollReveal() {
-        document.querySelectorAll('[data-animate="fade"]').forEach((el) => {
-          if (el.classList.contains('is-visible')) return; // already animated
+        const els = document.querySelectorAll('[data-animate="fade"]');
+        if (!els.length) return;
+
+        els.forEach((el) => {
+          if (el.classList.contains('is-visible')) return;
           const observer = new IntersectionObserver(
             (entries) => {
               entries.forEach((entry) => {
@@ -132,6 +133,20 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
             { threshold: 0.15 }
           );
           observer.observe(el);
+        });
+
+        // Fallback: ensure elements in viewport become visible even if
+        // the IntersectionObserver doesn't fire promptly (e.g. during View Transitions)
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            els.forEach((el) => {
+              if (el.classList.contains('is-visible')) return;
+              const rect = el.getBoundingClientRect();
+              if (rect.top < window.innerHeight + 50 && rect.bottom > -50) {
+                el.classList.add('is-visible');
+              }
+            });
+          });
         });
       }
 
@@ -163,7 +178,9 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
         fresh.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
       }
 
-      // Runs on first load and after every View Transition navigation
+      // Runs on first load immediately, and again after every View Transition navigation
+      initScrollReveal();
+      initBackToTop();
       document.addEventListener('astro:page-load', () => {
         initScrollReveal();
         initBackToTop();

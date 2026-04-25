@@ -1,125 +1,177 @@
 <template>
-  <section id="contact" class="bg-background py-20">
+  <section id="contact" class="bg-ivory-50" style="padding: 48px 0 96px;">
     <div ref="root" class="container mx-auto">
-      <h2 class="section-title">{{ strings.contact.title }}</h2>
-      <p class="mt-4 max-w-2xl text-sm text-muted">{{ strings.contact.subtitle }}</p>
 
-      <div class="mt-10 grid gap-8 lg:grid-cols-2">
-        <!-- Map -->
-        <div class="overflow-hidden rounded-2xl shadow-soft">
-          <iframe
-            class="h-96 w-full"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            src="https://maps.google.com/maps?q=Dumyat+Public+Hospital&t=&z=15&ie=UTF8&iwloc=&output=embed"
-            :title="strings.contact.mapTitle"
-          ></iframe>
+      <div class="contact-grid" style="display:grid; grid-template-columns: 1fr 1fr; gap:48px; align-items:start;">
+
+        <!-- Stylized map -->
+        <div class="relative aspect-square rounded-sm overflow-hidden bg-ink-100">
+          <svg viewBox="0 0 400 400" class="w-full h-full" aria-hidden="true">
+            <!-- Grid lines -->
+            <defs>
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(15,59,61,0.06)" stroke-width="1"/>
+              </pattern>
+              <linearGradient id="mapGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#eef6f4;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#dcedeb;stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <rect width="400" height="400" fill="url(#mapGrad)"/>
+            <rect width="400" height="400" fill="url(#grid)"/>
+
+            <!-- Nile river -->
+            <path d="M160 0 C170 80, 200 120, 190 200 C180 280, 210 340, 200 400" fill="none" stroke="rgba(29,106,102,0.2)" stroke-width="24" stroke-linecap="round"/>
+            <path d="M160 0 C170 80, 200 120, 190 200 C180 280, 210 340, 200 400" fill="none" stroke="rgba(29,106,102,0.12)" stroke-width="40" stroke-linecap="round"/>
+
+            <!-- Roads -->
+            <line x1="0" y1="200" x2="400" y2="200" stroke="rgba(15,59,61,0.08)" stroke-width="3"/>
+            <line x1="200" y1="0" x2="200" y2="400" stroke="rgba(15,59,61,0.08)" stroke-width="3"/>
+
+            <!-- Hospital pin -->
+            <circle cx="250" cy="220" r="28" fill="rgba(29,106,102,0.15)" stroke="#1d6a66" stroke-width="2"/>
+            <circle cx="250" cy="220" r="6" fill="#1d6a66"/>
+            <!-- Cross -->
+            <rect x="247" y="210" width="6" height="20" rx="1" fill="#1d6a66" opacity="0.7"/>
+            <rect x="240" y="217" width="20" height="6" rx="1" fill="#1d6a66" opacity="0.7"/>
+
+            <!-- Label -->
+            <text x="250" y="260" text-anchor="middle" font-size="10" fill="#1d6a66" font-family="monospace">DUMYAT PUBLIC HOSPITAL</text>
+          </svg>
+          <!-- Mono label -->
+          <div class="absolute bottom-4 start-4 font-mono text-ink-300 text-[10px] tracking-wide">[ MAP &middot; stylized &middot; 1:1 ]</div>
         </div>
 
-        <!-- Info + form -->
-        <div class="space-y-6 rounded-2xl bg-surface p-8 shadow-soft" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
+        <!-- Contact info panel -->
+        <div class="space-y-0" :dir="lang === 'ar' ? 'rtl' : 'ltr'">
+          <!-- Address -->
+          <div class="contact-row flex items-start gap-6 py-5 border-b border-ink-200">
+            <div class="font-mono text-[11px] uppercase text-ink-400 tracking-wider min-w-[90px] pt-0.5">{{ strings.contact.addressLabel }}</div>
+            <div class="font-display-ar text-navy-900 text-[15px] leading-relaxed">{{ strings.contact.details.address }}</div>
+          </div>
 
-          <!-- Contact details -->
-          <div class="grid gap-3 text-sm text-muted">
-            <p><strong class="text-text">{{ strings.contact.addressLabel }}:</strong> {{ strings.contact.details.address }}</p>
-            <p>
-              <strong class="text-text">{{ strings.contact.phoneLabel }}:</strong>
-              <a class="text-secondary hover:underline" :href="phoneLink">{{ strings.contact.details.phone }}</a>
-            </p>
-            <p>
-              <strong class="text-text">{{ strings.contact.emergencyLabel }}:</strong>
-              <span class="ms-2 inline-flex rounded-full bg-red-600/10 px-3 py-1 text-xs font-semibold text-red-700">
+          <!-- Phone -->
+          <div class="contact-row flex items-start gap-6 py-5 border-b border-ink-200">
+            <div class="font-mono text-[11px] uppercase text-ink-400 tracking-wider min-w-[90px] pt-0.5">{{ strings.contact.phoneLabel }}</div>
+            <a class="font-display-ar text-navy-900 text-[15px] hover:text-teal-700 transition-colors" :href="phoneLink">{{ strings.contact.details.phone }}</a>
+          </div>
+
+          <!-- Emergency -->
+          <div class="contact-row flex items-start gap-6 py-5 border-b border-ink-200">
+            <div class="font-mono text-[11px] uppercase text-ink-400 tracking-wider min-w-[90px] pt-0.5">{{ strings.contact.emergencyLabel }}</div>
+            <div class="flex items-center gap-3">
+              <span class="emergency-pill">
+                <span class="dot"></span>
                 {{ strings.contact.details.emergencyNumber }}
               </span>
-            </p>
-            <p>
-              <strong class="text-text">{{ strings.contact.whatsappLabel }}:</strong>
-              <a class="text-green-600 hover:underline" :href="whatsAppLink" target="_blank" rel="noopener">{{ strings.contact.details.whatsapp }}</a>
-            </p>
-            <p>
-              <strong class="text-text">{{ strings.contact.emailLabel }}:</strong>
-              <a class="text-secondary hover:underline" :href="emailLink">{{ strings.contact.details.email }}</a>
-            </p>
+            </div>
+          </div>
+
+          <!-- WhatsApp -->
+          <div class="contact-row flex items-start gap-6 py-5 border-b border-ink-200">
+            <div class="font-mono text-[11px] uppercase text-ink-400 tracking-wider min-w-[90px] pt-0.5">{{ strings.contact.whatsappLabel }}</div>
+            <a class="font-display-ar text-navy-900 text-[15px] hover:text-teal-700 transition-colors" :href="whatsAppLink" target="_blank" rel="noopener">{{ strings.contact.details.whatsapp }}</a>
+          </div>
+
+          <!-- Email -->
+          <div class="contact-row flex items-start gap-6 py-5 border-b border-ink-200">
+            <div class="font-mono text-[11px] uppercase text-ink-400 tracking-wider min-w-[90px] pt-0.5">{{ strings.contact.emailLabel }}</div>
+            <a class="font-display-ar text-navy-900 text-[15px] hover:text-teal-700 transition-colors" :href="emailLink">{{ strings.contact.details.email }}</a>
           </div>
 
           <!-- Hours -->
-          <div>
-            <p class="text-sm font-semibold text-text">{{ strings.contact.hoursLabel }}</p>
-            <table class="mt-2 w-full text-sm text-muted">
-              <tbody>
-                <tr v-for="(row, idx) in strings.contact.details.hours" :key="idx" class="border-b border-gray-100 last:border-0">
-                  <td class="py-1.5">{{ row.day }}</td>
-                  <td class="py-1.5 text-end font-medium text-text">{{ row.time }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="py-5">
+            <div class="font-mono text-[11px] uppercase text-ink-400 tracking-wider mb-4">{{ strings.contact.hoursLabel }}</div>
+            <div class="space-y-2">
+              <div v-for="(row, idx) in strings.contact.details.hours" :key="idx" class="flex items-center justify-between">
+                <span class="text-[15px] text-ink-500">{{ row.day }}</span>
+                <span class="font-mono text-sm text-navy-900">{{ row.time }}</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Form -->
-          <form class="space-y-4" @submit.prevent="submit" novalidate>
-            <h3 class="text-lg font-semibold text-text">{{ strings.contact.formTitle }}</h3>
-
-            <!-- Name field -->
-            <div>
-              <input
-                v-model="name"
-                type="text"
-                autocomplete="name"
-                :placeholder="strings.contact.formName"
-                :aria-label="strings.contact.formName"
-                :class="[
-                  'w-full rounded-lg border px-4 py-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-primary/30',
-                  errors.name ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-primary'
-                ]"
-                @blur="validateField('name')"
-              />
-              <p v-if="errors.name" class="mt-1 text-xs text-red-600">{{ errors.name }}</p>
-            </div>
-
-            <!-- Phone field -->
-            <div>
-              <input
-                v-model="phone"
-                type="tel"
-                autocomplete="tel"
-                :placeholder="strings.contact.formPhone"
-                :aria-label="strings.contact.formPhone"
-                :class="[
-                  'w-full rounded-lg border px-4 py-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-primary/30',
-                  errors.phone ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-primary'
-                ]"
-                @blur="validateField('phone')"
-              />
-              <p v-if="errors.phone" class="mt-1 text-xs text-red-600">{{ errors.phone }}</p>
-            </div>
-
-            <!-- Message field -->
-            <div>
-              <textarea
-                v-model="message"
-                :placeholder="strings.contact.formMessage"
-                :aria-label="strings.contact.formMessage"
-                :class="[
-                  'h-28 w-full rounded-lg border px-4 py-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-primary/30',
-                  errors.message ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white focus:border-primary'
-                ]"
-                @blur="validateField('message')"
-              ></textarea>
-              <p v-if="errors.message" class="mt-1 text-xs text-red-600">{{ errors.message }}</p>
-            </div>
-
+          <!-- Form toggle -->
+          <div class="pt-4">
             <button
-              type="submit"
-              :disabled="loading"
-              class="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-white shadow-soft transition-opacity disabled:opacity-60"
+              @click="showForm = !showForm"
+              class="btn btn-teal w-full justify-center"
             >
-              <svg v-if="loading" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
-              {{ strings.contact.formSubmit }}
+              {{ showForm ? (isAr ? 'إغلاق النموذج' : 'Close Form') : strings.contact.formTitle }}
             </button>
-          </form>
+          </div>
+
+          <!-- Contact form (collapsible) -->
+          <Transition
+            enter-active-class="transition-all duration-300 ease-out"
+            enter-from-class="max-h-0 opacity-0"
+            enter-to-class="max-h-[500px] opacity-100"
+            leave-active-class="transition-all duration-200 ease-in"
+            leave-from-class="max-h-[500px] opacity-100"
+            leave-to-class="max-h-0 opacity-0"
+          >
+            <form v-if="showForm" class="space-y-4 pt-6 overflow-hidden" @submit.prevent="submit" novalidate>
+              <!-- Name field -->
+              <div>
+                <input
+                  v-model="name"
+                  type="text"
+                  autocomplete="name"
+                  :placeholder="strings.contact.formName"
+                  :aria-label="strings.contact.formName"
+                  :class="[
+                    'w-full rounded-lg border px-4 py-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-teal-700/30',
+                    errors.name ? 'border-coral bg-coral/10' : 'border-ink-200 bg-white focus:border-teal-700'
+                  ]"
+                  @blur="validateField('name')"
+                />
+                <p v-if="errors.name" class="mt-1 text-xs text-coral">{{ errors.name }}</p>
+              </div>
+
+              <!-- Phone field -->
+              <div>
+                <input
+                  v-model="phone"
+                  type="tel"
+                  autocomplete="tel"
+                  :placeholder="strings.contact.formPhone"
+                  :aria-label="strings.contact.formPhone"
+                  :class="[
+                    'w-full rounded-lg border px-4 py-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-teal-700/30',
+                    errors.phone ? 'border-coral bg-coral/10' : 'border-ink-200 bg-white focus:border-teal-700'
+                  ]"
+                  @blur="validateField('phone')"
+                />
+                <p v-if="errors.phone" class="mt-1 text-xs text-coral">{{ errors.phone }}</p>
+              </div>
+
+              <!-- Message field -->
+              <div>
+                <textarea
+                  v-model="message"
+                  :placeholder="strings.contact.formMessage"
+                  :aria-label="strings.contact.formMessage"
+                  :class="[
+                    'h-28 w-full rounded-lg border px-4 py-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-teal-700/30',
+                    errors.message ? 'border-coral bg-coral/10' : 'border-ink-200 bg-white focus:border-teal-700'
+                  ]"
+                  @blur="validateField('message')"
+                ></textarea>
+                <p v-if="errors.message" class="mt-1 text-xs text-coral">{{ errors.message }}</p>
+              </div>
+
+              <button
+                type="submit"
+                :disabled="loading"
+                class="btn btn-primary w-full justify-center"
+              >
+                <svg v-if="loading" class="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+                {{ strings.contact.formSubmit }}
+              </button>
+            </form>
+          </Transition>
         </div>
       </div>
     </div>
@@ -151,7 +203,7 @@
         v-if="toast.show"
         :class="[
           'fixed bottom-24 start-1/2 z-50 -translate-x-1/2 rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-deep',
-          toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+          toast.type === 'success' ? 'bg-green-600' : 'bg-coral'
         ]"
         role="alert"
         aria-live="polite"
@@ -163,11 +215,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { useMotion } from "@vueuse/motion";
 
 const props = defineProps<{ strings: any; lang: "ar" | "en" }>();
 
+const isAr = computed(() => props.lang === "ar");
+const showForm = ref(false);
 const name = ref("");
 const phone = ref("");
 const message = ref("");
@@ -182,25 +236,23 @@ const whatsAppLink = `https://wa.me/${whatsAppNumber}`;
 const phoneLink = `tel:${props.strings.contact.details.phone.replace(/\s/g, "")}`;
 const emailLink = `mailto:${props.strings.contact.details.email}`;
 
-const isAr = props.lang === "ar";
-
 const phoneRegex = /^(\+20|0020|0)?1[0125]\d{8}$|^\+?[\d\s\-()]{7,15}$/;
 
 function validateField(field: "name" | "phone" | "message") {
   if (field === "name") {
     errors.name = name.value.trim().length < 2
-      ? (isAr ? "الرجاء إدخال الاسم الكامل" : "Please enter your full name")
+      ? (isAr.value ? "الرجاء إدخال الاسم الكامل" : "Please enter your full name")
       : "";
   }
   if (field === "phone") {
     const cleaned = phone.value.replace(/\s/g, "");
     errors.phone = !phoneRegex.test(cleaned)
-      ? (isAr ? "رقم الهاتف غير صحيح" : "Please enter a valid phone number")
+      ? (isAr.value ? "رقم الهاتف غير صحيح" : "Please enter a valid phone number")
       : "";
   }
   if (field === "message") {
     errors.message = message.value.trim().length < 10
-      ? (isAr ? "الرجاء كتابة رسالة لا تقل عن 10 أحرف" : "Message must be at least 10 characters")
+      ? (isAr.value ? "الرجاء كتابة رسالة لا تقل عن 10 أحرف" : "Message must be at least 10 characters")
       : "";
   }
 }
@@ -221,7 +273,7 @@ function showToast(type: "success" | "error", msg: string) {
 
 const submit = async () => {
   if (!validateAll()) {
-    showToast("error", isAr ? "يرجى تصحيح الأخطاء قبل الإرسال" : "Please fix the errors before submitting");
+    showToast("error", isAr.value ? "يرجى تصحيح الأخطاء قبل الإرسال" : "Please fix the errors before submitting");
     return;
   }
   loading.value = true;
@@ -239,12 +291,12 @@ const submit = async () => {
       name.value = "";
       phone.value = "";
       message.value = "";
-      showToast("success", isAr ? "تم إرسال رسالتك بنجاح!" : "Message sent successfully!");
+      showToast("success", isAr.value ? "تم إرسال رسالتك بنجاح!" : "Message sent successfully!");
     } else {
-      showToast("error", isAr ? "حدث خطأ، حاول مرة أخرى" : "Something went wrong, please try again");
+      showToast("error", isAr.value ? "حدث خطأ، حاول مرة أخرى" : "Something went wrong, please try again");
     }
   } catch {
-    showToast("error", isAr ? "خطأ في الاتصال، تأكد من الإنترنت" : "Connection error, please check your internet");
+    showToast("error", isAr.value ? "خطأ في الاتصال، تأكد من الإنترنت" : "Connection error, please check your internet");
   } finally {
     loading.value = false;
   }
@@ -259,3 +311,18 @@ onMounted(() => {
   }
 });
 </script>
+
+<style scoped>
+@media (max-width: 900px) {
+  .contact-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+  .contact-row {
+    gap: 16px !important;
+  }
+  .contact-row > div:first-child {
+    min-width: 70px !important;
+  }
+}
+</style>
