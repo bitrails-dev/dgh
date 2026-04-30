@@ -32,19 +32,7 @@ const navItems = [
   <div class="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-8 py-4">
     <!-- Brand -->
     <a href={`/${lang}/`} class="flex items-center gap-3 shrink-0">
-      <svg class="h-9 w-9" viewBox="0 0 100 100" aria-hidden="true">
-        <defs>
-          <linearGradient id="topbar-hex" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#2a8f87" />
-            <stop offset="1" stop-color="#112a4d" />
-          </linearGradient>
-        </defs>
-        <path d="M50 4 L88 25 L88 75 L50 96 L12 75 L12 25 Z" fill="url(#topbar-hex)" />
-        <path d="M50 4 L88 25 L88 75 L50 96 L12 75 L12 25 Z" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-        <path d="M54 22 L54 56 L34 56 Z" fill="#fff" />
-        <path d="M56 30 L56 56 L68 56 Z" fill="#fff" opacity="0.55" />
-        <path d="M14 66 L34 66 L38 58 L44 74 L50 62 L56 70 L62 66 L86 66" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+      <img src="/logo/logo-hex.svg" class="h-9 w-9 flex-shrink-0" alt="" aria-hidden="true" />
       <div>
         <div class="font-display-ar font-semibold text-lg text-navy-900 leading-tight">{strings.site?.name}</div>
         <div class="mt-0.5 text-[10px] tracking-widest text-teal-700 uppercase font-medium leading-none">{strings.site?.established}</div>

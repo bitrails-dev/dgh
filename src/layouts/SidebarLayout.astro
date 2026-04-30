@@ -17,6 +17,15 @@ interface Props {
 
 const { lang, strings, breadcrumbs = [], currentPath } = Astro.props;
 
+// Pass only what TheSidebar actually uses — avoids serialising the full i18n
+// object (~5 KB) into every page's <astro-island> hydration payload.
+const sidebarStrings = {
+  site:    { name: strings.site?.name, established: strings.site?.established },
+  nav:     strings.nav,
+  sidebar: strings.sidebar,
+  contact: { details: { emergencyNumber: strings.contact?.details?.emergencyNumber } },
+};
+
 // Only render breadcrumb strip on sub-pages (2+ items)
 const showBreadcrumb = breadcrumbs.length >= 2;
 
@@ -38,7 +47,7 @@ const breadcrumbJsonLd = showBreadcrumb
 <TheTopBar lang={lang} strings={strings} />
 
 <div class="flex flex-1">
-  <TheSidebar lang={lang} currentPath={currentPath} strings={strings} client:load />
+  <TheSidebar lang={lang} currentPath={currentPath} strings={sidebarStrings} client:load />
   <main id="main-content" class="flex-1 min-w-0">
     {showBreadcrumb && (
       <div class="bg-ivory-50 px-6 lg:px-8 py-3">

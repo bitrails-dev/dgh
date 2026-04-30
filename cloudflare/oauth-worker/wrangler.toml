@@ -1,0 +1,7 @@
+name            = "decap-oauth"
+main            = "worker.js"
+compatibility_date = "2024-01-01"
+
+# After deploying, store secrets (never commit these):
+#   wrangler secret put GITHUB_CLIENT_ID
+#   wrangler secret put GITHUB_CLIENT_SECRET

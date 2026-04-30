@@ -1,0 +1,17 @@
+{
+  "phone": "+20 57 222 4340",
+  "emergencyNumber": "12345",
+  "whatsapp": "+20 57 222 4340",
+  "email": "nrmenelabd1234@yahoo.com",
+  "address": "Dumyat – Nile Corniche – Sa'd Zaghloul St., in front of the Governorate Building",
+  "addressAr": "دمياط – كورنيش النيل – شارع سعد زغلول، أمام مبنى المحافظة",
+  "social": {
+    "facebookUrl": "",
+    "xUrl": "",
+    "youtubeUrl": ""
+  },
+  "hours": [
+    { "day": "Saturday – Thursday", "dayAr": "السبت – الخميس", "time": "8:00 AM – 9:00 PM", "timeAr": "٨:٠٠ ص – ٩:٠٠ م" },
+    { "day": "Friday",              "dayAr": "الجمعة",          "time": "9:00 AM – 6:00 PM", "timeAr": "٩:٠٠ ص – ٦:٠٠ م" }
+  ]
+}

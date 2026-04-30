@@ -1,0 +1,8 @@
+{
+  "stats": {
+    "years":       { "value": "67",    "valueAr": "٦٧",   "unit": "+",  "unitAr": "+"  },
+    "departments": { "value": "28",    "valueAr": "٢٨",   "unit": "",   "unitAr": ""   },
+    "patients":    { "value": "1.2",   "valueAr": "١٫٢",  "unit": "M+", "unitAr": "م+" },
+    "staff":       { "value": "2,400", "valueAr": "٢٤٠٠", "unit": "+",  "unitAr": "+"  }
+  }
+}

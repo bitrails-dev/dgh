@@ -1,23 +1,15 @@
 ---
+import heroSettings from '../../content/settings/hero.json';
+
 const { lang, strings } = Astro.props;
 const isAr = lang === 'ar';
+const s = heroSettings.stats;
+
 const stats = [
-	{ label: strings.hero.stats.years, value: isAr ? '٦٧' : '67', unit: '+' },
-	{
-		label: strings.hero.stats.departments,
-		value: isAr ? '٢٨' : '28',
-		unit: '',
-	},
-	{
-		label: strings.hero.stats.patients,
-		value: isAr ? '١٫٢' : '1.2',
-		unit: isAr ? 'م+' : 'M+',
-	},
-	{
-		label: strings.hero.stats.staff,
-		value: isAr ? '٢٤٠٠' : '2,400',
-		unit: '+',
-	},
+	{ label: strings.hero.stats.years,       value: isAr ? s.years.valueAr       : s.years.value,       unit: isAr ? s.years.unitAr       : s.years.unit       },
+	{ label: strings.hero.stats.departments, value: isAr ? s.departments.valueAr : s.departments.value, unit: isAr ? s.departments.unitAr : s.departments.unit },
+	{ label: strings.hero.stats.patients,    value: isAr ? s.patients.valueAr    : s.patients.value,    unit: isAr ? s.patients.unitAr    : s.patients.unit    },
+	{ label: strings.hero.stats.staff,       value: isAr ? s.staff.valueAr       : s.staff.value,       unit: isAr ? s.staff.unitAr       : s.staff.unit       },
 ];
 ---
 
