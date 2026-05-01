@@ -12,6 +12,13 @@ export default defineConfig({
 	site,
 	base,
 	output: 'static',
+	i18n: {
+		defaultLocale: 'ar',
+		locales: ['ar', 'en'],
+		routing: {
+			prefixDefaultLocale: false,
+		},
+	},
 	server: {
 		host: true,
 		port: parseInt(process.env.PORT ?? '4321'),

@@ -17,6 +17,11 @@ type DeepKey<T> = T extends object
 
 export const getStrings = (lang: Locale) => strings[lang];
 
+export const localePath = (path: string, lang: Locale): string => {
+  if (lang === "ar") return path;
+  return `/${lang}${path === "/" ? "/" : path}`;
+};
+
 export const t = (lang: Locale, key: DeepKey<typeof strings.en>): string => {
   const parts = key.split(".");
   let current: any = strings[lang];

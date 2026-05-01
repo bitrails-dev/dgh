@@ -1,7 +1,7 @@
 <template>
   <header class="fixed top-0 z-50 w-full bg-white/95 backdrop-blur-md shadow-sm">
     <div class="container mx-auto flex items-center justify-between px-4 py-3">
-      <a :href="`/${lang}/`" class="flex items-center gap-3">
+      <a :href="lp('/')" class="flex items-center gap-3">
         <div class="h-10 w-10 rounded-full bg-navy-900 overflow-hidden">
           <img src="/icon.png" :alt="strings.site.name" class="h-full w-full object-cover" />
         </div>
@@ -12,10 +12,10 @@
       </a>
 
       <nav class="hidden md:flex items-center gap-4 text-sm font-semibold">
-        <a :href="`/${lang}/portal/`" class="hover:text-navy-900">{{ strings.portal.nav.home }}</a>
-        <a :href="`/${lang}/portal/book/`" class="hover:text-navy-900">{{ strings.portal.nav.book }}</a>
-        <a :href="`/${lang}/portal/appointments/`" class="hover:text-navy-900">{{ strings.portal.nav.appointments }}</a>
-        <a :href="`/${lang}/portal/admin/`" class="hover:text-navy-900">{{ strings.portal.nav.admin }}</a>
+        <a :href="lp('/portal/')" class="hover:text-navy-900">{{ strings.portal.nav.home }}</a>
+        <a :href="lp('/portal/book/')" class="hover:text-navy-900">{{ strings.portal.nav.book }}</a>
+        <a :href="lp('/portal/appointments/')" class="hover:text-navy-900">{{ strings.portal.nav.appointments }}</a>
+        <a :href="lp('/portal/admin/')" class="hover:text-navy-900">{{ strings.portal.nav.admin }}</a>
       </nav>
 
       <div class="flex items-center gap-2">
@@ -29,7 +29,7 @@
         <a
           v-if="status === 'signed_out'"
           class="rounded-full bg-navy-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-navy-900/90"
-          :href="`/${lang}/portal/sign-in/`"
+          :href="lp('/portal/sign-in/')"
         >
           {{ strings.portal.nav.signIn }}
         </a>
@@ -61,12 +61,15 @@ const props = defineProps<{ lang: "ar" | "en"; strings: any }>();
 type Status = "loading" | "signed_out" | "signed_in_verified" | "signed_in_pending";
 const status = ref<Status>("loading");
 
+const lp = (path: string) => props.lang === "ar" ? path : `/en${path}`;
+
 const switchHref = computed(() => {
-  const next = props.lang === "ar" ? "en" : "ar";
-  const path = typeof window === "undefined" ? `/${props.lang}/portal/` : window.location.pathname;
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length && (parts[0] === "ar" || parts[0] === "en")) parts[0] = next;
-  return `/${parts.join("/")}/`;
+  const path = typeof window === "undefined" ? lp('/portal/') : window.location.pathname;
+  if (props.lang === "ar") {
+    return path === "/" ? "/en/" : `/en${path}`;
+  } else {
+    return path.replace(/^\/en/, "") || "/portal/";
+  }
 });
 
 async function refresh() {
@@ -83,7 +86,7 @@ async function onLogout() {
     await portalApi.logout();
   } finally {
     status.value = "signed_out";
-    window.location.href = `/${props.lang}/portal/sign-in/`;
+    window.location.href = lp('/portal/sign-in/');
   }
 }
 

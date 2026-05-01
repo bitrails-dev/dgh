@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../layouts/SidebarLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import ContactSection from '../../components/sections/ContactSection.vue';
+import { getStrings, localePath } from '../../i18n';
+import type { Locale } from '../../i18n';
+
+export function getStaticPaths() {
+  return [{ params: { lang: undefined } }, { params: { lang: 'en' } }];
+}
+
+const lang = (Astro.params.lang || "ar") as Locale;
+const strings = getStrings(lang);
+const breadcrumbs = [
+  { label: strings.breadcrumb.home, href: localePath('/', lang) },
+  { label: strings.breadcrumb.contact },
+];
+---
+<BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} title={`${strings.contact.title} | ${strings.site.name}`} description={strings.contact.subtitle}>
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs}>
+    <div class="mx-auto max-w-[1440px] px-6 py-8">
+      <PageHeader title={strings.contact.title} subtitle={strings.contact.subtitle} />
+    </div>
+    <ContactSection lang={lang} strings={strings} client:visible />
+  </SidebarLayout>
+</BaseLayout>

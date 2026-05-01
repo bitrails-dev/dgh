@@ -14,7 +14,7 @@
   >
     <!-- Brand header + close button -->
     <div class="flex items-center gap-3 px-5 py-4 border-b border-ink-100">
-      <a :href="`/${lang}/`" class="flex items-center gap-3 min-w-0 group">
+      <a :href="lp('/')" class="flex items-center gap-3 min-w-0 group">
         <img src="/logo/logo-hex.svg" class="h-8 w-8 flex-shrink-0" alt="" aria-hidden="true" />
         <div class="min-w-0">
           <div class="font-display-ar font-semibold text-sm text-navy-900 leading-tight truncate">
@@ -117,32 +117,35 @@ const livePath = ref(props.currentPath);
 
 const emergencyNumber = computed(() => props.strings.contact?.details?.emergencyNumber ?? '12345');
 
+// Prefix helper: empty for Arabic (default, no prefix), /en for English
+const lp = (path: string) => props.lang === 'ar' ? path : `/en${path}`;
+
 // Language switch URL (safe for SSR)
-const otherLang = computed(() => props.lang === 'ar' ? 'en' : 'ar');
 const langSwitchUrl = computed(() => {
   const path = livePath.value;
-  const segments = path.split('/').filter(Boolean);
-  return segments.length && (segments[0] === 'ar' || segments[0] === 'en')
-    ? `/${[otherLang.value, ...segments.slice(1)].join('/')}`
-    : `/${otherLang.value}${path}`;
+  if (props.lang === 'ar') {
+    return path === '/' ? '/en/' : `/en${path}`;
+  } else {
+    return path.replace(/^\/en/, '') || '/';
+  }
 });
 
 const navItems = computed(() => [
-  { id: 'home',          href: `/${props.lang}/`,              label: props.strings.nav?.home,          icon: Home },
-  { id: 'about',         href: `/${props.lang}/about`,         label: props.strings.nav?.about,         icon: Info },
-  { id: 'departments',   href: `/${props.lang}/departments`,   label: props.strings.nav?.departments,   icon: Building2 },
-  { id: 'team',          href: `/${props.lang}/team`,          label: props.strings.nav?.team,          icon: Users },
-  { id: 'achievements',  href: `/${props.lang}/achievements`,  label: props.strings.nav?.achievements,  icon: Trophy },
-  { id: 'awards',        href: `/${props.lang}/awards`,        label: props.strings.nav?.awards,        icon: Award },
-  { id: 'articles',      href: `/${props.lang}/articles`,      label: props.strings.nav?.articles,      icon: FileText },
-  { id: 'events',        href: `/${props.lang}/events`,        label: props.strings.nav?.events,        icon: CalendarDays },
-  { id: 'contact',       href: `/${props.lang}/contact`,       label: props.strings.nav?.contact,       icon: Phone },
+  { id: 'home',          href: lp('/'),              label: props.strings.nav?.home,          icon: Home },
+  { id: 'about',         href: lp('/about'),         label: props.strings.nav?.about,         icon: Info },
+  { id: 'departments',   href: lp('/departments'),   label: props.strings.nav?.departments,   icon: Building2 },
+  { id: 'team',          href: lp('/team'),          label: props.strings.nav?.team,          icon: Users },
+  { id: 'achievements',  href: lp('/achievements'),  label: props.strings.nav?.achievements,  icon: Trophy },
+  { id: 'awards',        href: lp('/awards'),        label: props.strings.nav?.awards,        icon: Award },
+  { id: 'articles',      href: lp('/articles'),      label: props.strings.nav?.articles,      icon: FileText },
+  { id: 'events',        href: lp('/events'),        label: props.strings.nav?.events,        icon: CalendarDays },
+  { id: 'contact',       href: lp('/contact'),       label: props.strings.nav?.contact,       icon: Phone },
 ]);
 
 function isActive(href: string): boolean {
   const path = livePath.value.replace(/\/$/, '') || '/';
   const target = href.replace(/\/$/, '') || '/';
-  const homeTarget = `/${props.lang}`;
+  const homeTarget = lp('/').replace(/\/$/, '') || '/';
   if (target === homeTarget) return path === target;
   return path === target || path.startsWith(target + '/');
 }

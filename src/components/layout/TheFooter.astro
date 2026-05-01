@@ -1,9 +1,10 @@
 ---
 import SectionLabel from "../ui/SectionLabel.astro";
 
+import { localePath } from '../../i18n';
+
 const { lang, strings } = Astro.props;
 const year = new Date().getFullYear();
-const basePath = `/${lang}`;
 ---
 <footer class="bg-navy-900 text-navy-200">
   <div class="mx-auto w-full max-w-[1440px] px-6 py-16">
@@ -22,13 +23,13 @@ const basePath = `/${lang}`;
       <div>
         <SectionLabel text={strings.footer.quickLinks} class="text-white/70" />
         <ul class="mt-4 space-y-2 text-sm">
-          <li><a href={`/${lang}/about`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.about}</a></li>
-          <li><a href={`/${lang}/departments`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.departments}</a></li>
-          <li><a href={`/${lang}/achievements`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.achievements}</a></li>
-          <li><a href={`/${lang}/team`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.team}</a></li>
-          <li><a href={`/${lang}/events`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.events}</a></li>
-          <li><a href={`${basePath}/privacy`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.footer.privacy}</a></li>
-          <li><a href={`${basePath}/terms`} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.footer.terms}</a></li>
+          <li><a href={localePath('/about', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.about}</a></li>
+          <li><a href={localePath('/departments', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.departments}</a></li>
+          <li><a href={localePath('/achievements', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.achievements}</a></li>
+          <li><a href={localePath('/team', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.team}</a></li>
+          <li><a href={localePath('/events', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.nav.events}</a></li>
+          <li><a href={localePath('/privacy', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.footer.privacy}</a></li>
+          <li><a href={localePath('/terms', lang)} class="text-navy-200/70 transition-colors hover:text-teal-400">{strings.footer.terms}</a></li>
         </ul>
       </div>
 

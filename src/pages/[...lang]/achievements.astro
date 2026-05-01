@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../layouts/SidebarLayout.astro';
+import PageHeader from '../../components/ui/PageHeader.astro';
+import AchievementsTimeline from '../../components/sections/AchievementsTimeline.vue';
+import { getCollection } from 'astro:content';
+import { getStrings, localePath } from '../../i18n';
+import type { Locale } from '../../i18n';
+
+export function getStaticPaths() {
+  return [{ params: { lang: undefined } }, { params: { lang: 'en' } }];
+}
+
+const lang = (Astro.params.lang || "ar") as Locale;
+const strings = getStrings(lang);
+const breadcrumbs = [
+  { label: strings.breadcrumb.home, href: localePath('/', lang) },
+  { label: strings.breadcrumb.achievements },
+];
+
+const achievements = await getCollection('achievements');
+const sorted = [...achievements].sort((a, b) => b.data.year - a.data.year);
+const items = sorted.map((a) => ({
+  year: a.data.year,
+  title: a.data.title,
+  titleAr: a.data.titleAr,
+  description: a.data.description,
+  descriptionAr: a.data.descriptionAr,
+  icon: a.data.icon,
+}));
+---
+<BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} title={`${strings.achievements.title} | ${strings.site.name}`} description={strings.achievements.subtitle}>
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs}>
+    <div class="mx-auto max-w-[1440px] px-6 py-8">
+      <PageHeader title={strings.achievements.title} subtitle={strings.achievements.subtitle} />
+      <AchievementsTimeline items={items} lang={lang} strings={strings} client:visible />
+    </div>
+  </SidebarLayout>
+</BaseLayout>

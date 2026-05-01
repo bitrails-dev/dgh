@@ -1,0 +1,148 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import { getCollection } from 'astro:content';
+import { getStrings, localePath } from '../../../i18n';
+
+export async function getStaticPaths() {
+  const articles = await getCollection('articles');
+  const langs = [undefined, 'en'] as const;
+  return articles.flatMap((article) =>
+    langs.map((lang) => ({
+      params: { lang, slug: article.id },
+      props: { article },
+    }))
+  );
+}
+
+const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const { article } = Astro.props;
+const strings = getStrings(lang);
+
+const title = lang === 'ar' ? article.data.titleAr : article.data.title;
+
+const categoryColors: Record<string, string> = {
+  'hospital-news': 'bg-teal-700/10 text-teal-700',
+  'health-tips': 'bg-navy-900/10 text-navy-900',
+  'research': 'bg-gold/15 text-gold',
+  'events': 'bg-ink-500/10 text-ink-500',
+};
+
+const categoryLabels: Record<string, { en: string; ar: string }> = {
+  'hospital-news': { en: 'Hospital News', ar: 'أخبار المستشفى' },
+  'health-tips': { en: 'Health Tips', ar: 'نصائح صحية' },
+  'research': { en: 'Research', ar: 'الأبحاث' },
+  'events': { en: 'Events', ar: 'الفعاليات' },
+};
+
+const formatDate = (dateStr: string | Date) =>
+  new Date(dateStr).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+    year: 'numeric', month: 'long', day: 'numeric',
+  });
+
+const categoryLabel = categoryLabels[article.data.category]?.[lang === 'ar' ? 'ar' : 'en'] || '';
+
+const breadcrumbs = [
+  { label: strings.breadcrumb.home, href: localePath('/', lang) },
+  { label: lang === 'ar' ? 'المقالات' : 'Articles', href: localePath('/articles', lang) },
+  { label: title },
+];
+---
+
+<BaseLayout
+  lang={lang}
+  strings={strings}
+  breadcrumbs={breadcrumbs}
+  title={`${title} | ${strings.site.name}`}
+  description={title}
+>
+  <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs}>
+
+    <!-- Page header -->
+    <section class="mx-auto max-w-[1440px] px-6 pt-12 pb-2" data-animate="fade">
+      <div class="inline-flex items-center gap-2.5 mb-5">
+        <div class="w-8 h-px bg-teal-600"></div>
+        <p class="h-eyebrow">{lang === 'ar' ? 'المقالات' : 'Articles'}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <span class={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${categoryColors[article.data.category] || 'bg-ink-500/10 text-ink-500'}`}>
+          {categoryLabel}
+        </span>
+        <time class="text-sm text-ink-400">{formatDate(article.data.date)}</time>
+        {article.data.author && (
+          <>
+            <span class="text-ink-300" aria-hidden="true">·</span>
+            <span class="text-sm text-ink-500">{article.data.author}</span>
+          </>
+        )}
+      </div>
+      <h1 class="font-display-ar font-medium text-navy-900 leading-none tracking-tight" style="font-size: clamp(36px, 4vw, 56px); line-height: 1.1;">{title}</h1>
+    </section>
+
+    <!-- Main content -->
+    <section class="mx-auto max-w-[1440px] px-6 py-10">
+      <div class="grid gap-8 lg:grid-cols-3">
+        <!-- Main column -->
+        <div class="lg:col-span-2 space-y-8">
+          {article.data.thumbnail && (
+            <div class="overflow-hidden border border-ink-100">
+              <img src={article.data.thumbnail} alt={title} class="w-full h-96 object-cover" />
+            </div>
+          )}
+
+          {article.data.body && (
+            <div class="bg-ivory-50 p-8 border border-ink-100">
+              <div class="prose max-w-none">
+                <p>{article.data.body}</p>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <a href={`/${lang}/articles`} class="btn-text text-sm">
+              <span class="inline-flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                {lang === 'ar' ? 'العودة إلى المقالات' : 'Back to Articles'}
+              </span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <div class="bg-teal-800 p-8 text-ivory-50 shadow-deep">
+            <h3 class="text-lg font-bold font-display-ar mb-4">
+              {lang === 'ar' ? 'معلومات المقالة' : 'Article Info'}
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <p class="text-xs text-ivory-100/60">{lang === 'ar' ? 'التاريخ' : 'Published'}</p>
+                <p class="mt-1 font-semibold">{formatDate(article.data.date)}</p>
+              </div>
+              {article.data.author && (
+                <div>
+                  <p class="text-xs text-ivory-100/60">{lang === 'ar' ? 'الكاتب' : 'Author'}</p>
+                  <p class="mt-1 font-semibold">{article.data.author}</p>
+                </div>
+              )}
+              <div>
+                <p class="text-xs text-ivory-100/60">{lang === 'ar' ? 'النوع' : 'Category'}</p>
+                <p class="mt-1 font-semibold">{categoryLabel}</p>
+              </div>
+            </div>
+            <a href={`/${lang}/contact`} class="btn btn-teal mt-6 w-full justify-center">
+              {lang === 'ar' ? 'اتصل بنا' : 'Contact Us'}
+            </a>
+          </div>
+
+          <div class="bg-ivory-50 p-6 border border-ink-100 text-sm text-ink-500">
+            <p class="font-semibold text-ink-900 mb-2">{lang === 'ar' ? 'خط الطوارئ' : 'Emergency Line'}</p>
+            <a href="tel:12345" class="text-2xl font-extrabold text-coral hover:underline">12345</a>
+            <p class="mt-1 text-xs text-ink-400">{lang === 'ar' ? 'متاح على مدار الساعة' : 'Available 24/7'}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </SidebarLayout>
+</BaseLayout>

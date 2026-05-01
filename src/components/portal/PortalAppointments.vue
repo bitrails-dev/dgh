@@ -6,7 +6,7 @@
           <h1 class="text-xl font-extrabold text-ink-900">{{ strings.portal.appointments.title }}</h1>
           <p class="mt-1 text-sm text-ink-500">{{ strings.portal.appointments.description }}</p>
         </div>
-        <a :href="`/${lang}/portal/book/`" class="rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white">
+        <a :href="lp('/portal/book/')" class="rounded-xl bg-navy-900 px-4 py-2 text-sm font-semibold text-white">
           {{ strings.portal.nav.book }}
         </a>
       </div>
@@ -116,6 +116,8 @@ import { onMounted, ref } from "vue";
 import { portalApi } from "./api";
 
 const props = defineProps<{ lang: "ar" | "en"; strings: any }>();
+
+const lp = (path: string) => props.lang === "ar" ? path : `/en${path}`;
 
 type State = "loading" | "ready";
 const state = ref<State>("loading");

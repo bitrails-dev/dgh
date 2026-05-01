@@ -1,0 +1,21 @@
+---
+import PortalLayout from "../../../../layouts/PortalLayout.astro";
+import PortalAdmin from "../../../../components/portal/PortalAdmin.vue";
+import { getStrings } from "../../../../i18n";
+
+export const getStaticPaths = () => [
+  { params: { lang: undefined } },
+  { params: { lang: "en" } },
+];
+
+const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const strings = getStrings(lang);
+---
+<PortalLayout
+  lang={lang}
+  strings={strings}
+  title={`${strings.portal.admin.title} | ${strings.site.name}`}
+  description={strings.portal.admin.description}
+>
+  <PortalAdmin lang={lang} strings={strings} client:load />
+</PortalLayout>

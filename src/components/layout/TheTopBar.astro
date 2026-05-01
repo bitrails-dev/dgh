@@ -4,34 +4,36 @@ interface Props {
   strings: any;
 }
 
+import { localePath } from '../../i18n';
+
 const { lang, strings } = Astro.props;
 
-const otherLang = lang === 'ar' ? 'en' : 'ar';
 const currentUrl = Astro.url.pathname;
-const segments = currentUrl.split('/').filter(Boolean);
-const langSwitchUrl = segments.length && (segments[0] === 'ar' || segments[0] === 'en')
-  ? `/${[otherLang, ...segments.slice(1)].join('/')}`
-  : `/${otherLang}${currentUrl}`;
+
+// lang switch: ar pages have no prefix (/about), en pages have /en prefix (/en/about)
+const langSwitchUrl = lang === 'ar'
+  ? (currentUrl === '/' ? '/en/' : `/en${currentUrl}`)
+  : (currentUrl.replace(/^\/en/, '') || '/');
 
 const currentPathClean = currentUrl.replace(/\/$/, '') || '/';
 
 const navItems = [
-  { id: 'home',         href: `/${lang}/`,            label: strings.nav?.home },
-  { id: 'about',        href: `/${lang}/about`,       label: strings.nav?.about },
-  { id: 'departments',  href: `/${lang}/departments`, label: strings.nav?.departments },
-  { id: 'team',         href: `/${lang}/team`,        label: strings.nav?.team },
-  { id: 'achievements', href: `/${lang}/achievements`,label: strings.nav?.achievements },
-  { id: 'awards',       href: `/${lang}/awards`,      label: strings.nav?.awards },
-  { id: 'articles',     href: `/${lang}/articles`,    label: strings.nav?.articles },
-  { id: 'events',       href: `/${lang}/events`,      label: strings.nav?.events },
-  { id: 'contact',      href: `/${lang}/contact`,     label: strings.nav?.contact },
+  { id: 'home',         href: localePath('/', lang),             label: strings.nav?.home },
+  { id: 'about',        href: localePath('/about', lang),        label: strings.nav?.about },
+  { id: 'departments',  href: localePath('/departments', lang),  label: strings.nav?.departments },
+  { id: 'team',         href: localePath('/team', lang),         label: strings.nav?.team },
+  { id: 'achievements', href: localePath('/achievements', lang), label: strings.nav?.achievements },
+  { id: 'awards',       href: localePath('/awards', lang),       label: strings.nav?.awards },
+  { id: 'articles',     href: localePath('/articles', lang),     label: strings.nav?.articles },
+  { id: 'events',       href: localePath('/events', lang),       label: strings.nav?.events },
+  { id: 'contact',      href: localePath('/contact', lang),      label: strings.nav?.contact },
 ];
 ---
 
 <header data-topbar class="sticky top-0 z-50" style="background:rgba(251,248,242,0.85); backdrop-filter:saturate(1.4) blur(14px); -webkit-backdrop-filter:saturate(1.4) blur(14px); border-bottom:1px solid rgba(21,80,79,0.08);">
   <div class="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-8 py-4">
     <!-- Brand -->
-    <a href={`/${lang}/`} class="flex items-center gap-3 shrink-0">
+    <a href={localePath('/', lang)} class="flex items-center gap-3 shrink-0">
       <img src="/logo/logo-hex.svg" class="h-9 w-9 flex-shrink-0" alt="" aria-hidden="true" />
       <div>
         <div class="font-display-ar font-semibold text-lg text-navy-900 leading-tight">{strings.site?.name}</div>
@@ -43,7 +45,8 @@ const navItems = [
     <nav class="hidden xl:flex items-center gap-1">
       {navItems.map((item) => {
         const itemPathClean = item.href.replace(/\/$/, '') || '/';
-        const isActive = currentPathClean === itemPathClean || (itemPathClean !== `/${lang}` && currentPathClean.startsWith(itemPathClean));
+        const homeHref = localePath('/', lang).replace(/\/$/, '') || '/';
+        const isActive = currentPathClean === itemPathClean || (itemPathClean !== homeHref && currentPathClean.startsWith(itemPathClean));
         return (
           <a
             href={item.href}

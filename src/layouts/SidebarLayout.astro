@@ -15,7 +15,7 @@ interface Props {
   currentPath: string;
 }
 
-const { lang, strings, breadcrumbs = [], currentPath } = Astro.props;
+const { lang, strings, breadcrumbs = [], currentPath = Astro.url.pathname } = Astro.props;
 
 // Pass only what TheSidebar actually uses — avoids serialising the full i18n
 // object (~5 KB) into every page's <astro-island> hydration payload.

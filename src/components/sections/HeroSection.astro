@@ -1,5 +1,6 @@
 ---
 import heroSettings from '../../content/settings/hero.json';
+import { localePath } from '../../i18n';
 
 const { lang, strings } = Astro.props;
 const isAr = lang === 'ar';
@@ -46,7 +47,7 @@ const stats = [
 				</p>
 				<!-- Actions -->
 				<div class='flex flex-wrap gap-3.5'>
-					<a href={`/${lang}/departments`} class='btn btn-primary'>
+					<a href={localePath('/departments', lang)} class='btn btn-primary'>
 						{strings.hero.ctaPrimary}
 						<svg
 							xmlns='http://www.w3.org/2000/svg'
@@ -61,7 +62,7 @@ const stats = [
 							><polyline points='9 18 15 12 9 6'></polyline></svg
 						>
 					</a>
-					<a href={`/${lang}/team`} class='btn btn-ghost'
+					<a href={localePath('/team', lang)} class='btn btn-ghost'
 						>{strings.hero.ctaSecondary}</a
 					>
 				</div>

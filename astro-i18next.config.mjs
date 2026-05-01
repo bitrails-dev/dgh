@@ -2,5 +2,5 @@
 export default {
   defaultLocale: "ar",
   locales: ["ar", "en"],
-  showDefaultLocale: true,
+  showDefaultLocale: false,
 };

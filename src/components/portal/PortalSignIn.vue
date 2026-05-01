@@ -37,7 +37,7 @@
 
         <p class="text-xs text-ink-500">
           {{ strings.portal.signIn.noAccount }}
-          <a :href="`/${lang}/portal/sign-up/`" class="font-semibold text-navy-900 hover:underline">{{ strings.portal.nav.signUp }}</a>
+          <a :href="lp('/portal/sign-up/')" class="font-semibold text-navy-900 hover:underline">{{ strings.portal.nav.signUp }}</a>
         </p>
       </div>
     </div>
@@ -49,6 +49,8 @@ import { ref } from "vue";
 import { portalApi } from "./api";
 
 const props = defineProps<{ lang: "ar" | "en"; strings: any }>();
+
+const lp = (path: string) => props.lang === "ar" ? path : `/en${path}`;
 
 const mobile = ref("");
 const code = ref("");
@@ -74,7 +76,7 @@ async function verify() {
   error.value = null;
   try {
     await portalApi.verifyOtp({ mobile: mobile.value, code: code.value });
-    window.location.href = `/${props.lang}/portal/`;
+    window.location.href = lp('/portal/');
   } catch (e: any) {
     error.value = e?.message || "Error";
   } finally {
