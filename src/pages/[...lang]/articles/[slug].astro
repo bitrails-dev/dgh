@@ -1,12 +1,13 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import ArRedirect from '../../../components/ui/ArRedirect.astro';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
 export async function getStaticPaths() {
   const articles = await getCollection('articles');
-  const langs = [undefined, 'en'] as const;
+  const langs = [undefined, 'en', 'ar'] as const;
   return articles.flatMap((article) =>
     langs.map((lang) => ({
       params: { lang, slug: article.id },
@@ -17,6 +18,7 @@ export async function getStaticPaths() {
 
 const lang = (Astro.params.lang || "ar") as "ar" | "en";
 const { article } = Astro.props;
+const isArRedirect = Astro.params.lang === 'ar';
 const strings = getStrings(lang);
 
 const title = lang === 'ar' ? article.data.titleAr : article.data.title;
@@ -49,6 +51,9 @@ const breadcrumbs = [
 ];
 ---
 
+{isArRedirect ? (
+  <ArRedirect url={`/articles/${Astro.params.slug}`} />
+) : (
 <BaseLayout
   lang={lang}
   strings={strings}
@@ -99,7 +104,7 @@ const breadcrumbs = [
           )}
 
           <div>
-            <a href={`/${lang}/articles`} class="btn-text text-sm">
+            <a href={localePath('/articles', lang)} class="btn-text text-sm">
               <span class="inline-flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
                 {lang === 'ar' ? 'العودة إلى المقالات' : 'Back to Articles'}
@@ -130,7 +135,7 @@ const breadcrumbs = [
                 <p class="mt-1 font-semibold">{categoryLabel}</p>
               </div>
             </div>
-            <a href={`/${lang}/contact`} class="btn btn-teal mt-6 w-full justify-center">
+            <a href={localePath('/contact', lang)} class="btn btn-teal mt-6 w-full justify-center">
               {lang === 'ar' ? 'اتصل بنا' : 'Contact Us'}
             </a>
           </div>
@@ -146,3 +151,4 @@ const breadcrumbs = [
 
   </SidebarLayout>
 </BaseLayout>
+)}

@@ -1,11 +1,13 @@
 ---
 import CardBase from './CardBase.astro';
 
+import { localePath } from '../../i18n';
+
 const { dept, lang, centerLabel, linkLabel } = Astro.props;
 const name = lang === 'ar' ? dept.data.nameAr : dept.data.name;
 const description =
 	lang === 'ar' ? dept.data.descriptionAr : dept.data.description;
-const href = `/${lang}/departments/${dept.id}`;
+const href = localePath(`/departments/${dept.id}`, lang);
 
 const iconPaths: Record<string, string> = {
 	'heart-pulse':

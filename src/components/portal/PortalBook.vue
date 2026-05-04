@@ -120,6 +120,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { portalApi } from "./api";
 
 const props = defineProps<{ lang: "ar" | "en"; strings: any }>();
+const lp = (path: string) => props.lang === "ar" ? path : `/en${path}`;
 
 type State = "loading" | "ready";
 const state = ref<State>("loading");
@@ -154,7 +155,7 @@ onMounted(async () => {
     const me = await portalApi.me();
     notVerified.value = me.patient.verification_status !== "verified";
   } catch (e: any) {
-    window.location.href = `/${props.lang}/portal/sign-in/`;
+    window.location.href = lp('/portal/sign-in/');
     return;
   }
 

@@ -1,10 +1,12 @@
 ---
 import CardBase from './CardBase.astro';
 
+import { localePath } from '../../i18n';
+
 const { item, lang, categoryLabel, readLabel } = Astro.props;
 const title = lang === 'ar' ? item.data.titleAr : item.data.title;
 const summary = lang === 'ar' ? (item.data.summaryAr ?? '') : (item.data.summary ?? '');
-const href = `/${lang}/events/${item.id}`;
+const href = localePath(`/events/${item.id}`, lang);
 const hasThumbnail = item.data.thumbnail && !item.data.thumbnail.includes('picsum');
 
 const categoryColors: Record<string, string> = {

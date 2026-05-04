@@ -139,7 +139,7 @@ onMounted(async () => {
     await refresh();
   } catch (e: any) {
     if (e?.status === 401) {
-      window.location.href = `/${props.lang}/portal/sign-in/`;
+      window.location.href = lp('/portal/sign-in/');
     }
   } finally {
     state.value = "ready";

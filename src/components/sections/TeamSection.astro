@@ -1,5 +1,6 @@
 ---
 import { getCollection } from "astro:content";
+import { localePath } from "../../i18n";
 import CardBase from "../ui/CardBase.astro";
 import CardGrid from "../ui/CardGrid.astro";
 
@@ -35,7 +36,7 @@ const displayDoctors = featured.length > 0 ? featured.slice(0, 3) : others.slice
 				const name = isAr ? doctor.data.nameAr : doctor.data.name;
 				const specialty = isAr ? doctor.data.specialtyAr : doctor.data.specialty;
 				const bio = isAr ? doctor.data.bioAr : doctor.data.bio;
-				const href = `/${lang}/doctors/${doctor.id}`;
+				const href = localePath(`/doctors/${doctor.id}`, lang);
 				const imageBadge = doctor.data.certified
 					? { label: strings.team.certified, iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }
 					: undefined;

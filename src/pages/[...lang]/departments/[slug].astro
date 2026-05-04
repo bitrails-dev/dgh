@@ -1,12 +1,13 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import ArRedirect from '../../../components/ui/ArRedirect.astro';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
 export const getStaticPaths = async () => {
   const entries = await getCollection('departments');
-  const langs = [undefined, 'en'] as const;
+  const langs = [undefined, 'en', 'ar'] as const;
   return entries.flatMap((entry) =>
     langs.map((lang) => ({
       params: { lang, slug: entry.id },
@@ -16,11 +17,12 @@ export const getStaticPaths = async () => {
 };
 
 const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const isArRedirect = Astro.params.lang === 'ar';
 const { entry } = Astro.props;
 const strings = getStrings(lang);
 const title = lang === 'ar' ? entry.data.nameAr : entry.data.name;
 const description = lang === 'ar' ? entry.data.descriptionAr : entry.data.description;
-const basePath = `/${lang}`;
+const basePath = localePath('', lang);
 
 const detailPoints = [
   { icon: '🔬', text: strings.departments.detailPoints[0] },
@@ -31,6 +33,9 @@ const detailPoints = [
 const allDoctors = await getCollection('doctors');
 const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 ---
+{isArRedirect ? (
+  <ArRedirect url={`/departments/${Astro.params.slug}`} />
+) : (
 <BaseLayout
   lang={lang}
   strings={strings}
@@ -98,7 +103,7 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
           <a href={localePath('/contact', lang)} class="btn btn-teal mt-5 w-full justify-center">
             {lang === 'ar' ? 'تواصل معنا' : 'Contact Us'}
           </a>
-          <a href={`/${lang}/team`} class="btn btn-ghost mt-3 w-full justify-center border-ivory-100/30 text-ivory-50 hover:bg-ivory-50/10 hover:text-ivory-50 hover:border-ivory-100/50">
+          <a href={localePath('/team', lang)} class="btn btn-ghost mt-3 w-full justify-center border-ivory-100/30 text-ivory-50 hover:bg-ivory-50/10 hover:text-ivory-50 hover:border-ivory-100/50">
             {lang === 'ar' ? 'تعرّف على الفريق الطبي' : 'Meet Our Doctors'}
           </a>
         </div>
@@ -144,7 +149,7 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
                         {strings.team.certified}
                       </span>
                     )}
-                    <a href={`${basePath}/doctors/${doctor.id}`} class="mt-2 inline-block btn-text text-xs">
+                    <a href={localePath(`/doctors/${doctor.id}`, lang)} class="mt-2 inline-block btn-text text-xs">
                       {lang === 'ar' ? 'الملف الشخصي →' : 'Profile →'}
                     </a>
                   </div>
@@ -158,7 +163,7 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 
     <!-- Back link -->
     <div class="mt-10">
-      <a href={`/${lang}/departments`} class="btn-text text-sm">
+      <a href={localePath('/departments', lang)} class="btn-text text-sm">
         <span class="inline-flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 rtl:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
           {lang === 'ar' ? 'العودة إلى الأقسام' : 'Back to Departments'}
@@ -169,6 +174,7 @@ const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
 
 </SidebarLayout>
 </BaseLayout>
+)}
 
 <style>
   .dept-doctor-grid {

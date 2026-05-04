@@ -4,7 +4,7 @@ import tailwind from '@astrojs/tailwind';
 import astroI18next from 'astro-i18next';
 import sitemap from '@astrojs/sitemap';
 
-const site = process.env.PUBLIC_SITE ?? 'https://vm.garsony.xyz';
+const site = process.env.PUBLIC_SITE ?? 'https://dgh.bitrail.dev';
 const base = process.env.PUBLIC_BASE ?? '';
 console.log(site, base);
 

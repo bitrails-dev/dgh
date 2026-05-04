@@ -1,12 +1,13 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
+import ArRedirect from '../../../components/ui/ArRedirect.astro';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
 export const getStaticPaths = async () => {
   const entries = await getCollection('doctors');
-  const langs = [undefined, 'en'] as const;
+  const langs = [undefined, 'en', 'ar'] as const;
   return entries.flatMap((entry) =>
     langs.map((lang) => ({
       params: { lang, id: entry.id },
@@ -16,6 +17,7 @@ export const getStaticPaths = async () => {
 };
 
 const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const isArRedirect = Astro.params.lang === 'ar';
 const { entry } = Astro.props;
 const strings = getStrings(lang);
 const name = lang === 'ar' ? entry.data.nameAr : entry.data.name;
@@ -23,6 +25,9 @@ const specialty = lang === 'ar' ? entry.data.specialtyAr : entry.data.specialty;
 const bio = lang === 'ar' ? entry.data.bioAr : entry.data.bio;
 const basePath = localePath('', lang);
 ---
+{isArRedirect ? (
+  <ArRedirect url={`/doctors/${Astro.params.id}`} />
+) : (
 <BaseLayout
   lang={lang}
   strings={strings}
@@ -137,3 +142,4 @@ const basePath = localePath('', lang);
 
 </SidebarLayout>
 </BaseLayout>
+)}

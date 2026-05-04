@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { localePath } from '../../i18n';
 import CardBase from '../ui/CardBase.astro';
 import CardGrid from '../ui/CardGrid.astro';
 
@@ -65,7 +66,7 @@ const defaultIcon =
 					const description = isAr
 						? dept.data.descriptionAr
 						: dept.data.description;
-					const href = `/${lang}/departments/${dept.id}`;
+					const href = localePath(`/departments/${dept.id}`, lang);
 					const iconPath = iconPaths[dept.data.icon as string] ?? defaultIcon;
 					const imageBadge = dept.data.centerOfExcellence
 						? {

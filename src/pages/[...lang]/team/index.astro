@@ -47,7 +47,7 @@ const others = doctors.filter((d) => !d.data.featured).sort(sortByOrder);
                 : undefined;
               return (
                 <CardBase
-                  href={`/${lang}/doctors/${doctor.id}`}
+                  href={localePath(`/doctors/${doctor.id}`, lang)}
                   image={doctor.data.photo}
                   imageAlt={name}
                   title={name}

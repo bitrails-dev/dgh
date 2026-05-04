@@ -1,10 +1,12 @@
 ---
 import CardBase from './CardBase.astro';
 
+import { localePath } from '../../i18n';
+
 const { doctor, lang, certifiedLabel, profileLabel, imageAlt } = Astro.props;
 const name = lang === 'ar' ? doctor.data.nameAr : doctor.data.name;
 const specialty = lang === 'ar' ? doctor.data.specialtyAr : doctor.data.specialty;
-const href = `/${lang}/doctors/${doctor.id}`;
+const href = localePath(`/doctors/${doctor.id}`, lang);
 
 const imageBadge = doctor.data.certified
   ? {
