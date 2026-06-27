@@ -4,83 +4,212 @@ marp: false
 
 # Al Noor Public Hospital Showcase
 
-A static Astro + Vue 3 Islands website for a public hospital showcase in Egypt. Built for high-impact storytelling, bilingual content, and managed through Decap CMS.
+A static Astro website for a public hospital showcase in Egypt with a Vue.js admin dashboard backed by Cloudflare Workers and SQLite. Built for high-impact storytelling, bilingual content, and seamless content management.
 
 ## Stack
 
-- Astro (static output)
-- Vue 3 islands (interactive sections)
-- Tailwind CSS v3
-- Astro Content Collections + Decap CMS
-- Cloudflare Pages deployment
+- **Frontend**: Astro (static output) + Vue 3 islands
+- **Admin Dashboard**: Vue 3 component running as Astro island
+- **Backend/CMS**: Cloudflare Workers with SQLite database
+- **Styling**: Tailwind CSS v3
+- **Hosting**: Cloudflare Pages (static site) + Cloudflare Workers (API)
+- **Content**: SQLite (editing workspace) → JSON exports → Git → Astro rebuild
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Public Website (Astro)                  │
+│  Cloudflare Pages ──────────────────────────────────────│  │
+│  (Static HTML/CSS/JS)                                   │  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│              Admin Dashboard (/admin route)                  │
+│  Vue.js Island → Calls → Cloudflare Worker API             │
+│                                                             │
+│  POST /api/articles  ───────────────────┐                  │
+│  POST /api/doctors        ┌─────────────┴─────────────┐   │
+│  POST /api/news  ──────→  │  Cloudflare Worker        │   │
+│  etc.                     │  (Node.js Runtime)        │   │
+│                           │                           │   │
+│  GET /api/sync/export ──┐ │  ├─ SQLite Database       │   │
+│  POST /api/sync/publish │→│  ├─ Export to JSON        │   │
+│                         │ │  └─ Git Sync              │   │
+│                         │ └─────────────┬─────────────┘   │
+│                         │               │                 │
+│                         └──────────────→ JSON Files       │
+│                                         (content/*)       │
+│                                         Committed to git  │
+│                                         Triggers rebuild  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Local Development
 
+### Prerequisites
+- Node.js 18+
+- `better-sqlite3` (included in devDependencies)
+- Wrangler CLI for worker development
+
+### Setup
+
 ```bash
+# Install dependencies
 npm install
-npm run dev
+
+# Copy environment template
+cp .env.example .env.local
+
+# Update .env.local with your settings
+# - PUBLIC_WORKER_URL: http://localhost:8787 (local dev)
+# - PUBLIC_ADMIN_TOKEN: dev-token (local testing)
 ```
 
-## Build
+### Running
+
+```bash
+# Terminal 1: Astro dev server (includes admin dashboard)
+npm run dev
+
+# Terminal 2: Cloudflare Worker (API backend)
+cd worker
+npm install
+npx wrangler dev
+
+# Admin dashboard available at: http://localhost:3000/admin
+# Worker API available at: http://localhost:8787/api
+```
+
+### Syncing Content
+
+After editing in the admin dashboard:
+
+```bash
+# Export SQLite to JSON files
+npm run sync:push
+
+# Pull changes from git (if edited externally)
+npm run sync:pull
+```
+
+## Build & Deployment
+
+### Build Astro Site
 
 ```bash
 npm run build
+# Output: ./dist/
 ```
 
-## Deployment (Cloudflare Pages)
+### Deploy to Cloudflare Pages
 
-- Build command: `astro build`
-- Output directory: `dist`
+```bash
+# Using Wrangler
+npx wrangler pages deploy dist
 
-## CMS Access
+# Or configure in Cloudflare dashboard:
+# - Build command: npm run build
+# - Build output directory: dist
+# - Framework preset: Astro
+```
 
-Decap CMS is available at `/admin` and uses GitHub OAuth for authentication.
+### Deploy Cloudflare Worker
 
-## Post-Deploy Security Steps
+```bash
+cd worker
 
-1. **CLOUDFLARE ACCESS**
-   - Create a Cloudflare Access application targeting `/admin/*`
-   - Policy: allow only whitelisted email addresses
-   - This blocks all unauthorized users before OAuth even runs
+# Deploy to production
+npx wrangler deploy
 
-2. **GITHUB REPOSITORY**
-   - Branch protection on `main`: require PR review before merge
-   - Enforce 2FA on all collaborator accounts
-   - Editors invited with `Write` role only (not Admin)
+# Check deployment
+npx wrangler deployments list
+```
 
-3. **OAUTH APP**
-   - GitHub OAuth App homepage URL: `https://yourhospital.eg`
-   - Callback URL: `https://yourhospital.eg/api/auth`
-   - Client secret stored only in Cloudflare Pages environment variables
+## Admin Panel (`/admin`)
 
-## Required Cloudflare Environment Variables
+The admin panel is a Vue.js island running at `/admin` route. It provides:
 
-- `GITHUB_CLIENT_ID`
-- `GITHUB_CLIENT_SECRET`
-## Patient Portal (MVP)
+- **Articles**: Create, edit, publish articles in Arabic & English
+- **Doctors**: Manage staff profiles, specialties, photos
+- **Departments**: Configure departments and descriptions
+- **News**: Publish news items with dates and images
+- **Awards & Achievements**: Manage hospital recognitions
+- **Hero Stats**: Configure homepage statistics widget
 
-Portal pages are under `/{lang}/portal/*` and talk to the Go API.
+### Authentication
 
-Dev env var:
+- Token-based auth via `PUBLIC_ADMIN_TOKEN` header
+- Required for all `POST`, `PUT`, `DELETE` endpoints
+- Set in worker environment variables (production) or `.env` (local dev)
 
-- `PUBLIC_PORTAL_API_BASE` (example: `http://localhost:8080`)
+### Content Export Workflow
 
-Run the API from `api/` (see `api/README.md`).
+1. **Edit in Dashboard**: Vue component sends requests to Worker API
+2. **SQLite Storage**: Worker stores in local SQLite database
+3. **Export**: Manual export via `npm run sync:push` button or script
+4. **Git Commit**: JSON files committed with git
+5. **Astro Rebuild**: Cloudflare Pages rebuilds static site from new content
 
-## Admin Tools
+## Environment Variables
 
-- Admin portal: `/{lang}/portal/admin/`
-- Requires `PORTAL_ADMIN_KEY` for the backend admin endpoints.
-- Use `POST /v1/admin/bootstrap-demo` to seed demo clinics, providers, and slots.
+### Frontend (.env)
 
-## Admin Schedule Editor
+```
+PUBLIC_WORKER_URL=http://localhost:8787       # Worker API URL
+PUBLIC_ADMIN_TOKEN=change-me-in-production     # API authentication token
+```
 
-- Admin portal: `/{lang}/portal/admin/`
-- Use `POST /v1/admin/bootstrap-demo` first to seed a test clinic/provider set.
-- The schedule editor can then create, list, and delete unbooked slots.
+### Worker (worker/.env or wrangler.toml env)
 
-- Patient appointments can be cancelled or rescheduled from the portal.
+```
+ADMIN_TOKEN=change-me-in-production   # Must match PUBLIC_ADMIN_TOKEN
+DATABASE_PATH=/tmp/hospital.db        # SQLite database file (local)
+```
 
-## Audit Trail
+## API Endpoints
 
-- The portal backend now records audit events for account and scheduling actions.
+All endpoints are prefixed with `/api` and require authentication (except `/api/health`).
+
+### Articles
+- `GET /api/articles` — List all articles
+- `GET /api/articles/:id` — Get article by ID
+- `POST /api/articles` — Create article
+- `PUT /api/articles/:id` — Update article
+- `DELETE /api/articles/:id` — Delete article
+
+### Doctors, Departments, News, Awards, Achievements
+Same CRUD pattern as articles.
+
+### Sync Operations
+- `GET /api/sync/export` — Export SQLite to JSON files
+- `POST /api/sync/import` — Import JSON files to SQLite
+- `POST /api/sync/publish` — Commit and push to git
+
+See [CMS-ARCHITECTURE.md](./docs/CMS-ARCHITECTURE.md) for detailed schema and design decisions.
+## Security Considerations
+
+1. **Token Management**
+   - Change `ADMIN_TOKEN` in production
+   - Store in Cloudflare environment variables, never in `.env` files
+   - Rotate tokens periodically
+
+2. **Database Backup**
+   - SQLite database is local to the Worker and not version-controlled
+   - Always perform `sync:push` to export to git before major changes
+   - Keep regular backups of the SQLite file
+
+3. **Git Integration**
+   - Exported JSON files should be reviewed before commit
+   - Use branch protection on `main` branch
+   - Require PR review before merging content changes
+
+## Troubleshooting
+
+**"Worker not found" error**: Make sure the Worker is running locally (`npx wrangler dev` in worker folder)
+
+**Admin dashboard is blank**: Check browser console for errors, verify `PUBLIC_WORKER_URL` environment variable is correct
+
+**Changes not syncing**: Run `npm run sync:push` manually to export SQLite to git
+
+**Build fails**: Clear `.astro` cache: `rm -rf .astro && npm run build`

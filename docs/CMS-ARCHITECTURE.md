@@ -379,11 +379,80 @@ Each file is a standalone JSON document with all fields for that record. The exp
 
 | Component | Technology |
 |---|---|
-| Dashboard UI | Vue.js (Astro island) |
+| Admin Dashboard UI | Vue.js 3 (Astro island at `/admin`) |
+| Dashboard Server | Cloudflare Workers (Node.js runtime) |
 | Database | SQLite 3 + FTS5 |
 | DB driver | `better-sqlite3` (Node.js) |
-| Content export | Node.js script |
-| Static site | Astro |
+| Content export | Node.js script (`scripts/sync-db.ts`) |
+| Public Website | Astro (static HTML/CSS/JS) |
+| Hosting | Cloudflare Pages + Cloudflare Workers |
 | Search (dashboard) | SQLite FTS5 |
-| Search (public site) | `minisearch` or server endpoint |
-| Version control | Git (content files only) |
+| Search (public site) | Client-side build-time index (minisearch) |
+| Version control | Git (JSON content files only, not SQLite) |
+
+## Authentication & Authorization
+
+### Dashboard Access (`/admin`)
+
+- **Method**: Token-based HTTP header
+- **Header**: `Authorization: Bearer {ADMIN_TOKEN}`
+- **Scope**: Required for all `POST`, `PUT`, `DELETE` operations
+- **Read operations**: `GET /api/*` generally don't require auth but can be restricted
+
+### Token Management
+
+- Stored in Cloudflare Worker environment as secret: `ADMIN_TOKEN`
+- Must match `PUBLIC_ADMIN_TOKEN` in Astro Pages environment
+- Rotate every 90 days in production
+- Different tokens for staging/production environments recommended
+
+### Optional: Cloudflare Access
+
+Additional security layer (email-based access):
+- Intercepts all requests to `/admin`
+- Requires email verification before accessing dashboard
+- Configured in Cloudflare dashboard per application
+
+## Development Workflow
+
+### Local Setup
+
+```bash
+# Terminal 1: Astro dev server (includes dashboard island)
+npm install
+npm run dev
+# Dashboard at http://localhost:3000/admin
+
+# Terminal 2: Cloudflare Worker (API backend)
+cd worker
+npm install
+npx wrangler dev
+# API at http://localhost:8787/api
+```
+
+### Content Editing Flow
+
+```
+1. Editor opens http://localhost:3000/admin
+2. Vue dashboard sends REST requests to Worker API
+3. Worker receives request → validates token
+4. Worker queries/updates SQLite database
+5. Response sent back to dashboard
+6. Dashboard updates UI
+```
+
+### Content Publishing
+
+After editing is complete:
+
+```bash
+# Option A: Using npm script (recommended)
+npm run sync:push
+# Reads SQLite, exports to JSON files, commits to git
+
+# Option B: Manual export
+npm run sync:pull  # Fetch latest from git
+npm run sync:push  # Export changes to git
+```
+
+Git commit automatically triggers Cloudflare Pages rebuild.

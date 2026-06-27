@@ -41,7 +41,7 @@ export default defineConfig({
 				},
 			},
 		}),
-		vue(), // no appEntrypoint — avoids virtual:astro:vue-app resolution issue
+		vue({ appEntrypoint: '/src/app.ts' }),
 		tailwind({ applyBaseStyles: false }),
 		astroI18next(),
 	],

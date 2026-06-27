@@ -1,0 +1,33 @@
+name: Sync D1 → Git
+
+on:
+  repository_dispatch:
+    types: [sync-database]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: cd codex-v2 && npm ci
+
+      - name: Pull D1 export and build SQLite
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: cd codex-v2 && npx tsx scripts/sync-db.ts pull
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add codex-v2/data/hospital.db
+          git diff --cached --quiet || git commit -m "chore: sync hospital.db from D1 [skip ci]"
+          git push
