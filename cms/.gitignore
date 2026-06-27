@@ -1,0 +1,8 @@
+node_modules
+.next
+.env
+cms.db
+cms.db-*
+*.db
+payload-types.ts
+.DS_Store

@@ -1,0 +1,19 @@
+# Dev-only: run the Payload (Next.js) CMS in a container.
+#   podman compose up        (or: podman-compose up)
+# Admin → http://localhost:3001/admin
+services:
+  cms:
+    image: docker.io/library/node:20
+    working_dir: /app
+    # -H 0.0.0.0 so the dev server is reachable from the host (not just container-localhost)
+    command: sh -c "npm install && npm run dev -- -H 0.0.0.0"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./:/app:Z                      # live source for HMR. Drop :Z on non-SELinux hosts if it warns.
+      - cms_node_modules:/app/node_modules  # native deps (libsql) built for the container, not the host
+    env_file: .env
+    environment:
+      - WATCHPACK_POLLING=true         # reliable file-watching across the bind mount from WSL
+volumes:
+  cms_node_modules:
