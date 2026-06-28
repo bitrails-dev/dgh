@@ -1,7 +1,6 @@
 import { defineConfig } from 'astro/config';
 import vue from '@astrojs/vue';
 import tailwind from '@astrojs/tailwind';
-import astroI18next from 'astro-i18next';
 import sitemap from '@astrojs/sitemap';
 
 const site = process.env.PUBLIC_SITE ?? 'https://dgh.bitrail.dev';
@@ -43,6 +42,5 @@ export default defineConfig({
 		}),
 		vue({ appEntrypoint: '/src/app.ts' }),
 		tailwind({ applyBaseStyles: false }),
-		astroI18next(),
 	],
 });
