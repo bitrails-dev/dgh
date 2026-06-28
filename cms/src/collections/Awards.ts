@@ -18,8 +18,7 @@ export const Awards: CollectionConfig = {
       label: { ar: 'المحتوى', en: 'Body' } },
     { name: 'year', type: 'number', required: true,
       label: { ar: 'السنة', en: 'Year' } },
-    { name: 'badgeImage', type: 'text',
-      label: { ar: 'صورة الشارة', en: 'Badge image' },
-      admin: { description: 'Image URL' } },
+    { name: 'badgeImage', type: 'upload', relationTo: 'media',
+      label: { ar: 'صورة الشارة', en: 'Badge image' } },
   ],
 }

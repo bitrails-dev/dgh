@@ -26,9 +26,8 @@ export const Articles: CollectionConfig = {
         { label: { ar: 'أبحاث', en: 'Research' }, value: 'research' },
         { label: { ar: 'فعاليات', en: 'Events' }, value: 'events' },
       ] },
-    { name: 'thumbnail', type: 'text', required: true,
-      label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' },
-      admin: { description: 'Image URL' } },
+    { name: 'thumbnail', type: 'upload', relationTo: 'media', required: true,
+      label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },
     // ponytail: single markdown body (matches current one-body-per-file). Make localized if

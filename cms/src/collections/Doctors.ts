@@ -16,9 +16,8 @@ export const Doctors: CollectionConfig = {
       label: { ar: 'الاسم', en: 'Name' } },
     { name: 'specialty', type: 'text', required: true, localized: true,
       label: { ar: 'التخصص', en: 'Specialty' } },
-    { name: 'photo', type: 'text',
-      label: { ar: 'الصورة', en: 'Photo' },
-      admin: { description: 'Image URL' } },
+    { name: 'photo', type: 'upload', relationTo: 'media',
+      label: { ar: 'الصورة', en: 'Photo' } },
     { name: 'bio', type: 'textarea', localized: true,
       label: { ar: 'السيرة الذاتية', en: 'Bio' } },
     // ponytail: department is a slug string (matches current markdown), not a relationship.

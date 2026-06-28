@@ -22,6 +22,13 @@ function str(f: any): string | undefined {
   return v == null ? undefined : String(v);
 }
 
+// Upload fields: Payload returns { url, filename, ... } at depth=1; fall back to string for old data
+function imgUrl(f: any): string | undefined {
+  if (f == null) return undefined;
+  if (typeof f === "string") return f;
+  return f.url ?? undefined;
+}
+
 async function fetchDocs(slug: string) {
   const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000`;
   let res: Response;
@@ -39,7 +46,7 @@ const articles = defineCollection({
     const docs = await fetchDocs("articles");
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
-      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category: doc.category, thumbnail: str(doc.thumbnail), featured: doc.featured ?? false, body: doc.body };
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category: doc.category, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, body: doc.body };
     });
   },
   schema: z.object({
@@ -79,7 +86,7 @@ const awards = defineCollection({
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [body] = loc(doc.body);
-      return { id: doc.slug, name, nameAr, body, year: num(doc.year)!, badgeImage: str(doc.badgeImage) };
+      return { id: doc.slug, name, nameAr, body, year: num(doc.year)!, badgeImage: imgUrl(doc.badgeImage) };
     });
   },
   schema: z.object({
@@ -117,7 +124,7 @@ const doctors = defineCollection({
       const [name, nameAr] = loc(doc.name);
       const [specialty, specialtyAr] = loc(doc.specialty);
       const [bio, bioAr] = loc(doc.bio);
-      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: str(doc.photo), bio, bioAr, department: str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
+      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: imgUrl(doc.photo), bio, bioAr, department: str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
     });
   },
   schema: z.object({
@@ -144,9 +151,9 @@ const events = defineCollection({
       const gallery = doc.gallery?.map((g: any) => {
         const [caption, captionAr] = loc(g.caption);
         const [alt] = loc(g.alt);
-        return { url: g.url, caption: caption || undefined, captionAr: captionAr || undefined, alt };
+        return { url: imgUrl(g.image), caption: caption || undefined, captionAr: captionAr || undefined, alt };
       });
-      return { id: doc.slug, title, titleAr, date: new Date(doc.date), category: doc.category, summary, summaryAr, thumbnail: str(doc.thumbnail), featured: doc.featured ?? false, youtubeUrl: str(doc.youtubeUrl), gallery, body: doc.body };
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), category: doc.category, summary, summaryAr, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, youtubeUrl: str(doc.youtubeUrl), gallery, body: doc.body };
     });
   },
   schema: z.object({
@@ -177,7 +184,7 @@ const testimonials = defineCollection({
       const [name, nameAr] = loc(doc.name);
       const [quote, quoteAr] = loc(doc.quote);
       const [caseType, caseTypeAr] = loc(doc.caseType);
-      return { id: doc.slug, name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: str(doc.avatar), featured: doc.featured ?? false };
+      return { id: doc.slug, name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: imgUrl(doc.avatar), featured: doc.featured ?? false };
     });
   },
   schema: z.object({

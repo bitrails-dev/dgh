@@ -14,6 +14,7 @@ import { Events } from './collections/Events'
 import { Awards } from './collections/Awards'
 import { Achievements } from './collections/Achievements'
 import { Testimonials } from './collections/Testimonials'
+import { Media } from './collections/Media'
 import { HospitalSettings } from './globals/HospitalSettings'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -22,6 +23,7 @@ export default buildConfig({
   admin: { user: Users.slug },
   collections: [
     Users,
+    Media,
     Doctors,
     Departments,
     Articles,
@@ -31,9 +33,6 @@ export default buildConfig({
     Testimonials,
   ],
   globals: [HospitalSettings],
-  // ponytail: textarea markdown fields, no uploads/Media collection — current content is
-  // markdown + external image URLs. Add a Media collection + S3/R2 storage when editors
-  // actually upload files.
   editor: lexicalEditor(),
   i18n: {
     supportedLanguages: { ar, en },
