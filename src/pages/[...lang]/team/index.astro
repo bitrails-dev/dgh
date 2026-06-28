@@ -9,10 +9,6 @@ import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 import type { Locale } from '../../../i18n';
 
-export function getStaticPaths() {
-  return [{ params: { lang: undefined } }, { params: { lang: 'en' } }];
-}
-
 const lang = (Astro.params.lang || "ar") as Locale;
 const strings = getStrings(lang);
 const breadcrumbs = [

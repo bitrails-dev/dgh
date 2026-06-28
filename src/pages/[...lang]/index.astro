@@ -10,9 +10,7 @@ import TestimonialsSection from "../../components/sections/TestimonialsSection.v
 import AwardsWall from "../../components/sections/AwardsWall.astro";
 import AwardsListSection from "../../components/sections/AwardsListSection.astro";
 import { getStrings } from "../../i18n";
-
-export const getStaticPaths = () => [
-  { params: { lang: "en" } },
+,
 ];
 
 const lang = (Astro.params.lang || "ar") as "ar" | "en";

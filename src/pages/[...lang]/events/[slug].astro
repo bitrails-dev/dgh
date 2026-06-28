@@ -7,20 +7,12 @@ import ImageGallery from '../../../components/ui/ImageGallery.vue';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
-export async function getStaticPaths() {
-  const events = await getCollection('events');
-  const langs = [undefined, 'en', 'ar'] as const;
-  return events.flatMap((event) =>
-    langs.map((lang) => ({
-      params: { lang, slug: event.id },
-      props: { event },
-    }))
-  );
-}
-
 const lang = (Astro.params.lang || "ar") as "ar" | "en";
 const isArRedirect = Astro.params.lang === 'ar';
-const { event } = Astro.props;
+
+const all = await getCollection('events');
+const event = all.find((e) => e.id === Astro.params.slug);
+if (!event) return Astro.redirect('/404');
 const strings = getStrings(lang);
 
 const title = lang === 'ar' ? event.data.titleAr : event.data.title;

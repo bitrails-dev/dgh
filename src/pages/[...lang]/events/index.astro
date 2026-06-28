@@ -6,13 +6,6 @@ import FilteredCardGrid from '../../../components/ui/FilteredCardGrid.vue';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
-export function getStaticPaths() {
-  return [
-    { params: { lang: undefined } },
-    { params: { lang: 'en' } },
-  ];
-}
-
 const lang = (Astro.params.lang || "ar") as "ar" | "en";
 const strings = getStrings(lang);
 

@@ -3,9 +3,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import SidebarLayout from "../../layouts/SidebarLayout.astro";
 import WaveDivider from "../../components/layout/WaveDivider.astro";
 import { getStrings, localePath } from "../../i18n";
-
-export const getStaticPaths = () => [
-  { params: { lang: undefined } },
+,
   { params: { lang: "en" } },
 ];
 

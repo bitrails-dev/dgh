@@ -5,20 +5,12 @@ import ArRedirect from '../../../components/ui/ArRedirect.astro';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
-export const getStaticPaths = async () => {
-  const entries = await getCollection('departments');
-  const langs = [undefined, 'en', 'ar'] as const;
-  return entries.flatMap((entry) =>
-    langs.map((lang) => ({
-      params: { lang, slug: entry.id },
-      props: { entry },
-    }))
-  );
-};
-
 const lang = (Astro.params.lang || "ar") as "ar" | "en";
 const isArRedirect = Astro.params.lang === 'ar';
-const { entry } = Astro.props;
+
+const all = await getCollection('departments');
+const entry = all.find((d) => d.id === Astro.params.slug);
+if (!entry) return Astro.redirect('/404');
 const strings = getStrings(lang);
 const title = lang === 'ar' ? entry.data.nameAr : entry.data.name;
 const description = lang === 'ar' ? entry.data.descriptionAr : entry.data.description;

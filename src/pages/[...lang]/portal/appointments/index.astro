@@ -2,9 +2,7 @@
 import PortalLayout from "../../../../layouts/PortalLayout.astro";
 import PortalAppointments from "../../../../components/portal/PortalAppointments.vue";
 import { getStrings } from "../../../../i18n";
-
-export const getStaticPaths = () => [
-  { params: { lang: undefined } },
+,
   { params: { lang: "en" } },
 ];
 
