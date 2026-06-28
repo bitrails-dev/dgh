@@ -16,6 +16,12 @@ function num(f: any): number | undefined {
   return v == null ? undefined : Number(v);
 }
 
+function str(f: any): string | undefined {
+  if (f == null) return undefined;
+  const v = typeof f === "object" ? (f.en ?? f.ar) : f;
+  return v == null ? undefined : String(v);
+}
+
 async function fetchDocs(slug: string) {
   const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000`;
   let res: Response;
@@ -33,7 +39,7 @@ const articles = defineCollection({
     const docs = await fetchDocs("articles");
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
-      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: doc.author, category: doc.category, thumbnail: doc.thumbnail, featured: doc.featured ?? false, body: doc.body };
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category: doc.category, thumbnail: str(doc.thumbnail), featured: doc.featured ?? false, body: doc.body };
     });
   },
   schema: z.object({
@@ -54,7 +60,7 @@ const achievements = defineCollection({
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
       const [description, descriptionAr] = loc(doc.description);
-      return { id: doc.slug, year: num(doc.year)!, title, titleAr, description, descriptionAr, icon: doc.icon };
+      return { id: doc.slug, year: num(doc.year)!, title, titleAr, description, descriptionAr, icon: str(doc.icon) };
     });
   },
   schema: z.object({
@@ -73,7 +79,7 @@ const awards = defineCollection({
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [body] = loc(doc.body);
-      return { id: doc.slug, name, nameAr, body, year: num(doc.year)!, badgeImage: doc.badgeImage };
+      return { id: doc.slug, name, nameAr, body, year: num(doc.year)!, badgeImage: str(doc.badgeImage) };
     });
   },
   schema: z.object({
@@ -91,7 +97,7 @@ const departments = defineCollection({
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [description, descriptionAr] = loc(doc.description);
-      return { id: doc.slug, name, nameAr, description, descriptionAr, icon: doc.icon, centerOfExcellence: doc.centerOfExcellence ?? false };
+      return { id: doc.slug, name, nameAr, description, descriptionAr, icon: str(doc.icon), centerOfExcellence: doc.centerOfExcellence ?? false };
     });
   },
   schema: z.object({
@@ -111,7 +117,7 @@ const doctors = defineCollection({
       const [name, nameAr] = loc(doc.name);
       const [specialty, specialtyAr] = loc(doc.specialty);
       const [bio, bioAr] = loc(doc.bio);
-      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: doc.photo, bio, bioAr, department: doc.department, certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
+      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: str(doc.photo), bio, bioAr, department: str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
     });
   },
   schema: z.object({
@@ -140,7 +146,7 @@ const events = defineCollection({
         const [alt] = loc(g.alt);
         return { url: g.url, caption: caption || undefined, captionAr: captionAr || undefined, alt };
       });
-      return { id: doc.slug, title, titleAr, date: new Date(doc.date), category: doc.category, summary, summaryAr, thumbnail: doc.thumbnail, featured: doc.featured ?? false, youtubeUrl: doc.youtubeUrl, gallery, body: doc.body };
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), category: doc.category, summary, summaryAr, thumbnail: str(doc.thumbnail), featured: doc.featured ?? false, youtubeUrl: str(doc.youtubeUrl), gallery, body: doc.body };
     });
   },
   schema: z.object({
@@ -171,7 +177,7 @@ const testimonials = defineCollection({
       const [name, nameAr] = loc(doc.name);
       const [quote, quoteAr] = loc(doc.quote);
       const [caseType, caseTypeAr] = loc(doc.caseType);
-      return { id: doc.slug, name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: doc.avatar, featured: doc.featured ?? false };
+      return { id: doc.slug, name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: str(doc.avatar), featured: doc.featured ?? false };
     });
   },
   schema: z.object({
