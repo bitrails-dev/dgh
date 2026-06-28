@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
 import vue from "@astrojs/vue";
 import tailwind from "@astrojs/tailwind";
 import sitemap from "@astrojs/sitemap";
@@ -11,6 +12,7 @@ export default defineConfig({
   site,
   base,
   output: "server",
+  adapter: node({ mode: "standalone" }),
   i18n: {
     defaultLocale: "ar",
     locales: ["ar", "en"],
