@@ -4,7 +4,7 @@ import SidebarLayout from '../../../layouts/SidebarLayout.astro';
 import ArRedirect from '../../../components/ui/ArRedirect.astro';
 import YouTubeEmbed from '../../../components/ui/YouTubeEmbed.astro';
 import ImageGallery from '../../../components/ui/ImageGallery.vue';
-import { getCollection } from 'astro:content';
+import { getCollection } from '../../../lib/cms';
 import { getStrings, localePath } from '../../../i18n';
 
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";

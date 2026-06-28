@@ -3,7 +3,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
 import PageHeader from '../../../components/ui/PageHeader.astro';
 import FilteredCardGrid from '../../../components/ui/FilteredCardGrid.vue';
-import { getCollection } from 'astro:content';
+import { getCollection } from '../../../lib/cms';
 import { getStrings, localePath } from '../../../i18n';
 
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
