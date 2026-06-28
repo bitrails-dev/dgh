@@ -19,6 +19,7 @@
     "@payloadcms/db-sqlite": "latest",
     "@payloadcms/next": "latest",
     "@payloadcms/richtext-lexical": "latest",
+    "@payloadcms/translations": "3.85.1",
     "dotenv": "^16.4.7",
     "graphql": "^16.9.0",
     "gray-matter": "^4.0.3",
@@ -30,6 +31,8 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
+    "autoprefixer": "^10.4.0",
+    "tailwindcss": "^3.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
   }
