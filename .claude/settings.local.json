@@ -1,4 +1,70 @@
 {
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "C:/Users/mrt/AppData/Local/nvm/v22.22.2/node_modules/lean-ctx-bin/bin/lean-ctx.exe hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "command": "C:/Users/mrt/AppData/Local/nvm/v22.22.2/node_modules/lean-ctx-bin/bin/lean-ctx.exe hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "C:/Users/mrt/AppData/Local/nvm/v22.22.2/node_modules/lean-ctx-bin/bin/lean-ctx.exe hook rewrite",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|bash|PowerShell|powershell"
+      },
+      {
+        "hooks": [
+          {
+            "command": "C:/Users/mrt/AppData/Local/nvm/v22.22.2/node_modules/lean-ctx-bin/bin/lean-ctx.exe hook redirect",
+            "type": "command"
+          }
+        ],
+        "matcher": "Read|read|ReadFile|read_file|View|view|Grep|grep|Search|search|ListFiles|list_files|ListDirectory|list_directory|Glob|glob"
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "C:/Users/mrt/AppData/Local/nvm/v22.22.2/node_modules/lean-ctx-bin/bin/lean-ctx.exe hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "C:/Users/mrt/AppData/Local/nvm/v22.22.2/node_modules/lean-ctx-bin/bin/lean-ctx.exe hook observe",
+            "type": "command"
+          }
+        ],
+        "matcher": ".*"
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(ls -la /d/WORKSPACE/projects/hospital/codex/src/pages/[lang]/news/)",

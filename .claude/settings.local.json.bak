@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /d/WORKSPACE/projects/hospital/codex/src/pages/[lang]/news/)",
+      "Bash(ls -la /d/WORKSPACE/projects/hospital/codex/src/pages/[lang]/articles/)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(npm run:*)",
+      "Bash(npx astro *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4321/en/)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}
