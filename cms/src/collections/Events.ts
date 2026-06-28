@@ -39,7 +39,7 @@ export const Events: CollectionConfig = {
           label: { ar: 'الرابط', en: 'URL' } },
         { name: 'caption', type: 'text', localized: true,
           label: { ar: 'التعليق', en: 'Caption' } },
-        { name: 'alt', type: 'text', required: true,
+        { name: 'alt', type: 'text', required: true, localized: true,
           label: { ar: 'النص البديل', en: 'Alt text' } },
       ] },
     { name: 'body', type: 'textarea',

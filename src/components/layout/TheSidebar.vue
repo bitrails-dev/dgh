@@ -98,7 +98,7 @@ import {
   FileText,
   CalendarDays,
   Phone,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { useUiStore } from '../../stores/ui';
 
 const props = defineProps<{
