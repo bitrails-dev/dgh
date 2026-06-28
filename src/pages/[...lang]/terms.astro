@@ -3,11 +3,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import SidebarLayout from "../../layouts/SidebarLayout.astro";
 import WaveDivider from "../../components/layout/WaveDivider.astro";
 import { getStrings, localePath } from "../../i18n";
-,
-  { params: { lang: "en" } },
-];
 
-const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
 const isAr = lang === "ar";
 

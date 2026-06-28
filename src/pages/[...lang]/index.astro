@@ -10,10 +10,8 @@ import TestimonialsSection from "../../components/sections/TestimonialsSection.v
 import AwardsWall from "../../components/sections/AwardsWall.astro";
 import AwardsListSection from "../../components/sections/AwardsListSection.astro";
 import { getStrings } from "../../i18n";
-,
-];
 
-const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
 
 const breadcrumbs = [

@@ -26,7 +26,7 @@ export const Articles: CollectionConfig = {
         { label: { ar: 'أبحاث', en: 'Research' }, value: 'research' },
         { label: { ar: 'فعاليات', en: 'Events' }, value: 'events' },
       ] },
-    { name: 'thumbnail', type: 'upload', relationTo: 'media', required: true,
+    { name: 'thumbnail', type: 'upload', relationTo: 'media',
       label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },

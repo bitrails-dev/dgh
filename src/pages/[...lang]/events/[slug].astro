@@ -7,7 +7,7 @@ import ImageGallery from '../../../components/ui/ImageGallery.vue';
 import { getCollection } from 'astro:content';
 import { getStrings, localePath } from '../../../i18n';
 
-const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const isArRedirect = Astro.params.lang === 'ar';
 
 const all = await getCollection('events');

@@ -2,11 +2,8 @@
 import PortalLayout from "../../../../layouts/PortalLayout.astro";
 import PortalAppointments from "../../../../components/portal/PortalAppointments.vue";
 import { getStrings } from "../../../../i18n";
-,
-  { params: { lang: "en" } },
-];
 
-const lang = (Astro.params.lang || "ar") as "ar" | "en";
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
 ---
 <PortalLayout
