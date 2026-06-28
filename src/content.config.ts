@@ -22,11 +22,13 @@ function str(f: any): string | undefined {
   return v == null ? undefined : String(v);
 }
 
-// Upload fields: Payload returns { url, filename, ... } at depth=1; fall back to string for old data
+// Upload fields: Payload returns { url, filename, ... } at depth=1; fall back to string for old data.
+// URL is relative to the CMS server, so prefix it to make it absolute.
 function imgUrl(f: any): string | undefined {
   if (f == null) return undefined;
-  if (typeof f === "string") return f;
-  return f.url ?? undefined;
+  const raw = typeof f === "string" ? f : (f.url ?? undefined);
+  if (!raw) return undefined;
+  return raw.startsWith("/") ? `${CMS}${raw}` : raw;
 }
 
 async function fetchDocs(slug: string) {
