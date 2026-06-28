@@ -1,9 +1,28 @@
 import { defineCollection } from "astro:content";
-import { glob } from "astro/loaders";
 import { z } from "zod";
 
+const CMS = import.meta.env.CMS_URL ?? "http://localhost:3000";
+
+// Payload returns localized fields as { en, ar } when ?locale=all
+function loc(f: any): [string, string] {
+  if (f && typeof f === "object") return [f.en ?? "", f.ar ?? ""];
+  return [String(f ?? ""), ""];
+}
+
+async function fetchDocs(slug: string) {
+  const res = await fetch(`${CMS}/api/${slug}?locale=all&depth=1&limit=1000`);
+  if (!res.ok) throw new Error(`Payload /${slug}: ${res.status}`);
+  return (await res.json()).docs as any[];
+}
+
 const articles = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/articles" }),
+  loader: async () => {
+    const docs = await fetchDocs("articles");
+    return docs.map((doc) => {
+      const [title, titleAr] = loc(doc.title);
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: doc.author, category: doc.category, thumbnail: doc.thumbnail, featured: doc.featured ?? false, body: doc.body };
+    });
+  },
   schema: z.object({
     title: z.string(),
     titleAr: z.string(),
@@ -17,7 +36,14 @@ const articles = defineCollection({
 });
 
 const achievements = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/achievements" }),
+  loader: async () => {
+    const docs = await fetchDocs("achievements");
+    return docs.map((doc) => {
+      const [title, titleAr] = loc(doc.title);
+      const [description, descriptionAr] = loc(doc.description);
+      return { id: doc.slug, year: doc.year, title, titleAr, description, descriptionAr, icon: doc.icon };
+    });
+  },
   schema: z.object({
     year: z.number(),
     title: z.string(),
@@ -29,7 +55,14 @@ const achievements = defineCollection({
 });
 
 const awards = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/awards" }),
+  loader: async () => {
+    const docs = await fetchDocs("awards");
+    return docs.map((doc) => {
+      const [name, nameAr] = loc(doc.name);
+      const [body] = loc(doc.body);
+      return { id: doc.slug, name, nameAr, body, year: doc.year, badgeImage: doc.badgeImage };
+    });
+  },
   schema: z.object({
     name: z.string(),
     nameAr: z.string(),
@@ -40,7 +73,14 @@ const awards = defineCollection({
 });
 
 const departments = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/departments" }),
+  loader: async () => {
+    const docs = await fetchDocs("departments");
+    return docs.map((doc) => {
+      const [name, nameAr] = loc(doc.name);
+      const [description, descriptionAr] = loc(doc.description);
+      return { id: doc.slug, name, nameAr, description, descriptionAr, icon: doc.icon, centerOfExcellence: doc.centerOfExcellence ?? false };
+    });
+  },
   schema: z.object({
     name: z.string(),
     nameAr: z.string(),
@@ -52,7 +92,15 @@ const departments = defineCollection({
 });
 
 const doctors = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/doctors" }),
+  loader: async () => {
+    const docs = await fetchDocs("doctors");
+    return docs.map((doc) => {
+      const [name, nameAr] = loc(doc.name);
+      const [specialty, specialtyAr] = loc(doc.specialty);
+      const [bio, bioAr] = loc(doc.bio);
+      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: doc.photo, bio, bioAr, department: doc.department, certified: doc.certified ?? false, featured: doc.featured ?? false, order: doc.order };
+    });
+  },
   schema: z.object({
     name: z.string(),
     nameAr: z.string(),
@@ -69,7 +117,19 @@ const doctors = defineCollection({
 });
 
 const events = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/events" }),
+  loader: async () => {
+    const docs = await fetchDocs("events");
+    return docs.map((doc) => {
+      const [title, titleAr] = loc(doc.title);
+      const [summary, summaryAr] = loc(doc.summary);
+      const gallery = doc.gallery?.map((g: any) => {
+        const [caption, captionAr] = loc(g.caption);
+        const [alt] = loc(g.alt);
+        return { url: g.url, caption: caption || undefined, captionAr: captionAr || undefined, alt };
+      });
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), category: doc.category, summary, summaryAr, thumbnail: doc.thumbnail, featured: doc.featured ?? false, youtubeUrl: doc.youtubeUrl, gallery, body: doc.body };
+    });
+  },
   schema: z.object({
     title: z.string(),
     titleAr: z.string(),
@@ -92,7 +152,15 @@ const events = defineCollection({
 });
 
 const testimonials = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "./src/content/testimonials" }),
+  loader: async () => {
+    const docs = await fetchDocs("testimonials");
+    return docs.map((doc) => {
+      const [name, nameAr] = loc(doc.name);
+      const [quote, quoteAr] = loc(doc.quote);
+      const [caseType, caseTypeAr] = loc(doc.caseType);
+      return { id: doc.slug, name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: doc.avatar, featured: doc.featured ?? false };
+    });
+  },
   schema: z.object({
     name: z.string(),
     nameAr: z.string(),
