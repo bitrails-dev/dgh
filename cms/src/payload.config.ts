@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { buildConfig } from 'payload'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { en } from '@payloadcms/translations/languages/en'
+import { ar } from '@payloadcms/translations/languages/ar'
 
 import { Users } from './collections/Users'
 import { Doctors } from './collections/Doctors'
@@ -33,6 +35,10 @@ export default buildConfig({
   // markdown + external image URLs. Add a Media collection + S3/R2 storage when editors
   // actually upload files.
   editor: lexicalEditor(),
+  i18n: {
+    supportedLanguages: { ar, en },
+    fallbackLanguage: 'ar',
+  },
   localization: {
     locales: [
       { label: 'العربية', code: 'ar' },
