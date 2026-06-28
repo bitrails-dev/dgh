@@ -10,8 +10,14 @@ function loc(f: any): [string, string] {
 }
 
 async function fetchDocs(slug: string) {
-  const res = await fetch(`${CMS}/api/${slug}?locale=all&depth=1&limit=1000`);
-  if (!res.ok) throw new Error(`Payload /${slug}: ${res.status}`);
+  const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000`;
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error(`Cannot reach Payload CMS at ${url} — is it running? (${e})`);
+  }
+  if (!res.ok) throw new Error(`Payload /${slug} returned ${res.status}: ${await res.text()}`);
   return (await res.json()).docs as any[];
 }
 
