@@ -4,9 +4,16 @@ import { z } from "zod";
 const CMS = import.meta.env.CMS_URL ?? "http://localhost:3000";
 
 // Payload returns localized fields as { en, ar } when ?locale=all
+// Non-localized fields sometimes get the same treatment — handle both
 function loc(f: any): [string, string] {
   if (f && typeof f === "object") return [f.en ?? "", f.ar ?? ""];
   return [String(f ?? ""), ""];
+}
+
+function num(f: any): number | undefined {
+  if (f == null) return undefined;
+  const v = typeof f === "object" ? (f.en ?? f.ar) : f;
+  return v == null ? undefined : Number(v);
 }
 
 async function fetchDocs(slug: string) {
@@ -47,7 +54,7 @@ const achievements = defineCollection({
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
       const [description, descriptionAr] = loc(doc.description);
-      return { id: doc.slug, year: doc.year, title, titleAr, description, descriptionAr, icon: doc.icon };
+      return { id: doc.slug, year: num(doc.year)!, title, titleAr, description, descriptionAr, icon: doc.icon };
     });
   },
   schema: z.object({
@@ -66,7 +73,7 @@ const awards = defineCollection({
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [body] = loc(doc.body);
-      return { id: doc.slug, name, nameAr, body, year: doc.year, badgeImage: doc.badgeImage };
+      return { id: doc.slug, name, nameAr, body, year: num(doc.year)!, badgeImage: doc.badgeImage };
     });
   },
   schema: z.object({
@@ -104,7 +111,7 @@ const doctors = defineCollection({
       const [name, nameAr] = loc(doc.name);
       const [specialty, specialtyAr] = loc(doc.specialty);
       const [bio, bioAr] = loc(doc.bio);
-      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: doc.photo, bio, bioAr, department: doc.department, certified: doc.certified ?? false, featured: doc.featured ?? false, order: doc.order };
+      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: doc.photo, bio, bioAr, department: doc.department, certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
     });
   },
   schema: z.object({
