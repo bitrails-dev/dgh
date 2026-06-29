@@ -1,38 +1,39 @@
-// Migrate external image URLs -> Media uploads.
+// Link images: reads image URLs from the source markdown frontmatter, downloads
+// each to ../../public/uploads, creates a Media doc via the Payload Local API,
+// and links the parent doc's upload field.
 //
-// Precondition: schema migration 20260629_100000_media_and_uploads has run, so
-// each image-bearing table has a `*_id` FK and the old TEXT url columns are gone.
+// Works on any DB state — fresh import or existing. The source of truth for
+// image URLs is the markdown (src/content/<dir>/*.md), so this is independent of
+// whatever a DB snapshot may contain.
 //
-// Reads image-urls.json (extracted before the schema migration) — one row per
-// (collection, slug, url) — downloads each image to ../public/uploads, creates a
-// Media doc via the Payload Local API, and links the parent doc's *_id field.
+// Idempotent: a parent whose image field is already set is skipped.
 //
-// Idempotent: a parent whose *_id is already set is skipped, so re-running after
-// a partial failure picks up where it left off.
+// Run after `import-from-content.ts` (which creates the parent docs) and after
+// the media/upload schema migration.
 import 'dotenv/config'
-import { createHash } from 'node:crypto'
-import { mkdir, writeFile } from 'node:fs/promises'
-import { existsSync, readFileSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import matter from 'gray-matter'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
-import type { Readable } from 'node:stream'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOADS = path.resolve(dirname, '../../public/uploads')
-const URL_JSON = path.resolve(dirname, '../image-urls.json')
+const CONTENT = path.resolve(dirname, '../../src/content')
 
-// collection slug -> { fkField } the upload-relationship column on the parent table
-const FIELD_MAP: Record<string, { fk: string }> = {
-  doctors: { fk: 'photo' },
-  articles: { fk: 'thumbnail' },
-  awards: { fk: 'badgeImage' },
-  events: { fk: 'thumbnail' },
-  testimonials: { fk: 'avatar' },
+// collection slug -> { dir, fmField, fkField }
+//   dir:     markdown source directory
+//   fmField: frontmatter key holding the image URL
+//   fkField: Payload upload-relationship field name (the *_id column derives from it)
+const MAP: Record<string, { dir: string; fm: string; fk: string }> = {
+  doctors: { dir: 'doctors', fm: 'photo', fk: 'photo' },
+  articles: { dir: 'articles', fm: 'thumbnail', fk: 'thumbnail' },
+  awards: { dir: 'awards', fm: 'badgeImage', fk: 'badgeImage' },
+  events: { dir: 'events', fm: 'thumbnail', fk: 'thumbnail' },
+  testimonials: { dir: 'testimonials', fm: 'avatar', fk: 'avatar' },
 }
-
-type Row = { coll: string; slug: string; url: string }
 
 async function download(url: string): Promise<{ buffer: Buffer; mimeType: string; ext: string }> {
   const res = await fetch(url)
@@ -44,45 +45,45 @@ async function download(url: string): Promise<{ buffer: Buffer; mimeType: string
 }
 
 async function main() {
-  if (!existsSync(URL_JSON)) throw new Error(`missing ${URL_JSON} — re-extract urls before running`)
-  const rows: Row[] = JSON.parse(readFileSync(URL_JSON, 'utf-8'))
   await mkdir(UPLOADS, { recursive: true })
-
   const payload = await getPayload({ config })
   let migrated = 0, skipped = 0, failed = 0
 
-  for (const row of rows) {
-    const { coll, slug, url } = row
-    const map = FIELD_MAP[coll]
-    if (!map) { console.warn(`? no field map for ${coll}`); continue }
+  for (const [coll, { dir, fm, fk }] of Object.entries(MAP)) {
+    const inDir = path.join(CONTENT, dir)
+    if (!existsSync(inDir)) continue
 
-    // find parent doc
-    const found = await payload.find({ collection: coll as any, where: { slug: { equals: slug } }, limit: 1, pagination: false, depth: 1 })
-    const parent = found.docs[0] as any
-    if (!parent) { console.warn(`✗ ${coll}/${slug}: parent not found`); failed++; continue }
+    for (const file of readdirSync(inDir).filter((f) => f.endsWith('.md'))) {
+      const slug = path.basename(file, '.md')
+      const { data: frontmatter } = matter(readFileSync(path.join(inDir, file), 'utf-8'))
+      const url: string | undefined = frontmatter[fm]
+      if (!url) { skipped++; continue }
 
-    // idempotent: skip if already linked
-    const existing = parent[map.fk]
-    if (existing && (typeof existing === 'number' || existing?.id)) { skipped++; continue }
+      const found = await payload.find({
+        collection: coll as any, where: { slug: { equals: slug } }, limit: 1, depth: 1, pagination: false,
+      })
+      const parent = found.docs[0] as any
+      if (!parent) { console.warn(`✗ ${coll}/${slug}: parent not found (run import-from-content first)`); failed++; continue }
 
-    try {
-      const { buffer, mimeType, ext } = await download(url)
-      const filename = `${coll}-${slug}.${ext}`
+      // idempotent: skip if already linked
+      const existing = parent[fk]
+      if (existing && (typeof existing === 'number' || existing?.id)) { skipped++; continue }
 
-      // create Media doc via Payload's file-upload path
-      const media = await payload.create({
-        collection: 'media' as any,
-        data: { alt: `${coll} ${slug}` },
-        file: { data: buffer, mimetype: mimeType, name: filename, size: buffer.length },
-      }) as any
-
-      // link parent
-      await payload.update({ collection: coll as any, id: parent.id, data: { [map.fk]: media.id } })
-      console.log(`✓ ${coll}/${slug} -> media #${media.id} (${filename}, ${buffer.length}b)`)
-      migrated++
-    } catch (e: any) {
-      console.error(`✗ ${coll}/${slug}: ${e.message}`)
-      failed++
+      try {
+        const { buffer, mimeType, ext } = await download(url)
+        const filename = `${coll}-${slug}.${ext}`
+        const media = await payload.create({
+          collection: 'media' as any,
+          data: { alt: `${coll} ${slug}` },
+          file: { data: buffer, mimetype: mimeType, name: filename, size: buffer.length },
+        }) as any
+        await payload.update({ collection: coll as any, id: parent.id, data: { [fk]: media.id } })
+        console.log(`✓ ${coll}/${slug} -> media #${media.id} (${filename}, ${buffer.length}b)`)
+        migrated++
+      } catch (e: any) {
+        console.error(`✗ ${coll}/${slug}: ${e.message}`)
+        failed++
+      }
     }
   }
 

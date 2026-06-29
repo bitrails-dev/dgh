@@ -37,7 +37,8 @@ Public-facing website for **Dumyat Public Hospital** (مستشفى دمياط ا
 
 - **Next.js ~15.4** app hosting **Payload**, Lexical editor, **SQLite** via `@payloadcms/db-sqlite` + `@libsql/client`.
 - Localized (`ar` default + `en`, fallback on). Collections: Users, Media, Doctors, Departments, Articles, Events, Awards, Achievements, Testimonials; global: HospitalSettings.
-- Scripts: `pnpm dev` (port 3001), `pnpm generate:types`, `tsx scripts/export-to-content.ts` / `import-from-content.ts` to sync with `src/content`.
+- Scripts: `pnpm dev` (port 3001), `pnpm generate:types`, `tsx scripts/export-to-content.ts` / `import-from-content.ts` to sync with `src/content`, `tsx scripts/migrate-images.ts` to (re)link images from markdown to Media uploads.
+- Schema is managed by **versioned migrations** (`src/migrations/`), not dev-mode push. Fresh databases require `npx payload migrate` before first boot (the `db.push: false` adapter option disables the auto-push). Re-running `migrate` is a no-op once applied.
 
 ## Commands (root)
 
