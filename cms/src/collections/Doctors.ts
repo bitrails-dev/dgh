@@ -6,7 +6,7 @@ export const Doctors: CollectionConfig = {
     singular: { ar: 'طبيب', en: 'Doctor' },
     plural: { ar: 'الأطباء', en: 'Doctors' },
   },
-  admin: { useAsTitle: 'name', defaultColumns: ['name', 'specialty', 'featured'] },
+  admin: { useAsTitle: 'name', defaultColumns: ['name', 'specialty', 'order', 'featured'], defaultSort: 'order' },
   access: { read: () => true },
   fields: [
     { name: 'slug', type: 'text', required: true, unique: true, index: true,
@@ -29,7 +29,8 @@ export const Doctors: CollectionConfig = {
       label: { ar: 'معتمد', en: 'Certified' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },
-    { name: 'order', type: 'number',
-      label: { ar: 'الترتيب', en: 'Order' } },
+    { name: 'order', type: 'number', index: true,
+      label: { ar: 'الترتيب', en: 'Sort Order' },
+      admin: { description: { ar: 'ترتيب العرض — الرقم الأصغر يظهر أولاً', en: 'Display precedence — lower numbers appear first' } } },
   ],
 }

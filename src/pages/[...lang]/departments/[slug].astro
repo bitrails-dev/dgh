@@ -23,7 +23,8 @@ const detailPoints = [
 ];
 
 const allDoctors = await getCollection('doctors');
-const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id);
+const sortByOrder = (a: any, b: any) => (a.data.order ?? 999) - (b.data.order ?? 999);
+const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id).sort(sortByOrder);
 ---
 {isArRedirect ? (
   <ArRedirect url={`/departments/${Astro.params.slug}`} />
