@@ -9,7 +9,7 @@ export const Achievements: CollectionConfig = {
   admin: { useAsTitle: 'title', defaultColumns: ['title', 'year'] },
   access: { read: () => true },
   fields: [
-    { name: 'slug', type: 'text', required: true, unique: true, index: true,
+    { name: 'slug', type: 'text', required: true, unique: true,
       label: { ar: 'المعرّف', en: 'Slug' },
       admin: { description: 'Markdown filename. Lowercase, hyphenated.' } },
     { name: 'year', type: 'number', required: true,

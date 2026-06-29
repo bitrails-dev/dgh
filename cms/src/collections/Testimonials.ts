@@ -9,7 +9,7 @@ export const Testimonials: CollectionConfig = {
   admin: { useAsTitle: 'name', defaultColumns: ['name', 'featured'] },
   access: { read: () => true },
   fields: [
-    { name: 'slug', type: 'text', required: true, unique: true, index: true,
+    { name: 'slug', type: 'text', required: true, unique: true,
       label: { ar: 'المعرّف', en: 'Slug' },
       admin: { description: 'Markdown filename. Lowercase, hyphenated.' } },
     { name: 'name', type: 'text', required: true, localized: true,

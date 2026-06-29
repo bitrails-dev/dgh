@@ -9,7 +9,7 @@ export const Events: CollectionConfig = {
   admin: { useAsTitle: 'title', defaultColumns: ['title', 'date', 'category', 'featured'] },
   access: { read: () => true },
   fields: [
-    { name: 'slug', type: 'text', required: true, unique: true, index: true,
+    { name: 'slug', type: 'text', required: true, unique: true,
       label: { ar: 'المعرّف', en: 'Slug' },
       admin: { description: 'Markdown filename. Lowercase, hyphenated.' } },
     { name: 'title', type: 'text', required: true, localized: true,
