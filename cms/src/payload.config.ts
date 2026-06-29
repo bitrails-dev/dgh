@@ -53,5 +53,8 @@ export default buildConfig({
       url: process.env.DATABASE_URI || 'file:./cms.db',
       authToken: process.env.DATABASE_AUTH_TOKEN,
     },
+    // Rely on versioned migrations (src/migrations) instead of the dev-mode
+    // schema push, which collides with existing indexes when migrations exist.
+    push: false,
   }),
 })

@@ -16,17 +16,18 @@
 	},
 	"dependencies": {
 		"@libsql/client": "^0.14.0",
-		"@payloadcms/db-sqlite": "latest",
-		"@payloadcms/next": "latest",
-		"@payloadcms/richtext-lexical": "latest",
+		"@payloadcms/db-sqlite": "3.85.1",
+		"@payloadcms/next": "3.85.1",
+		"@payloadcms/richtext-lexical": "3.85.1",
 		"@payloadcms/translations": "3.85.1",
 		"dotenv": "^16.4.7",
 		"graphql": "^16.9.0",
 		"gray-matter": "^4.0.3",
 		"next": "~15.4.11",
-		"payload": "latest",
+		"payload": "3.85.1",
 		"react": "^19.0.0",
-		"react-dom": "^19.0.0"
+		"react-dom": "^19.0.0",
+		"sharp": "^0.35.2"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.0",
