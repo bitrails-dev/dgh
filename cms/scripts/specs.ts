@@ -9,6 +9,17 @@ const ymd = (v: any): string => (v ? new Date(v).toISOString().slice(0, 10) : ''
 const omitEmpty = (o: Record<string, any>) =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== ''))
 
+// Upload fields come back as Media docs at depth>=1: { id, url, filename, ... }.
+// Project markdown stores them as absolute URLs, so prefix the CMS origin onto the
+// relative `/api/media/file/<name>` url. null/empty -> undefined (dropped by omitEmpty).
+const SERVER_URL = process.env.PAYLOAD_PUBLIC_SERVER_URL || ''
+const imgFile = (v: any): string | undefined => {
+  if (!v) return undefined
+  const url = typeof v === 'string' ? v : v.url
+  if (!url) return undefined
+  return url.startsWith('/') ? `${SERVER_URL}${url}` : url
+}
+
 export type Spec = {
   collection: string
   dir: string // under src/content
@@ -28,7 +39,7 @@ export const SPECS: Spec[] = [
       frontmatter: omitEmpty({
         name: en(d.name), nameAr: ar(d.name),
         specialty: en(d.specialty), specialtyAr: ar(d.specialty),
-        photo: d.photo, bio: en(d.bio), bioAr: ar(d.bio),
+        photo: imgFile(d.photo), bio: en(d.bio), bioAr: ar(d.bio),
         department: d.department,
         certified: !!d.certified, featured: !!d.featured,
         order: d.order ?? undefined,
@@ -38,7 +49,8 @@ export const SPECS: Spec[] = [
     toData: (fm, _b, slug) => ({
       ar: omitEmpty({
         slug, name: fm.nameAr, specialty: fm.specialtyAr, bio: fm.bioAr,
-        photo: fm.photo, department: fm.department,
+        // photo is an upload relationship — set it via the admin or migrate-images.ts
+        department: fm.department,
         certified: !!fm.certified, featured: !!fm.featured, order: fm.order,
       }),
       en: { name: fm.name, specialty: fm.specialty, bio: fm.bio ?? '' },
@@ -72,14 +84,15 @@ export const SPECS: Spec[] = [
       frontmatter: omitEmpty({
         title: en(d.title), titleAr: ar(d.title),
         date: ymd(d.date), author: d.author, category: d.category,
-        thumbnail: d.thumbnail, featured: !!d.featured,
+        thumbnail: imgFile(d.thumbnail), featured: !!d.featured,
       }),
       body: d.body || '',
     }),
     toData: (fm, body, slug) => ({
       ar: omitEmpty({
         slug, title: fm.titleAr, date: new Date(fm.date).toISOString(),
-        author: fm.author, category: fm.category, thumbnail: fm.thumbnail,
+        author: fm.author, category: fm.category,
+        // thumbnail is an upload relationship — set it via the admin or migrate-images.ts
         featured: !!fm.featured, body,
       }),
       en: { title: fm.title },
@@ -94,10 +107,10 @@ export const SPECS: Spec[] = [
         title: en(d.title), titleAr: ar(d.title),
         summary: en(d.summary), summaryAr: ar(d.summary),
         date: ymd(d.date), category: d.category,
-        thumbnail: d.thumbnail, featured: !!d.featured,
+        thumbnail: imgFile(d.thumbnail), featured: !!d.featured,
         youtubeUrl: d.youtubeUrl,
         gallery: (d.gallery || []).length
-          ? d.gallery.map((g: any) => omitEmpty({ url: g.url, caption: en(g.caption), captionAr: ar(g.caption), alt: g.alt }))
+          ? d.gallery.map((g: any) => omitEmpty({ url: imgFile(g.image), caption: en(g.caption), captionAr: ar(g.caption), alt: g.alt }))
           : undefined,
       }),
       body: d.body || '',
@@ -106,14 +119,12 @@ export const SPECS: Spec[] = [
       ar: omitEmpty({
         slug, title: fm.titleAr, summary: fm.summaryAr,
         date: new Date(fm.date).toISOString(), category: fm.category,
-        thumbnail: fm.thumbnail, featured: !!fm.featured, youtubeUrl: fm.youtubeUrl,
-        // ponytail: gallery captions seeded from AR; EN captions filled on the en update below.
-        gallery: (fm.gallery || []).map((g: any) => omitEmpty({ url: g.url, caption: g.captionAr, alt: g.alt })),
+        // thumbnail + gallery.image are upload relationships — set via admin or migrate-images.ts
+        featured: !!fm.featured, youtubeUrl: fm.youtubeUrl,
         body,
       }),
       en: {
         title: fm.title, summary: fm.summary,
-        gallery: (fm.gallery || []).map((g: any) => omitEmpty({ url: g.url, caption: g.caption, alt: g.alt })),
       },
     }),
   },
@@ -124,12 +135,12 @@ export const SPECS: Spec[] = [
       slug: d.slug,
       frontmatter: omitEmpty({
         name: en(d.name), nameAr: ar(d.name),
-        body: en(d.body), year: d.year, badgeImage: d.badgeImage,
+        body: en(d.body), year: d.year, badgeImage: imgFile(d.badgeImage),
       }),
       body: '',
     }),
     toData: (fm, _b, slug) => ({
-      ar: omitEmpty({ slug, name: fm.nameAr, body: fm.body, year: fm.year, badgeImage: fm.badgeImage }),
+      ar: omitEmpty({ slug, name: fm.nameAr, body: fm.body, year: fm.year }),
       en: { name: fm.name, body: fm.body },
     }),
   },
@@ -158,14 +169,15 @@ export const SPECS: Spec[] = [
         name: en(d.name), nameAr: ar(d.name),
         quote: en(d.quote), quoteAr: ar(d.quote),
         caseType: en(d.caseType), caseTypeAr: ar(d.caseType),
-        avatar: d.avatar, featured: !!d.featured,
+        avatar: imgFile(d.avatar), featured: !!d.featured,
       }),
       body: '',
     }),
     toData: (fm, _b, slug) => ({
       ar: omitEmpty({
         slug, name: fm.nameAr, quote: fm.quoteAr, caseType: fm.caseTypeAr,
-        avatar: fm.avatar, featured: !!fm.featured,
+        // avatar is an upload relationship — set it via the admin or migrate-images.ts
+        featured: !!fm.featured,
       }),
       en: omitEmpty({ name: fm.name, quote: fm.quote, caseType: fm.caseType }),
     }),
