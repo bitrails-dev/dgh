@@ -29,7 +29,7 @@ export const Doctors: CollectionConfig = {
       label: { ar: 'معتمد', en: 'Certified' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },
-    { name: 'order', type: 'number', index: true,
+    { name: 'order', type: 'number',
       label: { ar: 'الترتيب', en: 'Sort Order' },
       admin: { description: { ar: 'ترتيب العرض — الرقم الأصغر يظهر أولاً', en: 'Display precedence — lower numbers appear first' } } },
   ],
