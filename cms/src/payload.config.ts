@@ -15,6 +15,7 @@ import { Awards } from './collections/Awards'
 import { Achievements } from './collections/Achievements'
 import { Testimonials } from './collections/Testimonials'
 import { Media } from './collections/Media'
+import { Videos } from './collections/Videos'
 import { Icons } from './collections/Icons'
 import { Categories } from './collections/Categories'
 import { HospitalSettings } from './globals/HospitalSettings'
@@ -26,6 +27,7 @@ export default buildConfig({
   collections: [
     Users,
     Media,
+    Videos,
     Icons,
     Categories,
     Doctors,

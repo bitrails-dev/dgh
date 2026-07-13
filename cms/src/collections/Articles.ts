@@ -1,4 +1,5 @@
 import type { Block, CollectionConfig } from 'payload'
+import { publishArticleSocial } from '../social/hook'
 
 // Article body is composed of ordered blocks. Structure/order is shared across locales;
 // text fields inside each block are localized (ar default + en).
@@ -100,6 +101,11 @@ export const Articles: CollectionConfig = {
       ] },
     { name: 'thumbnail', type: 'upload', relationTo: 'media',
       label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' } },
+    // Optional article video. When present it is auto-published on save to YouTube,
+    // TikTok, Instagram Reels and Facebook (see the `social` group below).
+    { name: 'video', type: 'upload', relationTo: 'videos',
+      label: { ar: 'الفيديو', en: 'Video' },
+      admin: { description: 'Uploading a video auto-publishes it to the social platforms on save.' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },
     // Composable body. Shared structure across locales; text inside blocks is localized.
@@ -112,5 +118,24 @@ export const Articles: CollectionConfig = {
     { name: 'body', type: 'textarea',
       label: { ar: 'المحتوى (قديم)', en: 'Body (legacy)' },
       admin: { readOnly: true, description: 'Legacy markdown body — superseded by Content blocks.' } },
+    // Social auto-publishing. On save, the article (and its video, if any) is fanned
+    // out to the configured platforms. Results are recorded read-only in `results`.
+    { name: 'social', type: 'group',
+      label: { ar: 'النشر الاجتماعي', en: 'Social publishing' },
+      fields: [
+        { name: 'autoPublish', type: 'checkbox', defaultValue: true,
+          label: { ar: 'نشر تلقائي عند الحفظ', en: 'Auto-publish on save' },
+          admin: { description: 'When on, saving publishes to every configured platform. Untick to keep this article off social.' } },
+        { name: 'caption', type: 'textarea',
+          label: { ar: 'نص مخصص (اختياري)', en: 'Custom caption (optional)' },
+          admin: { description: 'Overrides the auto-generated description/caption. The article link is appended automatically.' } },
+        // Per-platform outcome, written by the publish hook. JSON = one column, no child tables.
+        { name: 'results', type: 'json',
+          label: { ar: 'نتائج النشر', en: 'Publish results' },
+          admin: { readOnly: true, description: 'Auto-filled: platform, status, URL/id, or error.' } },
+      ] },
   ],
+  hooks: {
+    afterChange: [publishArticleSocial],
+  },
 }
