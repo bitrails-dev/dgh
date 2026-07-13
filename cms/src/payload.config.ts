@@ -15,6 +15,8 @@ import { Awards } from './collections/Awards'
 import { Achievements } from './collections/Achievements'
 import { Testimonials } from './collections/Testimonials'
 import { Media } from './collections/Media'
+import { Icons } from './collections/Icons'
+import { Categories } from './collections/Categories'
 import { HospitalSettings } from './globals/HospitalSettings'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -24,6 +26,8 @@ export default buildConfig({
   collections: [
     Users,
     Media,
+    Icons,
+    Categories,
     Doctors,
     Departments,
     Articles,

@@ -10,6 +10,7 @@ interface Props {
 	image?: string;
 	imageAlt?: string;
 	iconPath?: string;
+	iconImage?: string;
 	iconColor?: string;
 	date?: string;
 	preTitle?: string;
@@ -28,6 +29,7 @@ const {
 	image,
 	imageAlt,
 	iconPath,
+	iconImage,
 	iconColor = 'text-teal-700',
 	date,
 	preTitle,
@@ -177,9 +179,17 @@ const hasImage = !!image;
 			)}
 
 			<div class='flex flex-1 flex-col p-5 bg-ivory-50 group-hover:bg-white transition-colors duration-200'>
-				{!hasImage && (iconPath || imageBadge) && (
+				{!hasImage && (iconImage || iconPath || imageBadge) && (
 					<div class='flex items-center justify-between mb-4'>
-						{iconPath && (
+						{iconImage ? (
+							<img
+								src={iconImage}
+								alt=''
+								class='h-9 w-9 object-contain'
+								loading='lazy'
+								aria-hidden='true'
+							/>
+						) : iconPath && (
 							<svg
 								viewBox='0 0 24 24'
 								class={`h-9 w-9 ${iconColor}`}
@@ -217,7 +227,7 @@ const hasImage = !!image;
 					</div>
 				)}
 
-				{!hasImage && !iconPath && !imageBadge && (
+				{!hasImage && !iconImage && !iconPath && !imageBadge && (
 					<div class='mb-4'>
 						<slot name='icon' />
 					</div>

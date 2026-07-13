@@ -20,11 +20,14 @@ export const Doctors: CollectionConfig = {
       label: { ar: 'الصورة', en: 'Photo' } },
     { name: 'bio', type: 'textarea', localized: true,
       label: { ar: 'السيرة الذاتية', en: 'Bio' } },
-    // ponytail: department is a slug string (matches current markdown), not a relationship.
-    // Swap to a relationship to 'departments' if you want referential integrity in the admin.
+    // Relationship to a department (single). Assignable from the department side via a `join`.
+    { name: 'departmentRel', type: 'relationship', relationTo: 'departments',
+      label: { ar: 'القسم', en: 'Department' } },
+    // ponytail: legacy slug text kept read-only during transition so no link is lost. The reader
+    // prefers `departmentRel` and falls back to this. Drop in a later cleanup migration.
     { name: 'department', type: 'text',
-      label: { ar: 'القسم', en: 'Department' },
-      admin: { description: 'Department slug' } },
+      label: { ar: 'القسم (قديم)', en: 'Department (legacy)' },
+      admin: { readOnly: true, description: 'Legacy department slug — superseded by the Department relationship.' } },
     { name: 'certified', type: 'checkbox', defaultValue: false,
       label: { ar: 'معتمد', en: 'Certified' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,

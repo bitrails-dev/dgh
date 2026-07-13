@@ -2,6 +2,7 @@
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SidebarLayout from '../../../layouts/SidebarLayout.astro';
 import ArRedirect from '../../../components/ui/ArRedirect.astro';
+import ArticleBlocks from '../../../components/ui/ArticleBlocks.astro';
 import { getCollection } from '../../../lib/cms';
 import { getStrings, localePath } from '../../../i18n';
 
@@ -34,7 +35,19 @@ const formatDate = (dateStr: string | Date) =>
     year: 'numeric', month: 'long', day: 'numeric',
   });
 
-const categoryLabel = categoryLabels[article.data.category]?.[lang === 'ar' ? 'ar' : 'en'] || '';
+// Token color from the category record → Tailwind classes (falls back to the legacy per-slug map).
+const tokenColors: Record<string, string> = {
+  teal: 'bg-teal-700/10 text-teal-700',
+  navy: 'bg-navy-900/10 text-navy-900',
+  gold: 'bg-gold/15 text-gold',
+  ink: 'bg-ink-500/10 text-ink-500',
+  coral: 'bg-coral/15 text-coral',
+  sage: 'bg-sage/15 text-sage',
+};
+const categoryLabel = (lang === 'ar' ? article.data.categoryNameAr : article.data.categoryName)
+  || categoryLabels[article.data.category]?.[lang === 'ar' ? 'ar' : 'en'] || '';
+const categoryColorClass = (article.data.categoryColor && tokenColors[article.data.categoryColor])
+  || categoryColors[article.data.category] || 'bg-ink-500/10 text-ink-500';
 
 const breadcrumbs = [
   { label: strings.breadcrumb.home, href: localePath('/', lang) },
@@ -62,7 +75,7 @@ const breadcrumbs = [
         <p class="h-eyebrow">{lang === 'ar' ? 'المقالات' : 'Articles'}</p>
       </div>
       <div class="flex flex-wrap items-center gap-3 mb-4">
-        <span class={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${categoryColors[article.data.category] || 'bg-ink-500/10 text-ink-500'}`}>
+        <span class={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${categoryColorClass}`}>
           {categoryLabel}
         </span>
         <time class="text-sm text-ink-400">{formatDate(article.data.date)}</time>
@@ -87,7 +100,9 @@ const breadcrumbs = [
             </div>
           )}
 
-          {article.data.body && (
+          {article.data.content && article.data.content.length > 0 ? (
+            <ArticleBlocks blocks={article.data.content} lang={lang} />
+          ) : article.data.body && (
             <div class="bg-ivory-50 p-8 border border-ink-100">
               <div class="prose max-w-none">
                 <p>{article.data.body}</p>

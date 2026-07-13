@@ -1,4 +1,69 @@
-import type { CollectionConfig } from 'payload'
+import type { Block, CollectionConfig } from 'payload'
+
+// Article body is composed of ordered blocks. Structure/order is shared across locales;
+// text fields inside each block are localized (ar default + en).
+const RichTextBlock: Block = {
+  slug: 'richText',
+  labels: { singular: { ar: 'نص', en: 'Rich Text' }, plural: { ar: 'نصوص', en: 'Rich Text' } },
+  fields: [
+    { name: 'richText', type: 'richText', localized: true,
+      label: { ar: 'النص', en: 'Text' } },
+  ],
+}
+
+const HeadingBlock: Block = {
+  slug: 'heading',
+  labels: { singular: { ar: 'عنوان', en: 'Heading' }, plural: { ar: 'عناوين', en: 'Headings' } },
+  fields: [
+    { name: 'text', type: 'text', required: true, localized: true,
+      label: { ar: 'العنوان', en: 'Heading' } },
+    { name: 'level', type: 'select', defaultValue: 'h2',
+      label: { ar: 'المستوى', en: 'Level' },
+      options: [
+        { label: 'H2', value: 'h2' },
+        { label: 'H3', value: 'h3' },
+      ] },
+  ],
+}
+
+const ImageBlock: Block = {
+  slug: 'image',
+  labels: { singular: { ar: 'صورة', en: 'Image' }, plural: { ar: 'صور', en: 'Images' } },
+  fields: [
+    { name: 'image', type: 'upload', relationTo: 'media', required: true,
+      label: { ar: 'الصورة', en: 'Image' } },
+    { name: 'alt', type: 'text', localized: true,
+      label: { ar: 'النص البديل', en: 'Alt text' } },
+    { name: 'caption', type: 'text', localized: true,
+      label: { ar: 'التعليق', en: 'Caption' } },
+  ],
+}
+
+const YouTubeBlock: Block = {
+  slug: 'youtube',
+  labels: { singular: { ar: 'فيديو يوتيوب', en: 'YouTube Video' }, plural: { ar: 'فيديوهات يوتيوب', en: 'YouTube Videos' } },
+  fields: [
+    { name: 'url', type: 'text', required: true,
+      label: { ar: 'رابط يوتيوب', en: 'YouTube URL' },
+      admin: { description: 'Full watch/share URL — e.g. https://youtu.be/…' } },
+    { name: 'caption', type: 'text', localized: true,
+      label: { ar: 'التعليق', en: 'Caption' } },
+  ],
+}
+
+const TestimonialBlock: Block = {
+  slug: 'testimonial',
+  labels: { singular: { ar: 'شهادة', en: 'Testimonial' }, plural: { ar: 'شهادات', en: 'Testimonials' } },
+  fields: [
+    { name: 'image', type: 'upload', relationTo: 'media',
+      label: { ar: 'الصورة', en: 'Image' } },
+    { name: 'text', type: 'textarea', required: true, localized: true,
+      label: { ar: 'النص', en: 'Text' } },
+    { name: 'caption', type: 'text', localized: true,
+      label: { ar: 'التعليق', en: 'Caption' },
+      admin: { description: 'Attribution — name / role' } },
+  ],
+}
 
 export const Articles: CollectionConfig = {
   slug: 'articles',
@@ -18,8 +83,15 @@ export const Articles: CollectionConfig = {
       label: { ar: 'التاريخ', en: 'Date' } },
     { name: 'author', type: 'text', required: true,
       label: { ar: 'الكاتب', en: 'Author' } },
-    { name: 'category', type: 'select', required: true,
-      label: { ar: 'التصنيف', en: 'Category' },
+    // Editable category from the Categories collection. Optional so a category can be cleared
+    // when its category is deleted (see the reassign-on-delete flow).
+    { name: 'categoryRel', type: 'relationship', relationTo: 'categories',
+      label: { ar: 'التصنيف', en: 'Category' } },
+    // ponytail: legacy fixed enum kept read-only during transition so filtering never breaks.
+    // The reader prefers `categoryRel` and falls back to this. Drop in a later cleanup migration.
+    { name: 'category', type: 'select',
+      label: { ar: 'التصنيف (قديم)', en: 'Category (legacy)' },
+      admin: { readOnly: true, description: 'Legacy fixed category — superseded by the Categories collection.' },
       options: [
         { label: { ar: 'أخبار المستشفى', en: 'Hospital News' }, value: 'hospital-news' },
         { label: { ar: 'نصائح صحية', en: 'Health Tips' }, value: 'health-tips' },
@@ -30,10 +102,15 @@ export const Articles: CollectionConfig = {
       label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },
-    // ponytail: single markdown body (matches current one-body-per-file). Make localized if
-    // articles ever need separate AR/EN bodies.
+    // Composable body. Shared structure across locales; text inside blocks is localized.
+    { name: 'content', type: 'blocks',
+      label: { ar: 'المحتوى', en: 'Content' },
+      blocks: [RichTextBlock, HeadingBlock, ImageBlock, YouTubeBlock, TestimonialBlock] },
+    // ponytail: legacy single-body field kept read-only so existing article text is never lost.
+    // The reader falls back to it when `content` is empty. Drop in a later cleanup migration
+    // once articles are re-authored into blocks.
     { name: 'body', type: 'textarea',
-      label: { ar: 'المحتوى', en: 'Body' },
-      admin: { description: 'Markdown body' } },
+      label: { ar: 'المحتوى (قديم)', en: 'Body (legacy)' },
+      admin: { readOnly: true, description: 'Legacy markdown body — superseded by Content blocks.' } },
   ],
 }

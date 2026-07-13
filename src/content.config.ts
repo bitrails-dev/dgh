@@ -1,5 +1,6 @@
 import { defineCollection } from "astro:content";
 import { z } from "zod";
+import { normalizeBlocks } from "./lib/blocks";
 
 const CMS = import.meta.env.CMS_URL ?? "http://localhost:3000";
 
@@ -30,6 +31,11 @@ function imgUrl(f: any): string | undefined {
   if (!raw) return undefined;
   return raw.startsWith("/") ? `${CMS}${raw}` : raw;
 }
+function rel(f: any, key = "slug"): string | undefined {
+  if (f == null) return undefined;
+  if (typeof f === "object") return f[key] != null ? String(f[key]) : undefined;
+  return String(f);
+}
 
 async function fetchDocs(slug: string) {
   const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000`;
@@ -48,7 +54,13 @@ const articles = defineCollection({
     const docs = await fetchDocs("articles");
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
-      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category: doc.category, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, body: doc.body };
+      const cat = doc.categoryRel;
+      let category = doc.category, categoryName, categoryNameAr, categoryColor;
+      if (cat && typeof cat === "object") {
+        const [n, nAr] = loc(cat.name);
+        category = cat.slug; categoryName = n; categoryNameAr = nAr; categoryColor = cat.color;
+      }
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category, categoryName, categoryNameAr, categoryColor, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, content: normalizeBlocks(doc.content), body: doc.body };
     });
   },
   schema: z.object({
@@ -56,9 +68,13 @@ const articles = defineCollection({
     titleAr: z.string(),
     date: z.coerce.date(),
     author: z.string(),
-    category: z.enum(["hospital-news", "health-tips", "research", "events"]),
+    category: z.string().optional(),
+    categoryName: z.string().optional(),
+    categoryNameAr: z.string().optional(),
+    categoryColor: z.string().optional(),
     thumbnail: z.string().optional(),
     featured: z.boolean().default(false),
+    content: z.array(z.any()).optional(),
     body: z.string().optional(),
   }),
 });
@@ -106,7 +122,7 @@ const departments = defineCollection({
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [description, descriptionAr] = loc(doc.description);
-      return { id: doc.slug, name, nameAr, description, descriptionAr, icon: str(doc.icon), centerOfExcellence: doc.centerOfExcellence ?? false };
+      return { id: doc.slug, name, nameAr, description, descriptionAr, icon: str(doc.icon), iconUrl: imgUrl(doc.iconRef), centerOfExcellence: doc.centerOfExcellence ?? false };
     });
   },
   schema: z.object({
@@ -114,7 +130,8 @@ const departments = defineCollection({
     nameAr: z.string(),
     description: z.string(),
     descriptionAr: z.string(),
-    icon: z.string(),
+    icon: z.string().optional(),
+    iconUrl: z.string().optional(),
     centerOfExcellence: z.boolean().default(false),
   }),
 });
@@ -126,7 +143,7 @@ const doctors = defineCollection({
       const [name, nameAr] = loc(doc.name);
       const [specialty, specialtyAr] = loc(doc.specialty);
       const [bio, bioAr] = loc(doc.bio);
-      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: imgUrl(doc.photo), bio, bioAr, department: str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
+      return { id: doc.slug, name, nameAr, specialty, specialtyAr, photo: imgUrl(doc.photo), bio, bioAr, department: rel(doc.departmentRel) ?? str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) };
     });
   },
   schema: z.object({

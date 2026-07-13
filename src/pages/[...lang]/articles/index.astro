@@ -13,12 +13,18 @@ const allArticles = (await getCollection('articles')).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
 );
 
-const categories = [
+// Categories come from the CMS; fall back to the legacy fixed list if the collection isn't
+// available yet (e.g. before the migration is applied).
+let categories = [
   { value: 'hospital-news', labelEn: 'Hospital News', labelAr: 'أخبار المستشفى' },
   { value: 'health-tips', labelEn: 'Health Tips', labelAr: 'نصائح صحية' },
   { value: 'research', labelEn: 'Research', labelAr: 'الأبحاث' },
   { value: 'events', labelEn: 'Events', labelAr: 'الفعاليات' },
 ];
+try {
+  const cats = await getCollection('categories');
+  if (cats.length) categories = cats.map((c) => ({ value: c.id, labelEn: c.data.name, labelAr: c.data.nameAr }));
+} catch { /* CMS without categories collection yet — keep the fallback */ }
 
 const items = allArticles.map((article) => ({
   id: article.id,

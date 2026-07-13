@@ -1,5 +1,7 @@
 // ponytail: drop-in replacement for getCollection() that fetches live per-request
 // instead of the content layer cache in .astro/ (which only updates on server restart)
+import { normalizeBlocks } from "./blocks";
+
 const CMS = import.meta.env.CMS_URL ?? "http://localhost:3000";
 
 function loc(f: any): [string, string] {
@@ -22,6 +24,12 @@ function imgUrl(f: any): string | undefined {
   if (!raw) return undefined;
   return raw.startsWith("/") ? `${CMS}${raw}` : raw;
 }
+// Relationship field at depth=1 is the related doc; pull a scalar (e.g. slug) off it.
+function rel(f: any, key = "slug"): string | undefined {
+  if (f == null) return undefined;
+  if (typeof f === "object") return f[key] != null ? String(f[key]) : undefined;
+  return String(f);
+}
 
 async function fetchDocs(slug: string) {
   const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000`;
@@ -40,7 +48,13 @@ const mappers = {
     const docs = await fetchDocs("articles");
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
-      return { id: doc.slug, data: { title, titleAr, date: new Date(doc.date), author: str(doc.author), category: doc.category, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, body: doc.body } };
+      const cat = doc.categoryRel;
+      let category = doc.category, categoryName, categoryNameAr, categoryColor;
+      if (cat && typeof cat === "object") {
+        const [n, nAr] = loc(cat.name);
+        category = cat.slug; categoryName = n; categoryNameAr = nAr; categoryColor = cat.color;
+      }
+      return { id: doc.slug, data: { title, titleAr, date: new Date(doc.date), author: str(doc.author), category, categoryName, categoryNameAr, categoryColor, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, content: normalizeBlocks(doc.content), body: doc.body } };
     });
   },
   achievements: async () => {
@@ -64,7 +78,7 @@ const mappers = {
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [description, descriptionAr] = loc(doc.description);
-      return { id: doc.slug, data: { name, nameAr, description, descriptionAr, icon: str(doc.icon), centerOfExcellence: doc.centerOfExcellence ?? false } };
+      return { id: doc.slug, data: { name, nameAr, description, descriptionAr, icon: str(doc.icon), iconUrl: imgUrl(doc.iconRef), centerOfExcellence: doc.centerOfExcellence ?? false } };
     });
   },
   doctors: async () => {
@@ -73,7 +87,7 @@ const mappers = {
       const [name, nameAr] = loc(doc.name);
       const [specialty, specialtyAr] = loc(doc.specialty);
       const [bio, bioAr] = loc(doc.bio);
-      return { id: doc.slug, data: { name, nameAr, specialty, specialtyAr, photo: imgUrl(doc.photo), bio, bioAr, department: str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) } };
+      return { id: doc.slug, data: { name, nameAr, specialty, specialtyAr, photo: imgUrl(doc.photo), bio, bioAr, department: rel(doc.departmentRel) ?? str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) } };
     });
   },
   events: async () => {
@@ -96,6 +110,13 @@ const mappers = {
       const [quote, quoteAr] = loc(doc.quote);
       const [caseType, caseTypeAr] = loc(doc.caseType);
       return { id: doc.slug, data: { name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: imgUrl(doc.avatar), featured: doc.featured ?? false } };
+    });
+  },
+  categories: async () => {
+    const docs = await fetchDocs("categories");
+    return docs.map((doc) => {
+      const [name, nameAr] = loc(doc.name);
+      return { id: doc.slug, data: { name, nameAr, color: str(doc.color) } };
     });
   },
 };
