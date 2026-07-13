@@ -77,6 +77,6 @@ export const Categories: CollectionConfig = {
       ] },
     // Safe-delete panel (clear / move / delete-anyway). Renders on the edit page.
     { name: 'safeDelete', type: 'ui',
-      admin: { components: { Field: '/admin/CategoryDeletePanel#default' } } },
+      admin: { components: { Field: '/src/admin/CategoryDeletePanel#default' } } },
   ],
 }
