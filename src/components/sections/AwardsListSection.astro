@@ -3,7 +3,7 @@ import { getCollection } from "../../lib/cms";
 
 const { lang, strings } = Astro.props;
 const isAr = lang === "ar";
-const awards = await getCollection("awards");
+const awards = await getCollection("awards", Astro.locals.tenant?.id);
 const sortedAwards = awards.sort((a, b) => b.data.year - a.data.year);
 ---
 

@@ -105,6 +105,8 @@ const props = defineProps<{
   lang: string;
   currentPath: string;
   strings: any;
+  // Tenant capabilities. undefined = single-tenant fallback (show every nav item).
+  features?: string[];
 }>();
 
 const uiStore = useUiStore();
@@ -130,17 +132,19 @@ const langSwitchUrl = computed(() => {
   }
 });
 
+const gated = (feature?: string) => !!props.features && !!feature && !props.features.includes(feature);
+
 const navItems = computed(() => [
-  { id: 'home',          href: lp('/'),              label: props.strings.nav?.home,          icon: Home },
-  { id: 'about',         href: lp('/about'),         label: props.strings.nav?.about,         icon: Info },
-  { id: 'departments',   href: lp('/departments'),   label: props.strings.nav?.departments,   icon: Building2 },
-  { id: 'team',          href: lp('/team'),          label: props.strings.nav?.team,          icon: Users },
-  { id: 'achievements',  href: lp('/achievements'),  label: props.strings.nav?.achievements,  icon: Trophy },
-  { id: 'awards',        href: lp('/awards'),        label: props.strings.nav?.awards,        icon: Award },
-  { id: 'articles',      href: lp('/articles'),      label: props.strings.nav?.articles,      icon: FileText },
-  { id: 'events',        href: lp('/events'),        label: props.strings.nav?.events,        icon: CalendarDays },
-  { id: 'contact',       href: lp('/contact'),       label: props.strings.nav?.contact,       icon: Phone },
-]);
+  { id: 'home',          href: lp('/'),              label: props.strings.nav?.home,          icon: Home,         feature: undefined },
+  { id: 'about',         href: lp('/about'),         label: props.strings.nav?.about,         icon: Info,         feature: undefined },
+  { id: 'departments',   href: lp('/departments'),   label: props.strings.nav?.departments,   icon: Building2,    feature: 'departments' },
+  { id: 'team',          href: lp('/team'),          label: props.strings.nav?.team,          icon: Users,        feature: 'team' },
+  { id: 'achievements',  href: lp('/achievements'),  label: props.strings.nav?.achievements,  icon: Trophy,       feature: 'achievements' },
+  { id: 'awards',        href: lp('/awards'),        label: props.strings.nav?.awards,        icon: Award,        feature: 'awards' },
+  { id: 'articles',      href: lp('/articles'),      label: props.strings.nav?.articles,      icon: FileText,     feature: 'articles' },
+  { id: 'events',        href: lp('/events'),        label: props.strings.nav?.events,        icon: CalendarDays, feature: 'events' },
+  { id: 'contact',       href: lp('/contact'),       label: props.strings.nav?.contact,       icon: Phone,        feature: undefined },
+].filter((item) => !gated(item.feature)));
 
 function isActive(href: string): boolean {
   const path = livePath.value.replace(/\/$/, '') || '/';

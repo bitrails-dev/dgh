@@ -5,9 +5,11 @@ import PageHeader from '../../components/ui/PageHeader.astro';
 import ContactSection from '../../components/sections/ContactSection.vue';
 import { getStrings, localePath } from '../../i18n';
 import type { Locale } from '../../i18n';
+import { applyTenant } from '../../lib/tenant';
 
 const lang = (Astro.params.lang || "ar") as Locale;
-const strings = getStrings(lang);
+// Tenant-driven contact details (phone/email/address/hours) + name, with i18n fallback.
+const strings = applyTenant(getStrings(lang), Astro.locals.tenant, lang);
 const breadcrumbs = [
   { label: strings.breadcrumb.home, href: localePath('/', lang) },
   { label: strings.breadcrumb.contact },

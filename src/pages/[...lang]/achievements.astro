@@ -14,7 +14,7 @@ const breadcrumbs = [
   { label: strings.breadcrumb.achievements },
 ];
 
-const achievements = await getCollection('achievements');
+const achievements = await getCollection('achievements', Astro.locals.tenant?.id);
 const sorted = [...achievements].sort((a, b) => b.data.year - a.data.year);
 const items = sorted.map((a) => ({
   year: a.data.year,

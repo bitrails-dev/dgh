@@ -16,7 +16,7 @@ const breadcrumbs = [
   { label: strings.breadcrumb.team },
 ];
 
-const doctors = await getCollection('doctors');
+const doctors = await getCollection('doctors', Astro.locals.tenant?.id);
 const sortByOrder = (a: any, b: any) => (a.data.order ?? 999) - (b.data.order ?? 999);
 const featured = doctors.filter((d) => d.data.featured).sort(sortByOrder);
 const others = doctors.filter((d) => !d.data.featured).sort(sortByOrder);

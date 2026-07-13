@@ -29,6 +29,17 @@ const locale = lang === "ar" ? "ar_EG" : "en_US";
 const siteUrl = import.meta.env.SITE ?? "https://yourhospital.eg";
 const canonicalUrl = new URL(Astro.url.pathname, siteUrl).href;
 const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteUrl).href;
+
+// Tenant-driven identity for <head> (theme color, Schema.org org). Falls back to Dumyat literals
+// when no tenant is resolved (single-tenant / unseeded). ponytail: openingHours + addressLocality
+// stay literal for now — refine per-tenant later.
+const tenant = Astro.locals.tenant;
+const themeColor = tenant?.themeColor ?? "#15504f";
+const orgName = tenant ? (lang === "ar" ? tenant.nameAr : tenant.name)
+                       : (lang === "ar" ? "مستشفى دمياط العام" : "Dumyat Public Hospital");
+const orgType = tenant?.type === "clinic" ? "MedicalClinic" : "Hospital";
+const orgPhone = tenant?.contact?.phone ?? "+20-57-222-4340";
+const orgLogo = tenant?.logo ?? `${siteUrl}/logo/logo-primary-on-IVORY.svg`;
 ---
 <!doctype html>
 <html lang={lang} dir={dir} class={lang === "ar" ? "font-body-ar" : "font-body-en"}>
@@ -41,7 +52,7 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
     <meta name="description" content={description} />
     {noindex ? <meta name="robots" content="noindex, nofollow" /> : <meta name="robots" content="index, follow" />}
     <link rel="canonical" href={canonicalUrl} />
-    <meta name="theme-color" content="#15504f" />
+    <meta name="theme-color" content={themeColor} />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -76,10 +87,10 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
     <!-- Schema.org: Medical Organization -->
     <script type="application/ld+json" set:html={JSON.stringify({
       "@context": "https://schema.org",
-      "@type": "Hospital",
-      "name": lang === "ar" ? "مستشفى دمياط العام" : "Dumyat Public Hospital",
+      "@type": orgType,
+      "name": orgName,
       "url": siteUrl,
-      "logo": `${siteUrl}/logo/logo-primary-on-IVORY.svg`,
+      "logo": orgLogo,
       "image": ogImageUrl,
       "description": description,
       "address": {
@@ -87,7 +98,7 @@ const ogImageUrl = ogImage.startsWith("http") ? ogImage : new URL(ogImage, siteU
         "addressLocality": lang === "ar" ? "دمياط" : "Dumyat",
         "addressCountry": "EG"
       },
-      "telephone": "+20-57-222-4340",
+      "telephone": orgPhone,
       "openingHours": ["Sa-Th 08:00-21:00", "Fr 09:00-18:00"],
       "sameAs": []
     })} />

@@ -10,9 +10,14 @@ import TestimonialsSection from "../../components/sections/TestimonialsSection.v
 import AwardsWall from "../../components/sections/AwardsWall.astro";
 import AwardsListSection from "../../components/sections/AwardsListSection.astro";
 import { getStrings } from "../../i18n";
+import { routeGated } from "../../lib/tenant";
 
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
+
+// Show a section unless the resolved tenant explicitly lacks the capability.
+const tenant = Astro.locals.tenant;
+const show = (f: Parameters<typeof routeGated>[1]) => !routeGated(tenant, f);
 
 const breadcrumbs = [
   { label: lang === 'ar' ? 'الرئيسية' : 'Home' },
@@ -25,25 +30,25 @@ const breadcrumbs = [
     <HeroSection lang={lang} strings={strings} />
 
     <!-- 2. Departments — 3-col grid with 1px gap separators -->
-    <DepartmentsSection lang={lang} strings={strings} />
+    {show('departments') && <DepartmentsSection lang={lang} strings={strings} />}
 
     <!-- 3. About Spread — white bg, 2-col photo+text -->
     <MissionStrip strings={strings} lang={lang} />
 
     <!-- 4. Stats Band — navy-900 with large numbers -->
-    <AchievementsSection lang={lang} strings={strings} />
+    {show('achievements') && <AchievementsSection lang={lang} strings={strings} />}
 
     <!-- 5. Team — 3-col doctor cards -->
-    <TeamSection lang={lang} strings={strings} />
+    {show('team') && <TeamSection lang={lang} strings={strings} />}
 
     <!-- 6. Testimonial — ivory-100, 2-col photo+quote -->
-    <TestimonialsSection strings={strings} items={strings.testimonials.items} lang={lang} client:visible />
+    {show('testimonials') && <TestimonialsSection strings={strings} items={strings.testimonials.items} lang={lang} client:visible />}
 
     <!-- 7. Articles — 3-col cards with teal gradient covers -->
-    <AwardsWall lang={lang} strings={strings} />
+    {show('articles') && <AwardsWall lang={lang} strings={strings} />}
 
     <!-- 8. Awards — list layout with mono year -->
-    <AwardsListSection lang={lang} strings={strings} />
+    {show('awards') && <AwardsListSection lang={lang} strings={strings} />}
 
   </SidebarLayout>
 </BaseLayout>

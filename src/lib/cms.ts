@@ -31,8 +31,14 @@ function rel(f: any, key = "slug"): string | undefined {
   return String(f);
 }
 
-async function fetchDocs(slug: string) {
-  const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000`;
+type TenantId = string | number | undefined;
+
+// Multi-tenant: unauthenticated REST reads are NOT auto-filtered by the multi-tenant plugin, so
+// the tenant constraint is passed explicitly. When tenantId is undefined (unresolved tenant /
+// single-tenant deploy), no filter is applied and all docs are returned (pre-tenant behavior).
+async function fetchDocs(slug: string, tenantId?: TenantId) {
+  const filter = tenantId != null ? `&where[tenant][equals]=${encodeURIComponent(String(tenantId))}` : "";
+  const url = `${CMS}/api/${slug}?locale=all&depth=1&limit=1000${filter}`;
   let res: Response;
   try {
     res = await fetch(url);
@@ -44,8 +50,8 @@ async function fetchDocs(slug: string) {
 }
 
 const mappers = {
-  articles: async () => {
-    const docs = await fetchDocs("articles");
+  articles: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("articles", tenantId);
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
       const cat = doc.categoryRel;
@@ -57,32 +63,32 @@ const mappers = {
       return { id: doc.slug, data: { title, titleAr, date: new Date(doc.date), author: str(doc.author), category, categoryName, categoryNameAr, categoryColor, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, content: normalizeBlocks(doc.content), body: doc.body } };
     });
   },
-  achievements: async () => {
-    const docs = await fetchDocs("achievements");
+  achievements: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("achievements", tenantId);
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
       const [description, descriptionAr] = loc(doc.description);
       return { id: doc.slug, data: { year: num(doc.year)!, title, titleAr, description, descriptionAr, icon: str(doc.icon) } };
     });
   },
-  awards: async () => {
-    const docs = await fetchDocs("awards");
+  awards: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("awards", tenantId);
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [body] = loc(doc.body);
       return { id: doc.slug, data: { name, nameAr, body, year: num(doc.year)!, badgeImage: imgUrl(doc.badgeImage) } };
     });
   },
-  departments: async () => {
-    const docs = await fetchDocs("departments");
+  departments: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("departments", tenantId);
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [description, descriptionAr] = loc(doc.description);
       return { id: doc.slug, data: { name, nameAr, description, descriptionAr, icon: str(doc.icon), iconUrl: imgUrl(doc.iconRef), centerOfExcellence: doc.centerOfExcellence ?? false } };
     });
   },
-  doctors: async () => {
-    const docs = await fetchDocs("doctors");
+  doctors: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("doctors", tenantId);
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [specialty, specialtyAr] = loc(doc.specialty);
@@ -90,8 +96,8 @@ const mappers = {
       return { id: doc.slug, data: { name, nameAr, specialty, specialtyAr, photo: imgUrl(doc.photo), bio, bioAr, department: rel(doc.departmentRel) ?? str(doc.department), certified: doc.certified ?? false, featured: doc.featured ?? false, order: num(doc.order) } };
     });
   },
-  events: async () => {
-    const docs = await fetchDocs("events");
+  events: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("events", tenantId);
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
       const [summary, summaryAr] = loc(doc.summary);
@@ -103,8 +109,8 @@ const mappers = {
       return { id: doc.slug, data: { title, titleAr, date: new Date(doc.date), category: doc.category, summary, summaryAr, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, youtubeUrl: str(doc.youtubeUrl), gallery, body: doc.body } };
     });
   },
-  testimonials: async () => {
-    const docs = await fetchDocs("testimonials");
+  testimonials: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("testimonials", tenantId);
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       const [quote, quoteAr] = loc(doc.quote);
@@ -112,8 +118,8 @@ const mappers = {
       return { id: doc.slug, data: { name, nameAr, quote, quoteAr, caseType: caseType || undefined, caseTypeAr: caseTypeAr || undefined, avatar: imgUrl(doc.avatar), featured: doc.featured ?? false } };
     });
   },
-  categories: async () => {
-    const docs = await fetchDocs("categories");
+  categories: async (tenantId?: TenantId) => {
+    const docs = await fetchDocs("categories", tenantId);
     return docs.map((doc) => {
       const [name, nameAr] = loc(doc.name);
       return { id: doc.slug, data: { name, nameAr, color: str(doc.color) } };
@@ -121,6 +127,6 @@ const mappers = {
   },
 };
 
-export async function getCollection(name: keyof typeof mappers) {
-  return mappers[name]();
+export async function getCollection(name: keyof typeof mappers, tenantId?: TenantId) {
+  return mappers[name](tenantId);
 }

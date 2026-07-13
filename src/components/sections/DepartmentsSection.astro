@@ -6,7 +6,7 @@ import CardGrid from '../ui/CardGrid.astro';
 
 const { lang, strings } = Astro.props;
 const isAr = lang === 'ar';
-const departments = await getCollection('departments');
+const departments = await getCollection('departments', Astro.locals.tenant?.id);
 
 const iconPaths: Record<string, string> = {
 	'heart-pulse':

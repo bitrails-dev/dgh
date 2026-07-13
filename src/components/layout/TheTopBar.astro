@@ -2,11 +2,16 @@
 interface Props {
   lang: string;
   strings: any;
+  features?: string[];
 }
 
 import { localePath } from '../../i18n';
 
-const { lang, strings } = Astro.props;
+const { lang, strings, features } = Astro.props;
+
+// A nav item is shown unless its capability is gated off for this tenant. `features === undefined`
+// (single-tenant / unresolved) shows everything. Items with no capability (home/about/contact) always show.
+const gated = (feature?: string) => !!features && !!feature && !features.includes(feature);
 
 const currentUrl = Astro.url.pathname;
 
@@ -18,16 +23,16 @@ const langSwitchUrl = lang === 'ar'
 const currentPathClean = currentUrl.replace(/\/$/, '') || '/';
 
 const navItems = [
-  { id: 'home',         href: localePath('/', lang),             label: strings.nav?.home },
-  { id: 'about',        href: localePath('/about', lang),        label: strings.nav?.about },
-  { id: 'departments',  href: localePath('/departments', lang),  label: strings.nav?.departments },
-  { id: 'team',         href: localePath('/team', lang),         label: strings.nav?.team },
-  { id: 'achievements', href: localePath('/achievements', lang), label: strings.nav?.achievements },
-  { id: 'awards',       href: localePath('/awards', lang),       label: strings.nav?.awards },
-  { id: 'articles',     href: localePath('/articles', lang),     label: strings.nav?.articles },
-  { id: 'events',       href: localePath('/events', lang),       label: strings.nav?.events },
-  { id: 'contact',      href: localePath('/contact', lang),      label: strings.nav?.contact },
-];
+  { id: 'home',         href: localePath('/', lang),             label: strings.nav?.home,         feature: undefined },
+  { id: 'about',        href: localePath('/about', lang),        label: strings.nav?.about,        feature: undefined },
+  { id: 'departments',  href: localePath('/departments', lang),  label: strings.nav?.departments,  feature: 'departments' },
+  { id: 'team',         href: localePath('/team', lang),         label: strings.nav?.team,         feature: 'team' },
+  { id: 'achievements', href: localePath('/achievements', lang), label: strings.nav?.achievements, feature: 'achievements' },
+  { id: 'awards',       href: localePath('/awards', lang),       label: strings.nav?.awards,       feature: 'awards' },
+  { id: 'articles',     href: localePath('/articles', lang),     label: strings.nav?.articles,     feature: 'articles' },
+  { id: 'events',       href: localePath('/events', lang),       label: strings.nav?.events,       feature: 'events' },
+  { id: 'contact',      href: localePath('/contact', lang),      label: strings.nav?.contact,      feature: undefined },
+].filter((item) => !gated(item.feature));
 ---
 
 <header data-topbar class="sticky top-0 z-50" style="background:rgba(251,248,242,0.85); backdrop-filter:saturate(1.4) blur(14px); -webkit-backdrop-filter:saturate(1.4) blur(14px); border-bottom:1px solid rgba(21,80,79,0.08);">

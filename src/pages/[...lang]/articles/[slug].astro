@@ -8,7 +8,7 @@ import { getStrings, localePath } from '../../../i18n';
 
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 
-const all = await getCollection('articles');
+const all = await getCollection('articles', Astro.locals.tenant?.id);
 const article = all.find((a) => a.id === Astro.params.slug);
 if (!article) return Astro.redirect('/404');
 const isArRedirect = Astro.params.lang === 'ar';

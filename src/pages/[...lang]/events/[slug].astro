@@ -10,7 +10,7 @@ import { getStrings, localePath } from '../../../i18n';
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const isArRedirect = Astro.params.lang === 'ar';
 
-const all = await getCollection('events');
+const all = await getCollection('events', Astro.locals.tenant?.id);
 const event = all.find((e) => e.id === Astro.params.slug);
 if (!event) return Astro.redirect('/404');
 const strings = getStrings(lang);

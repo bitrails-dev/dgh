@@ -15,7 +15,7 @@ const breadcrumbs = [
   { label: strings.breadcrumb.departments },
 ];
 
-const departments = await getCollection('departments');
+const departments = await getCollection('departments', Astro.locals.tenant?.id);
 ---
 <BaseLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={localePath('/departments', lang)} title={`${strings.departments.title} | ${strings.site.name}`} description={strings.departments.subtitle}>
   <SidebarLayout lang={lang} strings={strings} breadcrumbs={breadcrumbs} currentPath={localePath('/departments', lang)}>

@@ -9,7 +9,7 @@ import { getStrings, localePath } from '../../../i18n';
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
 
-const allArticles = (await getCollection('articles')).sort(
+const allArticles = (await getCollection('articles', Astro.locals.tenant?.id)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
 );
 
@@ -22,7 +22,7 @@ let categories = [
   { value: 'events', labelEn: 'Events', labelAr: 'الفعاليات' },
 ];
 try {
-  const cats = await getCollection('categories');
+  const cats = await getCollection('categories', Astro.locals.tenant?.id);
   if (cats.length) categories = cats.map((c) => ({ value: c.id, labelEn: c.data.name, labelAr: c.data.nameAr }));
 } catch { /* CMS without categories collection yet — keep the fallback */ }
 

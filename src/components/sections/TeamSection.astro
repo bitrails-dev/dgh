@@ -6,7 +6,7 @@ import CardGrid from "../ui/CardGrid.astro";
 
 const { lang, strings } = Astro.props;
 const isAr = lang === "ar";
-const doctors = await getCollection("doctors");
+const doctors = await getCollection("doctors", Astro.locals.tenant?.id);
 const sortByOrder = (a: any, b: any) => (a.data.order ?? 999) - (b.data.order ?? 999);
 const featured = doctors.filter((doc) => doc.data.featured).sort(sortByOrder);
 const others = doctors.filter((doc) => !doc.data.featured).sort(sortByOrder);

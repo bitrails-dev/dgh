@@ -9,7 +9,7 @@ import { getStrings, localePath } from '../../../i18n';
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
 
-const allEvents = (await getCollection('events')).sort(
+const allEvents = (await getCollection('events', Astro.locals.tenant?.id)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
 );
 

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { buildConfig } from 'payload'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
+import { multiTenantPlugin } from '@payloadcms/plugin-multi-tenant'
 import { en } from '@payloadcms/translations/languages/en'
 import { ar } from '@payloadcms/translations/languages/ar'
 
@@ -17,7 +18,7 @@ import { Testimonials } from './collections/Testimonials'
 import { Media } from './collections/Media'
 import { Icons } from './collections/Icons'
 import { Categories } from './collections/Categories'
-import { HospitalSettings } from './globals/HospitalSettings'
+import { Tenants } from './collections/Tenants'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +26,7 @@ export default buildConfig({
   admin: { user: Users.slug },
   collections: [
     Users,
+    Tenants,
     Media,
     Icons,
     Categories,
@@ -36,7 +38,8 @@ export default buildConfig({
     Achievements,
     Testimonials,
   ],
-  globals: [HospitalSettings],
+  // HospitalSettings global retired: its fields now live per-tenant on the Tenants collection.
+  globals: [],
   editor: lexicalEditor(),
   i18n: {
     supportedLanguages: { ar, en },
@@ -52,6 +55,26 @@ export default buildConfig({
   },
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: { outputFile: path.resolve(dirname, 'payload-types.ts') },
+  plugins: [
+    multiTenantPlugin({
+      // Every content collection is scoped to a tenant (injects a required, indexed `tenant`
+      // relationship). `icons` is intentionally omitted — it's a shared, platform-wide library.
+      collections: {
+        media: {},
+        categories: {},
+        doctors: {},
+        departments: {},
+        articles: {},
+        events: {},
+        awards: {},
+        achievements: {},
+        testimonials: {},
+      },
+      // Platform operators (roles includes super-admin) bypass tenant scoping and see all tenants.
+      userHasAccessToAllTenants: (user) =>
+        Boolean((user as { roles?: string[] } | null)?.roles?.includes('super-admin')),
+    }),
+  ],
   db: sqliteAdapter({
     client: {
       url: process.env.DATABASE_URI || 'file:./cms.db',

@@ -2,6 +2,7 @@
 import TheSidebar from '../components/layout/TheSidebar.vue';
 import TheTopBar from '../components/layout/TheTopBar.astro';
 import TheFooter from '../components/layout/TheFooter.astro';
+import { applyTenant } from '../lib/tenant';
 
 interface BreadcrumbItem {
   label: string;
@@ -17,13 +18,20 @@ interface Props {
 
 const { lang, strings, breadcrumbs = [], currentPath = Astro.url.pathname } = Astro.props;
 
+// Tenant-driven chrome: overlay the resolved tenant's identity/contact onto the i18n strings, and
+// pass its capability list so nav items for disabled features are hidden. undefined tenant/features
+// = single-tenant fallback (show everything, i18n defaults).
+const tenant = Astro.locals.tenant;
+const tStrings = applyTenant(strings, tenant, lang as 'ar' | 'en');
+const features = tenant?.features;
+
 // Pass only what TheSidebar actually uses — avoids serialising the full i18n
 // object (~5 KB) into every page's <astro-island> hydration payload.
 const sidebarStrings = {
-  site:    { name: strings.site?.name, established: strings.site?.established },
-  nav:     strings.nav,
-  sidebar: strings.sidebar,
-  contact: { details: { emergencyNumber: strings.contact?.details?.emergencyNumber } },
+  site:    { name: tStrings.site?.name, established: tStrings.site?.established },
+  nav:     tStrings.nav,
+  sidebar: tStrings.sidebar,
+  contact: { details: { emergencyNumber: tStrings.contact?.details?.emergencyNumber } },
 };
 
 // Only render breadcrumb strip on sub-pages (2+ items)
@@ -44,10 +52,10 @@ const breadcrumbJsonLd = showBreadcrumb
   : null;
 ---
 
-<TheTopBar lang={lang} strings={strings} />
+<TheTopBar lang={lang} strings={tStrings} features={features} />
 
 <div class="flex flex-1">
-  <TheSidebar lang={lang} currentPath={currentPath} strings={sidebarStrings} client:load />
+  <TheSidebar lang={lang} currentPath={currentPath} strings={sidebarStrings} features={features} client:load />
   <main id="main-content" class="flex-1 min-w-0">
     {showBreadcrumb && (
       <div class="bg-ivory-50 px-6 lg:px-8 py-3">
@@ -79,4 +87,4 @@ const breadcrumbJsonLd = showBreadcrumb
   <script type="application/ld+json" set:html={breadcrumbJsonLd} />
 )}
 
-<TheFooter lang={lang} strings={strings} />
+<TheFooter lang={lang} strings={tStrings} features={features} />

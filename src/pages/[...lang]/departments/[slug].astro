@@ -8,7 +8,7 @@ import { getStrings, localePath } from '../../../i18n';
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const isArRedirect = Astro.params.lang === 'ar';
 
-const all = await getCollection('departments');
+const all = await getCollection('departments', Astro.locals.tenant?.id);
 const entry = all.find((d) => d.id === Astro.params.slug);
 if (!entry) return Astro.redirect('/404');
 const strings = getStrings(lang);
@@ -22,7 +22,7 @@ const detailPoints = [
   { icon: '💊', text: strings.departments.detailPoints[2] },
 ];
 
-const allDoctors = await getCollection('doctors');
+const allDoctors = await getCollection('doctors', Astro.locals.tenant?.id);
 const sortByOrder = (a: any, b: any) => (a.data.order ?? 999) - (b.data.order ?? 999);
 const deptDoctors = allDoctors.filter((d) => d.data.department === entry.id).sort(sortByOrder);
 ---
