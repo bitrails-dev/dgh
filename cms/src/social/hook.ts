@@ -1,4 +1,5 @@
 import type { CollectionAfterChangeHook } from 'payload'
+import { sql } from '@payloadcms/db-sqlite'
 import type { Platform, PublishResult } from './types'
 import { buildPublishInput } from './content'
 import { dispatch, mergeResults } from './dispatch'
@@ -11,9 +12,13 @@ import { dispatch, mergeResults } from './dispatch'
 //    background and writes results back onto the doc.
 //    ponytail: no durable queue — a process restart mid-upload loses that attempt;
 //    it's retried on the next save. Add a real job queue if that matters.
-//  - Idempotent: platforms that already succeeded are skipped, so re-saving (or the
-//    results write-back itself) never double-posts.
-//  - Loop-safe: the write-back sets context.skipSocial so it doesn't re-trigger.
+//  - Idempotent: platforms that already succeeded are skipped, so re-saving never
+//    double-posts.
+//  - The results write-back is raw SQL (see runPublish) — it bypasses Payload
+//    validation (some legacy rows have incomplete localized fields) and can't
+//    re-trigger this hook.
+//  - context.skipSocial is an escape hatch for programmatic writes (migrations,
+//    backfills) that should not publish.
 export const publishArticleSocial: CollectionAfterChangeHook = ({ doc, req, context }) => {
   if (req?.context?.skipSocial || context?.skipSocial) return doc
   const payload = req.payload
@@ -53,18 +58,10 @@ async function runPublish(payload: any, id: string | number): Promise<void> {
   const summary = fresh.map((r) => `${r.platform}:${r.status}`).join(' ')
   payload.logger.info(`[social] article ${id} (${input.hasVideo ? 'video' : 'link'}) → ${summary}`)
 
-  await payload.update({
-    collection: 'articles',
-    id,
-    locale: 'ar',
-    overrideAccess: true,
-    context: { skipSocial: true },
-    data: {
-      social: {
-        autoPublish: full.social?.autoPublish ?? true,
-        caption: full.social?.caption ?? null,
-        results: merged,
-      },
-    },
-  })
+  // Raw write of the JSON results column. Bound params (drizzle escapes them), so no
+  // injection; bypasses re-validation and hook re-entry. `social_results` is the
+  // column backing the Articles `social.results` json field.
+  await payload.db.drizzle.run(
+    sql`UPDATE articles SET social_results = ${JSON.stringify(merged)} WHERE id = ${id}`,
+  )
 }
