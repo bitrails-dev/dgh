@@ -8,7 +8,9 @@
 // Run: cd cms && npx tsx scripts/seed-and-backfill.ts
 import 'dotenv/config'
 import { getPayload } from 'payload'
-import { sql } from 'drizzle-orm'
+// `sql` re-exported by the sqlite adapter (a direct dep) — importing it from 'drizzle-orm'
+// directly fails under an isolated pnpm install where drizzle-orm is only transitive.
+import { sql } from '@payloadcms/db-sqlite'
 import config from '../src/payload.config'
 
 // --- category seed (mirrors the old fixed enum + its frontend colors) ---
