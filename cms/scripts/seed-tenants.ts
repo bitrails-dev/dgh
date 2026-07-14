@@ -12,7 +12,7 @@
 // Run: cd cms && npx tsx scripts/seed-tenants.ts
 import 'dotenv/config'
 import { getPayload } from 'payload'
-import { sql } from 'drizzle-orm'
+import { sql } from '@payloadcms/db-sqlite'
 import config from '../src/payload.config'
 
 // Collections scoped by the multi-tenant plugin → their SQLite tables carry a `tenant_id` FK.
