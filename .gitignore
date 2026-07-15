@@ -39,3 +39,4 @@ cms/*.db
 cms/*.db.*
 # Migration artifacts (one-time, kept locally)
 cms/image-urls.json
+public/uploads/

@@ -10,7 +10,7 @@ export type UserRole = 'super-admin' | 'admin' | 'editor'
 
 type Relation = number | string | { id: number | string }
 type TenantRow = { tenant?: Relation | null }
-type UserLike = {
+export type UserLike = {
   id?: number | string
   roles?: UserRole[] | null
   tenants?: TenantRow[] | null

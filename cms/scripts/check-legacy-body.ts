@@ -1,39 +1,56 @@
-// Read-only safety gate. Run BEFORE the cleanup migration (§6) that drops `body`.
-// Lists articles that still rely on the legacy `body` field — i.e. have body text but
-// NO content blocks. Dropping `body` while any of these exist loses their rendered text.
+// Read-only safety gate. Run before the cleanup migration that drops `articles.body`.
+// The collection schema no longer exposes the legacy field, so this checks SQLite directly.
 //
 // Run: cd cms && pnpm exec tsx scripts/check-legacy-body.ts
 import 'dotenv/config'
+import { sql } from '@payloadcms/db-sqlite'
 import { getPayload } from 'payload'
 import config from '../src/payload.config'
 
 const payload = await getPayload({ config })
+const db = (payload.db as any).drizzle
 
-// ponytail: paginate instead of limit:0 (some Payload versions treat 0 as "none").
-const all: any[] = []
-let page = 1
-let totalPages = 1
-while (page <= totalPages) {
-  const r = await payload.find({ collection: 'articles', limit: 100, page, depth: 0 })
-  totalPages = r.totalPages
-  all.push(...r.docs)
-  page++
-}
+const bodyOnly = await db.all(sql`
+  SELECT a.id, a.slug
+  FROM articles AS a
+  WHERE trim(coalesce(a.body, '')) <> ''
+    AND NOT EXISTS (SELECT 1 FROM articles_blocks_rich_text AS b WHERE b._parent_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM articles_blocks_heading AS b WHERE b._parent_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM articles_blocks_image AS b WHERE b._parent_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM articles_blocks_youtube AS b WHERE b._parent_id = a.id)
+    AND NOT EXISTS (SELECT 1 FROM articles_blocks_testimonial AS b WHERE b._parent_id = a.id)
+  ORDER BY a.id
+`)
 
-const hasBody = (d: any) => typeof d.body === 'string' && d.body.trim().length > 0
-const hasBlocks = (d: any) => Array.isArray(d.content) && d.content.length > 0
+const unresolvedCategories = await db.all(sql`
+  SELECT id, slug, category
+  FROM articles
+  WHERE category_rel_id IS NULL
+    AND trim(coalesce(category, '')) <> ''
+    AND NOT EXISTS (
+      SELECT 1
+      FROM categories
+      WHERE categories.slug = articles.category
+    )
+  ORDER BY id
+`)
 
-const bodyOnly = all.filter((d) => hasBody(d) && !hasBlocks(d))
-
-console.log(`articles total:            ${all.length}`)
-console.log(`articles with content:     ${all.filter(hasBlocks).length}`)
-console.log(`articles body-only (RISK): ${bodyOnly.length}`)
+console.log(`articles body-only (will be converted): ${bodyOnly.length}`)
+console.log(`articles with unresolved legacy categories (RISK): ${unresolvedCategories.length}`)
 
 if (bodyOnly.length) {
-  console.log('\nRe-author these into Content blocks before dropping `body`:')
-  for (const d of bodyOnly) console.log(`  id=${d.id}  slug=${d.slug}  title=${d.title ?? ''}`)
-} else {
-  console.log('\nSafe: no article relies on `body`. Cleanup migration (§6) may drop it.')
+  console.log('\nThe cleanup migration will preserve these as localized Rich Text blocks:')
+  for (const article of bodyOnly) console.log(`  id=${article.id}  slug=${article.slug}`)
 }
 
-process.exit(0)
+if (unresolvedCategories.length) {
+  console.log('\nCreate or assign Categories for these articles before running the cleanup migration:')
+  for (const article of unresolvedCategories) {
+    console.log(`  id=${article.id}  slug=${article.slug}  category=${article.category}`)
+  }
+}
+
+process.exitCode = unresolvedCategories.length ? 1 : 0
+if (!process.exitCode) console.log('\nSafe: the cleanup migration can preserve or replace every legacy Article value.')
+
+await payload.destroy()

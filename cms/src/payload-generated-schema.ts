@@ -134,12 +134,10 @@ export const articles = sqliteTable('articles', {
   slug: text('slug').notNull(),
   date: text('date').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
   author: text('author').notNull(),
-  category: text('category', {enum: ['hospital-news', 'health-tips', 'research', 'events']}).notNull(),
   thumbnail: integer('thumbnail_id').references(() => media.id, {
       onDelete: 'set null'
   }),
   featured: integer('featured', {mode: 'boolean'}).default(false),
-  body: text('body'),
   updatedAt: text('updated_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
   createdAt: text('created_at').notNull().default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
 }, (columns) => [
@@ -868,11 +866,9 @@ type DatabaseSchema = {
   relations_hospital_settings_locales: typeof relations_hospital_settings_locales
   relations_hospital_settings: typeof relations_hospital_settings
 }
-    
 
 declare module '@payloadcms/db-sqlite' {
   export interface GeneratedDatabaseSchema {
     schema: DatabaseSchema
   }
 }
-    

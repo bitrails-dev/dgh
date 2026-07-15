@@ -23,6 +23,7 @@ import {
   authenticatedFieldAccess,
   manageUserScopeFieldAccess,
 } from './access/userAccess'
+import { tenantFeatureAccessPlugin } from './plugins/tenantFeatureAccess'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -97,6 +98,9 @@ export default buildConfig({
         },
       },
     }),
+    // Capability access runs after tenant scoping so disabled collections disappear from
+    // permission-driven admin navigation and remain blocked through direct API/admin URLs.
+    tenantFeatureAccessPlugin(),
   ],
   db: sqliteAdapter({
     client: {

@@ -1,9 +1,10 @@
-// Data backfill for the content-model change. Run AFTER `payload migrate` applies the additive
-// schema. Uses the Payload Local API (safe, validated) and is fully idempotent — re-running is a
-// no-op. It only sets the NEW fields; legacy fields are never touched, so nothing is lost.
+// Data seeding/backfill for the content-model change. Run after the additive content-model
+// migration; on legacy installations, run it before the Article cleanup migration when the
+// preflight reports a missing category. It is idempotent and never mutates legacy fields.
 //
 //   seeds:    categories (4 defaults), icons (from the current inline-SVG set + a fallback)
-//   backfill: articles.categoryRel, doctors.departmentRel, departments.iconRef
+//   backfill: doctors.departmentRel, departments.iconRef
+// The Article cleanup migration maps categoryRel from the category records seeded here.
 //
 // Run: cd cms && npx tsx scripts/seed-and-backfill.ts
 import 'dotenv/config'
@@ -52,13 +53,12 @@ async function main() {
   let created = 0, linked = 0
 
   // 1) Categories (idempotent by slug), localized ar + en.
-  const catBySlug: Record<string, number | string> = {}
   for (const c of CATEGORIES) {
     const existing = await payload.find({ collection: 'categories', where: { slug: { equals: c.slug } }, limit: 1, depth: 0 })
-    if (existing.docs[0]) { catBySlug[c.slug] = existing.docs[0].id; continue }
+    if (existing.docs[0]) continue
     const doc = await payload.create({ collection: 'categories', locale: 'ar', data: { slug: c.slug, name: c.ar, color: c.color } })
     await payload.update({ collection: 'categories', id: doc.id, locale: 'en', data: { name: c.en } })
-    catBySlug[c.slug] = doc.id; created++
+    created++
   }
 
   // 2) Icons (idempotent by label). SVG uploads.
@@ -81,10 +81,6 @@ async function main() {
   const db = (payload.db as any).drizzle
   const affected = async (q: any) => Number((await db.run(q))?.rowsAffected ?? 0)
 
-  // articles.category_rel_id from the legacy `category` slug
-  for (const [slug, id] of Object.entries(catBySlug)) {
-    linked += await affected(sql`UPDATE articles SET category_rel_id = ${id} WHERE category = ${slug} AND category_rel_id IS NULL`)
-  }
   // doctors.department_rel_id from the legacy `department` slug (correlated to departments.slug)
   linked += await affected(sql`UPDATE doctors SET department_rel_id = (SELECT id FROM departments WHERE slug = doctors.department) WHERE department_rel_id IS NULL AND department IS NOT NULL AND EXISTS (SELECT 1 FROM departments WHERE slug = doctors.department)`)
   // departments.icon_ref_id from the legacy `icon` name, then the default icon for any remainder

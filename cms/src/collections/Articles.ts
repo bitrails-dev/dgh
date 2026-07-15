@@ -71,7 +71,7 @@ export const Articles: CollectionConfig = {
     singular: { ar: 'مقال', en: 'Article' },
     plural: { ar: 'المقالات', en: 'Articles' },
   },
-  admin: { useAsTitle: 'title', defaultColumns: ['title', 'date', 'category', 'featured'] },
+  admin: { useAsTitle: 'title', defaultColumns: ['title', 'date', 'categoryRel', 'featured'] },
   access: { read: () => true },
   fields: [
     { name: 'slug', type: 'text', required: true, unique: true,
@@ -87,17 +87,6 @@ export const Articles: CollectionConfig = {
     // when its category is deleted (see the reassign-on-delete flow).
     { name: 'categoryRel', type: 'relationship', relationTo: 'categories',
       label: { ar: 'التصنيف', en: 'Category' } },
-    // ponytail: legacy fixed enum kept read-only during transition so filtering never breaks.
-    // The reader prefers `categoryRel` and falls back to this. Drop in a later cleanup migration.
-    { name: 'category', type: 'select',
-      label: { ar: 'التصنيف (قديم)', en: 'Category (legacy)' },
-      admin: { readOnly: true, description: 'Legacy fixed category — superseded by the Categories collection.' },
-      options: [
-        { label: { ar: 'أخبار المستشفى', en: 'Hospital News' }, value: 'hospital-news' },
-        { label: { ar: 'نصائح صحية', en: 'Health Tips' }, value: 'health-tips' },
-        { label: { ar: 'أبحاث', en: 'Research' }, value: 'research' },
-        { label: { ar: 'فعاليات', en: 'Events' }, value: 'events' },
-      ] },
     { name: 'thumbnail', type: 'upload', relationTo: 'media',
       label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
@@ -106,11 +95,5 @@ export const Articles: CollectionConfig = {
     { name: 'content', type: 'blocks',
       label: { ar: 'المحتوى', en: 'Content' },
       blocks: [RichTextBlock, HeadingBlock, ImageBlock, YouTubeBlock, TestimonialBlock] },
-    // ponytail: legacy single-body field kept read-only so existing article text is never lost.
-    // The reader falls back to it when `content` is empty. Drop in a later cleanup migration
-    // once articles are re-authored into blocks.
-    { name: 'body', type: 'textarea',
-      label: { ar: 'المحتوى (قديم)', en: 'Body (legacy)' },
-      admin: { readOnly: true, description: 'Legacy markdown body — superseded by Content blocks.' } },
   ],
 }

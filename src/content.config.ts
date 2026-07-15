@@ -55,12 +55,12 @@ const articles = defineCollection({
     return docs.map((doc) => {
       const [title, titleAr] = loc(doc.title);
       const cat = doc.categoryRel;
-      let category = doc.category, categoryName, categoryNameAr, categoryColor;
+      let category, categoryName, categoryNameAr, categoryColor;
       if (cat && typeof cat === "object") {
         const [n, nAr] = loc(cat.name);
         category = cat.slug; categoryName = n; categoryNameAr = nAr; categoryColor = cat.color;
       }
-      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category, categoryName, categoryNameAr, categoryColor, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, content: normalizeBlocks(doc.content), body: doc.body };
+      return { id: doc.slug, title, titleAr, date: new Date(doc.date), author: str(doc.author), category, categoryName, categoryNameAr, categoryColor, thumbnail: imgUrl(doc.thumbnail), featured: doc.featured ?? false, content: normalizeBlocks(doc.content) };
     });
   },
   schema: z.object({
@@ -75,7 +75,6 @@ const articles = defineCollection({
     thumbnail: z.string().optional(),
     featured: z.boolean().default(false),
     content: z.array(z.any()).optional(),
-    body: z.string().optional(),
   }),
 });
 

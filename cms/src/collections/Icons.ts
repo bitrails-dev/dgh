@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { isSuperAdmin } from '../access/userAccess'
 
 // Managed library of SVG icons (e.g. SDG icons) that departments reference. Curated & reusable —
 // upload once, assign to many departments. SVG-only so they stay crisp and themeable.
@@ -9,7 +10,12 @@ export const Icons: CollectionConfig = {
     plural: { ar: 'الأيقونات', en: 'Icons' },
   },
   admin: { useAsTitle: 'label', defaultColumns: ['label', 'updatedAt'] },
-  access: { read: () => true },
+  access: {
+    read: () => true,
+    create: ({ req }) => isSuperAdmin(req.user),
+    update: ({ req }) => isSuperAdmin(req.user),
+    delete: ({ req }) => isSuperAdmin(req.user),
+  },
   upload: {
     staticDir: '../public/uploads/icons',
     staticURL: '/uploads/icons',

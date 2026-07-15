@@ -1,0 +1,187 @@
+import { getTenantFromCookie } from '@payloadcms/plugin-multi-tenant/utilities'
+import { APIError } from 'payload'
+import type {
+  Access,
+  AccessArgs,
+  AccessResult,
+  CollectionBeforeChangeHook,
+  Config,
+  Plugin,
+  Where,
+} from 'payload'
+import { getUserTenantIDs, isSuperAdmin } from '../access/userAccess'
+
+export type TenantFeature =
+  | 'departments'
+  | 'team'
+  | 'articles'
+  | 'events'
+  | 'awards'
+  | 'achievements'
+  | 'testimonials'
+  | 'portal'
+
+type FeatureRequirement = TenantFeature | readonly TenantFeature[]
+type FeaturePolicy = {
+  features?: FeatureRequirement
+  tenantScoped: boolean
+}
+
+export const TENANT_COLLECTION_FEATURES = {
+  departments: { features: 'departments', tenantScoped: true },
+  doctors: { features: 'team', tenantScoped: true },
+  articles: { features: 'articles', tenantScoped: true },
+  events: { features: 'events', tenantScoped: true },
+  awards: { features: 'awards', tenantScoped: true },
+  achievements: { features: 'achievements', tenantScoped: true },
+  testimonials: { features: 'testimonials', tenantScoped: true },
+  categories: { features: ['articles', 'events'], tenantScoped: true },
+  // Every entity can manage branding assets even when no content capability is enabled.
+  media: { tenantScoped: true },
+  icons: { features: 'departments', tenantScoped: false },
+} as const satisfies Record<string, FeaturePolicy>
+
+type SelectedTenant = {
+  features: ReadonlySet<string>
+  id: number | string
+}
+
+const selectedTenants = new WeakMap<object, Promise<SelectedTenant | null>>()
+
+const loadSelectedTenant = async (
+  req: AccessArgs['req'],
+): Promise<SelectedTenant | null> => {
+  const assignedTenantIDs = getUserTenantIDs(req.user)
+  const cookieTenantID = getTenantFromCookie(req.headers, req.payload.db.defaultIDType)
+  const selectedTenantID = cookieTenantID ?? (assignedTenantIDs.length === 1 ? assignedTenantIDs[0] : null)
+
+  if (selectedTenantID === null || !assignedTenantIDs.includes(String(selectedTenantID))) {
+    return null
+  }
+
+  try {
+    const tenant = await req.payload.findByID({
+      collection: 'tenants',
+      id: selectedTenantID,
+      depth: 0,
+      overrideAccess: true,
+      req,
+      select: { features: true },
+    }) as { features?: string[] | null }
+
+    return {
+      features: new Set(tenant.features ?? []),
+      id: selectedTenantID,
+    }
+  } catch {
+    // A deleted/stale tenant cookie or a failed lookup must never expose capability collections.
+    return null
+  }
+}
+
+export const getSelectedTenant = (
+  req: AccessArgs['req'],
+): Promise<SelectedTenant | null> => {
+  const cached = selectedTenants.get(req)
+  if (cached) return cached
+
+  const tenant = loadSelectedTenant(req)
+  selectedTenants.set(req, tenant)
+  return tenant
+}
+
+const tenantEnablesPolicy = (tenant: SelectedTenant, policy: FeaturePolicy): boolean => {
+  if (!policy.features) return true
+  const requiredFeatures = Array.isArray(policy.features) ? policy.features : [policy.features]
+  return requiredFeatures.some((feature) => tenant.features.has(feature))
+}
+
+const constrainToSelectedTenant = (
+  accessResult: AccessResult,
+  selectedTenantID: number | string,
+): AccessResult => {
+  const tenantConstraint: Where = { tenant: { equals: selectedTenantID } }
+  return accessResult === true
+    ? tenantConstraint
+    : { and: [accessResult as Where, tenantConstraint] }
+}
+
+const withTenantFeatureAccess = (
+  access: Access | undefined,
+  operation: 'create' | 'delete' | 'read' | 'update',
+  policy: FeaturePolicy,
+): Access => async (args) => {
+  const baseAccess = access ?? (({ req }: AccessArgs) => Boolean(req.user))
+  const accessResult = await baseAccess(args)
+
+  if (!accessResult || !args.req.user || isSuperAdmin(args.req.user)) return accessResult
+
+  const selectedTenant = await getSelectedTenant(args.req)
+  if (!selectedTenant) return false
+
+  if (!tenantEnablesPolicy(selectedTenant, policy)) return false
+
+  if (!policy.tenantScoped || operation === 'create') return accessResult
+  return constrainToSelectedTenant(accessResult, selectedTenant.id)
+}
+
+const relationID = (relation: unknown): string | null => {
+  if (typeof relation === 'number' || typeof relation === 'string') return String(relation)
+  if (relation && typeof relation === 'object' && 'id' in relation) {
+    const id = (relation as { id?: unknown }).id
+    return typeof id === 'number' || typeof id === 'string' ? String(id) : null
+  }
+  return null
+}
+
+const enforceSelectedTenant = (policy: FeaturePolicy): CollectionBeforeChangeHook => async ({
+  data,
+  operation,
+  originalDoc,
+  req,
+}) => {
+  if (!req.user || isSuperAdmin(req.user)) return data
+
+  const selectedTenant = await getSelectedTenant(req)
+  if (!selectedTenant || !tenantEnablesPolicy(selectedTenant, policy)) {
+    throw new APIError('The selected tenant does not enable this collection.', 403, null, true)
+  }
+
+  if (!policy.tenantScoped) return data
+
+  const documentTenantID = relationID(data.tenant ?? originalDoc?.tenant)
+  if (operation === 'create' && !documentTenantID) {
+    data.tenant = selectedTenant.id
+    return data
+  }
+
+  if (documentTenantID !== String(selectedTenant.id)) {
+    throw new APIError('Documents can only be managed within the selected tenant.', 403, null, true)
+  }
+
+  return data
+}
+
+export const tenantFeatureAccessPlugin = (): Plugin => (incomingConfig: Config): Config => {
+  for (const [slug, policy] of Object.entries(TENANT_COLLECTION_FEATURES)) {
+    const collection = incomingConfig.collections?.find((candidate) => candidate.slug === slug)
+    if (!collection) continue
+
+    collection.access = collection.access ?? {}
+    for (const operation of ['create', 'read', 'update', 'delete'] as const) {
+      collection.access[operation] = withTenantFeatureAccess(
+        collection.access[operation],
+        operation,
+        policy,
+      )
+    }
+
+    collection.hooks = collection.hooks ?? {}
+    collection.hooks.beforeChange = [
+      ...(collection.hooks.beforeChange ?? []),
+      enforceSelectedTenant(policy),
+    ]
+  }
+
+  return incomingConfig
+}
