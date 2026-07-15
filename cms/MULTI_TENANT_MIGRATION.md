@@ -33,16 +33,17 @@ Iterate on the hand-fix against the copy until it applies cleanly.
 ## 3. Apply the migration
 `node node_modules/payload/bin.js migrate`  (answer `y` to the data-loss prompt if shown)
 
-## 4. Seed the Dumyat tenant + backfill tenant_id
+## 4. Seed the Damietta General Hospital tenant + backfill tenant_id
 `npx tsx scripts/seed-tenants.ts`
 
-Creates the **Dumyat** tenant (type=hospital, all features, branding/hero/contact baked from the
-pre-tenant values), sets `tenant_id` on every existing scoped row, attaches all users as super-admins,
+Creates the **Damietta General Hospital** tenant (type=hospital, all features, branding/hero/contact baked from the
+pre-tenant values), sets `tenant_id` on every existing scoped row, attaches users while preserving
+assigned roles (legacy users without a role become super-admins),
 and **asserts** no scoped row is left tenantless. Idempotent — safe to re-run.
 
 ## 5. Verify
-- `GET http://localhost:3001/api/tenants` → one doc `dumyat` with `features` populated.
-- `GET http://localhost:3001/api/doctors?where[tenant][equals]=<id>` → only Dumyat's doctors.
+- `GET http://localhost:3001/api/tenants` → one doc `damietta-general-hospital` with `features` populated.
+- `GET http://localhost:3001/api/doctors?where[tenant][equals]=<id>` → only Damietta General Hospital's doctors.
 - `GET http://localhost:3001/api/doctors` (no filter) → still returns all (public reads aren't
   auto-filtered — the Astro site passes the `where[tenant]` filter itself).
 

@@ -1,11 +1,12 @@
 // Multi-tenant seed + backfill. Run AFTER `payload migrate` applies the schema that adds the
 // `tenants` collection and the `tenant` FK to every scoped collection.
 //
-//   seeds:    the "Dumyat" tenant (type=hospital, all features) with branding + hero + contact
+//   seeds:    the "Damietta General Hospital" tenant (type=hospital, all features) with branding + hero + contact
 //             copied from the pre-tenant single-hospital values.
 //   backfill: tenant_id on every existing scoped row (raw SQL — the content API re-validates and
 //             some legacy rows have invalid localized fields, per the migration workflow memory).
-//   users:    attach every existing user to Dumyat as a super-admin (Local API — users are simple).
+//   users:    attach every existing user to Damietta General Hospital, preserving assigned roles;
+//             legacy users without a role become super-admins.
 //
 // Idempotent: re-running is a no-op (tenant found by slug; backfill only touches NULL tenant_id).
 //
@@ -22,8 +23,8 @@ const SCOPED_TABLES = [
   'articles', 'events', 'awards', 'achievements', 'testimonials',
 ]
 
-// Dumyat Public Hospital — baked from the pre-tenant i18n `site`/`contact` blocks + hero.json.
-const DUMYAT = {
+// Damietta General Hospital — baked from the pre-tenant i18n `site`/`contact` blocks + hero.json.
+const DAMIETTA_GENERAL_HOSPITAL = {
   ar: {
     name: 'مستشفى دمياط العام',
     tagline: 'منارة وطنية للتميز في الصحة العامة',
@@ -41,10 +42,10 @@ const DUMYAT = {
     },
   },
   en: {
-    name: 'Dumyat Public Hospital',
+    name: 'Damietta General Hospital',
     tagline: 'A national beacon of public health excellence',
     established: 'Est. 1959 · Damietta',
-    address: "Dumyat - Nile Corniche - Sa'd Zaghloul St., in front of the Governorate Building",
+    address: "Damietta - Nile Corniche - Sa'd Zaghloul St., in front of the Governorate Building",
     hours: [
       { day: 'Saturday - Thursday', time: '8:00 AM - 9:00 PM' },
       { day: 'Friday', time: '9:00 AM - 6:00 PM' },
@@ -58,38 +59,73 @@ const DUMYAT = {
   },
 }
 
-const ALL_FEATURES = [
+const ALL_FEATURES: Array<
+  'departments' | 'team' | 'articles' | 'events' | 'awards' |
+  'achievements' | 'testimonials' | 'portal'
+> = [
   'departments', 'team', 'articles', 'events', 'awards', 'achievements', 'testimonials', 'portal',
 ]
 
 async function main() {
   const payload = await getPayload({ config })
 
-  // 1) Dumyat tenant (idempotent by slug). Create in ar, then patch en localized fields.
+  // 1) Damietta General Hospital tenant. Upgrade the legacy slug if it already exists.
   let tenantId: number | string
-  const found = await payload.find({ collection: 'tenants', where: { slug: { equals: 'dumyat' } }, limit: 1, depth: 0 })
+  const found = await payload.find({
+    collection: 'tenants',
+    where: {
+      or: [
+        { slug: { equals: 'damietta-general-hospital' } },
+        { slug: { equals: 'dumyat' } },
+      ],
+    },
+    limit: 1,
+    depth: 0,
+  })
   if (found.docs[0]) {
     tenantId = found.docs[0].id
-    console.log(`✓ tenant 'dumyat' already exists (#${tenantId})`)
+    if (found.docs[0].slug === 'dumyat') {
+      await payload.update({
+        collection: 'tenants',
+        id: tenantId,
+        data: { slug: 'damietta-general-hospital' },
+      })
+      console.log(`✓ renamed tenant 'dumyat' to 'damietta-general-hospital' (#${tenantId})`)
+    } else {
+      console.log(`✓ tenant 'damietta-general-hospital' already exists (#${tenantId})`)
+    }
+    await payload.update({
+      collection: 'tenants',
+      id: tenantId,
+      locale: 'en',
+      data: {
+        name: DAMIETTA_GENERAL_HOSPITAL.en.name,
+        branding: {
+          tagline: DAMIETTA_GENERAL_HOSPITAL.en.tagline,
+          established: DAMIETTA_GENERAL_HOSPITAL.en.established,
+        },
+        contact: { address: DAMIETTA_GENERAL_HOSPITAL.en.address },
+      },
+    })
   } else {
     const created = await payload.create({
       collection: 'tenants',
       locale: 'ar',
       data: {
-        slug: 'dumyat',
+        slug: 'damietta-general-hospital',
         type: 'hospital',
         domains: ['dgh.bitrail.dev', 'localhost', '127.0.0.1'],
         features: ALL_FEATURES,
-        name: DUMYAT.ar.name,
-        branding: { initials: 'DP', themeColor: '#15504f', tagline: DUMYAT.ar.tagline, established: DUMYAT.ar.established },
-        hero: DUMYAT.ar.hero,
+        name: DAMIETTA_GENERAL_HOSPITAL.ar.name,
+        branding: { initials: 'DP', themeColor: '#15504f', tagline: DAMIETTA_GENERAL_HOSPITAL.ar.tagline, established: DAMIETTA_GENERAL_HOSPITAL.ar.established },
+        hero: DAMIETTA_GENERAL_HOSPITAL.ar.hero,
         contact: {
           phone: '+20 57 222 4340',
           emergencyNumber: '12345',
           whatsapp: '+20 57 222 4340',
           email: 'nrmenelabd1234@yahoo.com',
-          address: DUMYAT.ar.address,
-          hours: DUMYAT.ar.hours,
+          address: DAMIETTA_GENERAL_HOSPITAL.ar.address,
+          hours: DAMIETTA_GENERAL_HOSPITAL.ar.hours,
         },
       },
     })
@@ -97,13 +133,13 @@ async function main() {
     await payload.update({
       collection: 'tenants', id: tenantId, locale: 'en',
       data: {
-        name: DUMYAT.en.name,
-        branding: { tagline: DUMYAT.en.tagline, established: DUMYAT.en.established },
-        hero: DUMYAT.en.hero,
-        contact: { address: DUMYAT.en.address, hours: DUMYAT.en.hours },
+        name: DAMIETTA_GENERAL_HOSPITAL.en.name,
+        branding: { tagline: DAMIETTA_GENERAL_HOSPITAL.en.tagline, established: DAMIETTA_GENERAL_HOSPITAL.en.established },
+        hero: DAMIETTA_GENERAL_HOSPITAL.en.hero,
+        contact: { address: DAMIETTA_GENERAL_HOSPITAL.en.address, hours: DAMIETTA_GENERAL_HOSPITAL.en.hours },
       },
     })
-    console.log(`✓ created tenant 'dumyat' (#${tenantId})`)
+    console.log(`✓ created tenant 'damietta-general-hospital' (#${tenantId})`)
   }
 
   // 2) Backfill tenant_id on every scoped table (raw SQL, idempotent).
@@ -113,16 +149,26 @@ async function main() {
     console.log(`  backfilled ${table}: ${res?.rowsAffected ?? '?'} row(s)`)
   }
 
-  // 3) Attach existing users to Dumyat as super-admins (Local API).
-  const users = await payload.find({ collection: 'users', limit: 1000, depth: 0 })
-  for (const u of users.docs as any[]) {
-    const already = Array.isArray(u.tenants) && u.tenants.some((t: any) => (t?.tenant?.id ?? t?.tenant) == tenantId)
-    if (already) continue
-    await payload.update({
-      collection: 'users', id: u.id,
-      data: { roles: ['super-admin'], tenants: [...(u.tenants ?? []), { tenant: tenantId }] },
-    })
-    console.log(`  attached user ${u.email} to dumyat (super-admin)`)
+  // 3) Attach existing users to Damietta General Hospital, preserving assigned roles (Local API).
+  let userPage = 1
+  while (true) {
+    const users = await payload.find({ collection: 'users', limit: 100, page: userPage, depth: 0 })
+    for (const u of users.docs as any[]) {
+      const already = Array.isArray(u.tenants) && u.tenants.some((t: any) => (t?.tenant?.id ?? t?.tenant) == tenantId)
+      if (already) continue
+
+      // Legacy users have no role because the roles table was introduced by this migration.
+      // Preserve any role already assigned so rerunning this script never elevates an editor/admin.
+      const roles = Array.isArray(u.roles) && u.roles.length > 0 ? u.roles : ['super-admin']
+      await payload.update({
+        collection: 'users', id: u.id,
+        data: { roles, tenants: [...(u.tenants ?? []), { tenant: tenantId }] },
+      })
+      console.log(`  attached user ${u.email} to damietta-general-hospital (${roles.join(', ')})`)
+    }
+
+    if (!users.hasNextPage || !users.nextPage) break
+    userPage = users.nextPage
   }
 
   // 4) Isolation assertion — no scoped row may be left without a tenant.
