@@ -15,6 +15,7 @@ export type TenantFeature =
   | 'achievements'
   | 'testimonials'
   | 'portal'
+  | 'commerce'
 
 export const TENANT_FEATURES = [
   { value: 'departments', label: { ar: 'الأقسام', en: 'Departments' } },
@@ -25,6 +26,7 @@ export const TENANT_FEATURES = [
   { value: 'achievements', label: { ar: 'الإنجازات', en: 'Achievements' } },
   { value: 'testimonials', label: { ar: 'شهادات المرضى', en: 'Testimonials' } },
   { value: 'portal', label: { ar: 'بوابة المرضى', en: 'Patient portal' } },
+  { value: 'commerce', label: { ar: 'المتجر', en: 'Commerce' } },
 ] satisfies Array<{
   value: TenantFeature
   label: { ar: string; en: string }

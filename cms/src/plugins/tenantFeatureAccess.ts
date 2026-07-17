@@ -36,6 +36,19 @@ export const TENANT_COLLECTION_FEATURES = {
   // Every entity can manage branding assets even when no content capability is enabled.
   media: { tenantScoped: true },
   icons: { features: 'departments', tenantScoped: false },
+  // Commerce inventory — gated on the `commerce` feature. All five collections are tenant-scoped.
+  'inventory-locations': { features: 'commerce', tenantScoped: true },
+  'inventory-levels': { features: 'commerce', tenantScoped: true },
+  'stock-movements': { features: 'commerce', tenantScoped: true },
+  'stock-reservations': { features: 'commerce', tenantScoped: true },
+  'inventory-transfers': { features: 'commerce', tenantScoped: true },
+  'commerce-settings': { features: 'commerce', tenantScoped: true },
+  'payment-events': { features: 'commerce', tenantScoped: true },
+  orders: { features: 'commerce', tenantScoped: true },
+  transactions: { features: 'commerce', tenantScoped: true },
+  products: { features: 'commerce', tenantScoped: true },
+  carts: { features: 'commerce', tenantScoped: true },
+  customers: { features: 'commerce', tenantScoped: true },
 } as const satisfies Record<string, FeaturePolicy>
 
 type SelectedTenant = {

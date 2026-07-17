@@ -7,7 +7,8 @@ const CMS = import.meta.env.CMS_URL ?? "http://localhost:3000";
 
 export type TenantFeature =
   | "departments" | "team" | "articles" | "events"
-  | "awards" | "achievements" | "testimonials" | "portal";
+  | "awards" | "achievements" | "testimonials" | "portal"
+  | "commerce";
 
 export interface Tenant {
   id: number | string;
