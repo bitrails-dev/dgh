@@ -171,8 +171,13 @@
     ],
     "social": {
       "facebook": "فيسبوك",
+      "instagram": "إنستغرام",
       "x": "إكس",
+      "threads": "ثريدز",
+      "snapchat": "سناب شات",
       "youtube": "يوتيوب",
+      "linkedin": "لينكد إن",
+      "tiktok": "تيك توك",
       "ministryBadge": "وزارة الصحة",
       "accreditationBadge": "شهادة الاعتماد"
     }

@@ -75,7 +75,9 @@ const fullTenant = (entitlement: TenantSettingGroup[]): Record<string, unknown> 
   id: 7,
   name: 'Al Salam Hospital',
   slug: 'al-salam',
-  type: 'hospital',
+  // `type` is now a relationship id (tenant-types). Stored as a scalar id here; the entitlement
+  // hook treats it as a platform field and rejects any change by a non-super admin.
+  type: 1,
   domains: ['al-salam.test'],
   features: ['departments'],
   settingsEntitlement: entitlement,
@@ -217,7 +219,7 @@ test('forged changes to slug, type, domains and features are all rejected', () =
   const original = fullTenant(ALL_GROUPS)
   for (const [field, value] of [
     ['slug', 'forged-slug'],
-    ['type', 'clinic'],
+    ['type', 2],
     ['domains', ['evil.example']],
     ['features', ['portal']],
   ] as const) {
@@ -346,16 +348,19 @@ test('an undefined entitlement also fails closed for a non-super user', () => {
   )
 })
 
-test('newly created tenants default to all four setting groups', () => {
-  assert.deepEqual(ALL_TENANT_SETTING_GROUPS, ['general', 'branding', 'hero', 'contact'])
+test('newly created tenants default to all setting groups (incl. socialPublishing)', () => {
+  assert.deepEqual(
+    ALL_TENANT_SETTING_GROUPS,
+    ['general', 'branding', 'hero', 'contact', 'socialPublishing'],
+  )
   assert.deepEqual(
     TENANT_SETTING_GROUPS.map((group) => group.value),
-    ALL_GROUPS,
+    ALL_TENANT_SETTING_GROUPS,
   )
   const field = Tenants.fields.find((candidate) => 'name' in candidate && candidate.name === 'settingsEntitlement') as
     | { defaultValue?: unknown }
     | undefined
-  assert.deepEqual(field?.defaultValue, ALL_GROUPS)
+  assert.deepEqual(field?.defaultValue, ALL_TENANT_SETTING_GROUPS)
 })
 
 test('the versioned migration is registered and backfills every existing tenant with all four groups', () => {

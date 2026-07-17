@@ -56,7 +56,7 @@ async function main() {
   for (const c of CATEGORIES) {
     const existing = await payload.find({ collection: 'categories', where: { slug: { equals: c.slug } }, limit: 1, depth: 0 })
     if (existing.docs[0]) continue
-    const doc = await payload.create({ collection: 'categories', locale: 'ar', data: { slug: c.slug, name: c.ar, color: c.color } })
+    const doc = await payload.create({ collection: 'categories', locale: 'ar', data: { slug: c.slug, name: c.ar, color: c.color as any } })
     await payload.update({ collection: 'categories', id: doc.id, locale: 'en', data: { name: c.en } })
     created++
   }

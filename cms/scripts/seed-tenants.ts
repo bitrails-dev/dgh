@@ -69,6 +69,36 @@ const ALL_FEATURES: Array<
 async function main() {
   const payload = await getPayload({ config })
 
+  // 0) Ensure the "hospital" Tenant Type exists (slug='hospital', all features as its template).
+  //    `tenants.type` is a relationship; new tenants reference the type id. The versioned migration
+  //    seeds hospital/clinic types on existing databases, but this stays idempotent either way.
+  let hospitalTypeId: number | string
+  const typeFound = await payload.find({
+    collection: 'tenant-types',
+    where: { slug: { equals: 'hospital' } },
+    limit: 1,
+    depth: 0,
+  })
+  if (typeFound.docs[0]) {
+    hospitalTypeId = typeFound.docs[0].id
+  } else {
+    const createdType = await payload.create({
+      collection: 'tenant-types',
+      locale: 'ar',
+      data: { slug: 'hospital', name: 'مستشفى', defaultFeatures: ALL_FEATURES },
+      overrideAccess: true,
+    })
+    hospitalTypeId = createdType.id
+    await payload.update({
+      collection: 'tenant-types',
+      id: hospitalTypeId,
+      locale: 'en',
+      data: { name: 'Hospital' },
+      overrideAccess: true,
+    })
+    console.log(`✓ created tenant-type 'hospital' (#${hospitalTypeId})`)
+  }
+
   // 1) Damietta General Hospital tenant. Upgrade the legacy slug if it already exists.
   let tenantId: number | string
   const found = await payload.find({
@@ -113,7 +143,7 @@ async function main() {
       locale: 'ar',
       data: {
         slug: 'damietta-general-hospital',
-        type: 'hospital',
+        type: hospitalTypeId,
         domains: ['dgh.bitrail.dev', 'localhost', '127.0.0.1'],
         features: ALL_FEATURES,
         name: DAMIETTA_GENERAL_HOSPITAL.ar.name,

@@ -31,6 +31,9 @@ Thumbs.db
 *.njsproj
 *.sln
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Cloudflare
 .wrangler/
 

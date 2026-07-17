@@ -105,6 +105,68 @@ const social = Astro.locals.tenant?.contact?.social ?? {};
             <path d="M22.5 7.2a2.8 2.8 0 00-2-2C18.6 4.7 12 4.7 12 4.7s-6.6 0-8.5.5a2.8 2.8 0 00-2 2A29 29 0 001 12a29 29 0 00.5 4.8 2.8 2.8 0 002 2c1.9.5 8.5.5 8.5.5s6.6 0 8.5-.5a2.8 2.8 0 002-2A29 29 0 0023 12a29 29 0 00-.5-4.8zM10 15.5V8.5l6 3.5-6 3.5z"/>
           </svg>
         </a>
+        {social.instagramUrl && (
+          <a
+            href={social.instagramUrl}
+            aria-label={strings.footer.social.instagram}
+            class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="5"/>
+              <circle cx="12" cy="12" r="4"/>
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+            </svg>
+          </a>
+        )}
+        {social.threadsUrl && (
+          <a
+            href={social.threadsUrl}
+            aria-label={strings.footer.social.threads}
+            class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="8"/>
+              <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0v2a2 2 0 0 0 2 2"/>
+            </svg>
+          </a>
+        )}
+        {social.snapchatUrl && (
+          <a
+            href={social.snapchatUrl}
+            aria-label={strings.footer.social.snapchat}
+            class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3c2.5 0 4 2 4 4.5 0 1.5 0 2.5.2 3.3.4.5 1 .8 1.6.5.4-.2.8-.3 1.2-.3.4 0 .5.6 0 .8-.6.2-1.5.4-1.7 1-.1.5.5 1.2 1.7 2-.2.6-1.2.5-2 .7-.3.6.2 1.5-1 1.5-1.2 0-1.8-.5-3-.5s-1.8.5-3 .5c-1.2 0-.7-.9-1-1.5-.8-.2-1.8-.1-2-.7 1.2-.8 1.8-1.5 1.7-2-.2-.6-1.1-.8-1.7-1-.5-.2-.4-.8 0-.8.4 0 .8.1 1.2.3.6.3 1.2 0 1.6-.5C8 10 8 9 8 7.5 8 5 9.5 3 12 3z"/>
+            </svg>
+          </a>
+        )}
+        {social.linkedinUrl && (
+          <a
+            href={social.linkedinUrl}
+            aria-label={strings.footer.social.linkedin}
+            class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/>
+              <rect x="2" y="9" width="4" height="12"/>
+              <circle cx="4" cy="4" r="2"/>
+            </svg>
+          </a>
+        )}
+        {social.tiktokUrl && (
+          <a
+            href={social.tiktokUrl}
+            aria-label={strings.footer.social.tiktok}
+            class="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 transition-colors hover:border-teal-400 hover:text-teal-400"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18V5l12-2v13"/>
+              <circle cx="6" cy="18" r="3"/>
+              <circle cx="18" cy="16" r="3"/>
+            </svg>
+          </a>
+        )}
       </div>
 
       <!-- Copyright -->

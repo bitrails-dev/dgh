@@ -6,7 +6,7 @@ export const Doctors: CollectionConfig = {
     singular: { ar: 'طبيب', en: 'Doctor' },
     plural: { ar: 'الأطباء', en: 'Doctors' },
   },
-  admin: { useAsTitle: 'name', defaultColumns: ['name', 'specialty', 'order', 'featured'], defaultSort: 'order' },
+  admin: { useAsTitle: 'name', defaultColumns: ['name', 'specialty', 'order', 'featured'] },
   access: { read: () => true },
   fields: [
     { name: 'slug', type: 'text', required: true, unique: true,

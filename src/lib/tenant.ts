@@ -12,7 +12,7 @@ export type TenantFeature =
 export interface Tenant {
   id: number | string;
   slug: string;
-  type: "hospital" | "clinic";
+  type: string;
   name: string; nameAr: string;
   domains: string[];
   features: TenantFeature[];
@@ -24,7 +24,10 @@ export interface Tenant {
   contact: {
     phone?: string; emergencyNumber?: string; whatsapp?: string; email?: string;
     address?: string; addressAr?: string;
-    social?: { facebookUrl?: string; xUrl?: string; youtubeUrl?: string };
+    social?: {
+      facebookUrl?: string; instagramUrl?: string; xUrl?: string; threadsUrl?: string;
+      snapchatUrl?: string; youtubeUrl?: string; linkedinUrl?: string; tiktokUrl?: string;
+    };
     hours?: Array<{ day: string; dayAr: string; time: string; timeAr: string }>;
   };
   hero?: Record<string, { value?: string; valueAr?: string; unit?: string; unitAr?: string }>;
@@ -46,6 +49,16 @@ function imgUrl(f: any): string | undefined {
   return raw.startsWith("/") ? `${CMS}${raw}` : raw;
 }
 
+// `tenants.type` is a relationship to the extensible tenant-types collection. The site fetches at
+// depth=1, so the resolved value is the populated type doc (carrying `slug`); a scalar id has no
+// slug and falls back. The frontend only needs the stable type slug (e.g. for Schema.org org type).
+function relSlug(rel: any): string | undefined {
+  if (rel == null) return undefined;
+  if (typeof rel === "string") return rel;
+  const slug = rel?.slug;
+  return typeof slug === "string" ? slug : undefined;
+}
+
 function normalize(doc: any): Tenant {
   const [name, nameAr] = loc(doc.name);
   const [tagline, taglineAr] = loc(doc.branding?.tagline);
@@ -55,7 +68,7 @@ function normalize(doc: any): Tenant {
   return {
     id: doc.id,
     slug: str(doc.slug) ?? "",
-    type: (str(doc.type) as Tenant["type"]) ?? "hospital",
+    type: relSlug(doc.type) ?? "hospital",
     name, nameAr,
     // hasMany text comes back as an array under locale=all it may be wrapped; keep it simple.
     domains: Array.isArray(doc.domains) ? doc.domains.map(String) : [],
@@ -71,8 +84,13 @@ function normalize(doc: any): Tenant {
       address: address || undefined, addressAr: addressAr || undefined,
       social: {
         facebookUrl: str(c.social?.facebookUrl),
+        instagramUrl: str(c.social?.instagramUrl),
         xUrl: str(c.social?.xUrl),
+        threadsUrl: str(c.social?.threadsUrl),
+        snapchatUrl: str(c.social?.snapchatUrl),
         youtubeUrl: str(c.social?.youtubeUrl),
+        linkedinUrl: str(c.social?.linkedinUrl),
+        tiktokUrl: str(c.social?.tiktokUrl),
       },
       hours: Array.isArray(c.hours) ? c.hours.map((h: any) => {
         const [day, dayAr] = loc(h.day); const [time, timeAr] = loc(h.time);

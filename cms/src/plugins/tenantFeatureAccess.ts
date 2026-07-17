@@ -10,16 +10,13 @@ import type {
   Where,
 } from 'payload'
 import { getUserTenantIDs, isSuperAdmin } from '../access/userAccess'
+import type { TenantFeature } from '../collections/tenantFeatures'
 
-export type TenantFeature =
-  | 'departments'
-  | 'team'
-  | 'articles'
-  | 'events'
-  | 'awards'
-  | 'achievements'
-  | 'testimonials'
-  | 'portal'
+// Re-exported for backward compatibility: existing imports resolve the feature key union from the
+// plugin path. The canonical definition lives in collections/tenantFeatures.ts so the catalogue can
+// be shared with TenantTypes.ts without a circular import (the plugin gates collections/routes,
+// while TenantTypes needs only the labelled option list).
+export type { TenantFeature }
 
 type FeatureRequirement = TenantFeature | readonly TenantFeature[]
 type FeaturePolicy = {
@@ -181,6 +178,29 @@ export const tenantFeatureAccessPlugin = (): Plugin => (incomingConfig: Config):
       ...(collection.hooks.beforeChange ?? []),
       enforceSelectedTenant(policy),
     ]
+
+    // Surface tenant ownership for super-admin aggregate lists. The multi-tenant plugin injects the
+    // required `tenant` relationship with BOTH `disableListColumn` and `disableListFilter` set true,
+    // so the ownership column and filter are hidden even from a super-admin who can read every
+    // tenant. Flip both back on and add `tenant` to default columns. UI visibility never broadens
+    // API access: non-super users stay constrained by the access layer above and by the field's own
+    // filterOptions (their assigned tenants only). Collections without an injected tenant field
+    // (e.g. the shared `icons` library) are left untouched.
+    const tenantField = collection.fields?.find(
+      (f): f is Extract<typeof f, { name?: string }> => 'name' in f && (f as { name?: string }).name === 'tenant',
+    ) as { type?: string; admin?: Record<string, unknown> } | undefined
+    if (tenantField && tenantField.type === 'relationship') {
+      tenantField.admin = tenantField.admin ?? {}
+      tenantField.admin.disableListColumn = false
+      tenantField.admin.disableListFilter = false
+
+      const defaultColumns = collection.admin?.defaultColumns
+      if (Array.isArray(defaultColumns)) {
+        if (!defaultColumns.includes('tenant')) defaultColumns.push('tenant')
+      } else {
+        collection.admin = { ...(collection.admin ?? {}), defaultColumns: ['tenant'] }
+      }
+    }
   }
 
   return incomingConfig

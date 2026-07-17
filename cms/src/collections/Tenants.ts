@@ -1,7 +1,6 @@
-import type { CollectionConfig, FieldAccess } from 'payload'
+import type { CollectionBeforeChangeHook, CollectionConfig, FieldAccess } from 'payload'
 import { getUserTenantIDs, isSuperAdmin, isTenantAdmin } from '../access/userAccess'
 import type { UserLike } from '../access/userAccess'
-import type { TenantFeature } from '../plugins/tenantFeatureAccess'
 import {
   ALL_TENANT_SETTING_GROUPS,
   TENANT_SETTING_GROUPS,
@@ -9,26 +8,33 @@ import {
   entitlementIncludes,
 } from '../access/tenantSettings'
 import type { TenantSettingGroup } from '../access/tenantSettings'
+import type { Tenant } from '../payload-types'
+import { TENANT_FEATURES } from './tenantFeatures'
+import { ALL_PLATFORMS, PLATFORMS, hasOAuth, platformLabel, platformMeta } from '../social/platforms'
 
-// A tenant is an "entity" — a hospital or a clinic. The public site resolves one per request
+// The eight public-feed social platforms. A tenant links a profile URL per platform under
+// `contact.social`, and may opt each platform into auto-publishing under `socialPublishing`.
+// WhatsApp is a contact channel only (no public feed), so it is NOT a publishing platform.
+// Keep these keys in sync with the frontend social normalizer (src/lib/tenant.ts).
+// Derived from the single platform catalogue (src/social/platforms.ts) so the contact.social URL
+// fields and the includedPlatforms select share one source of truth with the frontend normalizer
+// (src/lib/tenant.ts; parity asserted in tests). Keys intentionally stay in sync with it.
+export const SOCIAL_PLATFORMS = PLATFORMS.map((p) => ({
+  key: p.key,
+  label: { ar: p.labelAr, en: p.label },
+}))
+
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number]['key']
+
+// A tenant is an "entity" — e.g. a hospital or a clinic. The public site resolves one per request
 // (by hostname / TENANT_SLUG) and every content collection is scoped to it via the multi-tenant
 // plugin. `features` gates both public-site sections/routes and related Payload collections.
-// Extend the list and the collection map in tenantFeatureAccess.ts for a new gated capability.
-
-// value ↔ the frontend hasFeature() keys in src/lib/tenant.ts. Keep the two in sync.
-export const TENANT_FEATURES = [
-  { value: 'departments', label: { ar: 'الأقسام', en: 'Departments' } },
-  { value: 'team', label: { ar: 'الفريق الطبي', en: 'Team' } },
-  { value: 'articles', label: { ar: 'المقالات', en: 'Articles' } },
-  { value: 'events', label: { ar: 'الفعاليات', en: 'Events' } },
-  { value: 'awards', label: { ar: 'الجوائز', en: 'Awards' } },
-  { value: 'achievements', label: { ar: 'الإنجازات', en: 'Achievements' } },
-  { value: 'testimonials', label: { ar: 'شهادات المرضى', en: 'Testimonials' } },
-  { value: 'portal', label: { ar: 'بوابة المرضى', en: 'Patient portal' } },
-] satisfies Array<{
-  value: TenantFeature
-  label: { ar: string; en: string }
-}>
+// Extend the feature catalogue in tenantFeatures.ts for a new gated capability.
+//
+// `type` is a relationship to the extensible `tenant-types` collection. Each Tenant Type carries a
+// `defaultFeatures` template copied into a new Tenant only when its `features` value is omitted.
+// Changing a Tenant's type never silently overwrites its customized features; a super-admin can
+// explicitly reset them via the /reset-features-to-type-defaults endpoint.
 
 // Mirrors the old HospitalSettings.stat — a localized value+unit pair.
 const stat = (name: string, ar: string, en: string) => ({
@@ -44,6 +50,16 @@ const stat = (name: string, ar: string, en: string) => ({
 })
 
 const superAdminFieldAccess: FieldAccess = ({ req }) => isSuperAdmin(req.user)
+
+const relationID = (relation: unknown): string | null => {
+  if (relation === null || relation === undefined) return null
+  if (typeof relation === 'number' || typeof relation === 'string') return String(relation)
+  if (typeof relation === 'object' && 'id' in relation) {
+    const id = (relation as { id?: unknown }).id
+    if (typeof id === 'number' || typeof id === 'string') return String(id)
+  }
+  return null
+}
 
 // Admin convenience: a setting group/field is shown only to super-admins or when the tenant's own
 // settingsEntitlement enables it. UI conditions are NOT the security boundary —
@@ -64,6 +80,50 @@ const assignedTenantAccess: NonNullable<CollectionConfig['access']>['update'] = 
 
   const tenantIDs = getUserTenantIDs(req.user)
   return tenantIDs.length > 0 ? { id: { in: tenantIDs } } : false
+}
+
+// On create, when `features` is omitted (undefined), seed it from the selected Tenant Type's
+// `defaultFeatures` template. An explicit empty array `[]` is intentional and preserved; any
+// non-empty explicit value is never overwritten. Type *changes* (update) never touch features —
+// only this create-time copy and the explicit super-admin reset endpoint do.
+//
+// Collection create access is super-admin-only, and trusted Local API creates pass overrideAccess,
+// so reading the type template here does not open an access bypass for ordinary users: they cannot
+// reach a create in the first place. The lookup carries `req` to honor the trusted create path.
+//
+// A selected, required type that cannot be resolved must fail closed — the create is aborted rather
+// than silently producing a tenant without its template. No catch-all fallback: omitted features
+// deterministically copy the current template, including an intentionally empty template.
+const copyTypeDefaultFeatures: CollectionBeforeChangeHook = async ({
+  data,
+  operation,
+  req,
+}) => {
+  if (operation !== 'create') return data
+
+  const incoming = data as Record<string, unknown>
+  // Respect an explicitly submitted features value — including an intentionally empty `[]`.
+  if (incoming.features !== undefined) return data
+
+  const typeId = relationID(incoming.type)
+  // No type selected: leave features unset; the required-relationship validation surfaces that.
+  if (!typeId) return data
+
+  const tenantType = await req.payload.findByID({
+    collection: 'tenant-types',
+    id: typeId,
+    depth: 0,
+    overrideAccess: true,
+    req,
+    select: { defaultFeatures: true },
+  }) as { defaultFeatures?: string[] | null } | null
+
+  // Clone so the Tenant owns its own feature set, decoupled from future template edits. A missing
+  // or empty template yields an explicit empty array (an intentionally empty template is valid).
+  const defaults = tenantType?.defaultFeatures
+  incoming.features = Array.isArray(defaults) ? defaults.map((feature) => feature) : []
+
+  return data
 }
 
 export const Tenants: CollectionConfig = {
@@ -93,8 +153,145 @@ export const Tenants: CollectionConfig = {
   hooks: {
     // Enforces, server-side, that a non-super admin edits only assigned tenants and only the
     // setting groups enabled by that tenant's `settingsEntitlement`. Throws 403 on violations.
-    beforeChange: [enforceTenantSettingsEntitlement],
+    beforeChange: [enforceTenantSettingsEntitlement, copyTypeDefaultFeatures],
   },
+  endpoints: [
+    // POST /api/tenants/:id/reset-features-to-type-defaults
+    // Super-admin only. Loads the Tenant's current type and replaces its features with a clone of
+    // that type's current default template (including an intentionally empty template). Returns the
+    // updated features and the type identity. Never exposed to tenant admins.
+    {
+      path: '/:id/reset-features-to-type-defaults',
+      method: 'post',
+      handler: async (req) => {
+        if (!req.user) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (!isSuperAdmin(req.user as UserLike)) {
+          return Response.json({ error: 'Only platform super-admins can reset entity features.' }, { status: 403 })
+        }
+
+        const id = req.routeParams?.id as string | undefined
+        if (!id) {
+          return Response.json({ error: 'A tenant id is required.' }, { status: 400 })
+        }
+
+        // Resolve the Tenant's current type id. Load only what we need; depth:0 keeps the
+        // relationship as a scalar id so we can branch on missing-type explicitly below.
+        const tenant = await req.payload.findByID({
+          collection: 'tenants',
+          id,
+          depth: 0,
+          overrideAccess: true,
+          req,
+          select: { type: true },
+        }).catch(() => null) as { type?: number | string | { id?: number | string } | null } | null
+
+        if (!tenant) {
+          return Response.json({ error: 'Tenant not found.' }, { status: 404 })
+        }
+
+        const typeId = relationID(tenant.type)
+        if (!typeId) {
+          return Response.json({ error: 'This tenant has no type assigned.' }, { status: 400 })
+        }
+
+        // Explicitly load the assigned Tenant Type to use its *actual* current template. We never
+        // infer an empty template from a scalar/unpopulated relationship or a missing field — a
+        // lookup failure returns a clear error and must not erase the Tenant's features.
+        const tenantType = await req.payload.findByID({
+          collection: 'tenant-types',
+          id: typeId,
+          depth: 0,
+          overrideAccess: true,
+          req,
+          select: { defaultFeatures: true, slug: true },
+        }).catch(() => null) as { defaultFeatures?: string[] | null; slug?: string | null } | null
+
+        if (!tenantType) {
+          return Response.json({ error: 'The assigned tenant type could not be loaded.' }, { status: 404 })
+        }
+
+        const template = tenantType.defaultFeatures ?? []
+        const features = Array.isArray(template) ? template.map((feature) => feature) : []
+
+        const updated = await req.payload.update({
+          collection: 'tenants',
+          id,
+          // The template values are validated select options; cast satisfies the strict update type.
+          data: { features: features as Tenant['features'] },
+          overrideAccess: true,
+          req,
+        }) as { features?: string[] | null }
+
+        return Response.json({
+          features: updated.features ?? features,
+          typeId,
+          typeSlug: tenantType.slug ?? null,
+        })
+      },
+    },
+    // GET /api/tenants/:id/social-status
+    // Sanitized per-platform connection + last-publish status for the connection panel. No tokens.
+    // Authorized for the super-admin or an admin assigned to this tenant.
+    {
+      path: '/:id/social-status',
+      method: 'get',
+      handler: async (req) => {
+        if (!req.user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+        const id = req.routeParams?.id as string | undefined
+        if (!id) return Response.json({ error: 'A tenant id is required.' }, { status: 400 })
+        if (!isSuperAdmin(req.user as UserLike) && !getUserTenantIDs(req.user).map(String).includes(String(id))) {
+          return Response.json({ error: 'Forbidden.' }, { status: 403 })
+        }
+        const conns = await req.payload.find({
+          collection: 'social-connections',
+          where: { tenant: { equals: id } },
+          overrideAccess: true,
+          req,
+          limit: 100,
+        })
+        const byPlatform = new Map(conns.docs.map((c) => [c.platform, c] as const))
+        // Latest failed publication per platform, so the connection panel can offer an explicit retry
+        // of that record. The connection row itself carries no article id; this maps platform → the
+        // most recent failed article. Bounded + best-effort.
+        const failed = await req.payload.find({
+          collection: 'social-publications',
+          where: { and: [{ tenant: { equals: id } }, { status: { equals: 'failed' } }] },
+          overrideAccess: true, req, limit: 100, sort: '-updatedAt',
+        })
+        const lastFailedArticleByPlatform = new Map<string, number | string>()
+        for (const pub of failed.docs) {
+          const fp = (pub as { platform?: string; article?: number | string }).platform
+          if (fp && !lastFailedArticleByPlatform.has(fp)) lastFailedArticleByPlatform.set(fp, (pub as { article?: number | string }).article ?? '')
+        }
+        // Every catalogue platform appears exactly once, with its label + availability derived from
+        // the single platform table (no duplicated label map in the client). Tier-2 platforms surface
+        // as not connectable with their precise approval note.
+        return Response.json({
+          platforms: ALL_PLATFORMS.map((p) => {
+            const c = byPlatform.get(p) as
+              | { status?: string; remoteAccountLabel?: string; lastPublishStatus?: string; lastPublishUrl?: string; lastPublishAt?: string; lastErrorCode?: string }
+              | undefined
+            return {
+              platform: p,
+              label: platformLabel(p, 'en'),
+              available: hasOAuth(p),
+              approvalNote: platformMeta(p)?.approvalNote ?? '',
+              connected: !!c && c.status === 'connected',
+              status: c?.status ?? 'not_connected',
+              remoteAccountLabel: c?.remoteAccountLabel ?? '',
+              lastPublishStatus: c?.lastPublishStatus ?? '',
+              lastPublishUrl: c?.lastPublishUrl ?? '',
+              lastPublishAt: c?.lastPublishAt ?? '',
+              lastErrorCode: c?.lastErrorCode ?? '',
+              lastFailedArticleId: lastFailedArticleByPlatform.get(p) ?? '',
+            }
+          }),
+        })
+      },
+    },
+  ],
   fields: [
     { name: 'name', type: 'text', required: true, localized: true,
       label: { ar: 'الاسم', en: 'Name' },
@@ -103,13 +300,18 @@ export const Tenants: CollectionConfig = {
       label: { ar: 'المعرّف', en: 'Slug' },
       access: { update: superAdminFieldAccess },
       admin: { description: 'Lowercase, hyphenated. Used by TENANT_SLUG and as a stable key.' } },
-    { name: 'type', type: 'select', required: true, defaultValue: 'hospital',
+    // Relationship to the extensible `tenant-types` collection. A super-admin can create a Tenant
+    // Type inline from this field. Assignment/update is super-admin-only (platform-managed).
+    { name: 'type', type: 'relationship', relationTo: 'tenant-types', required: true,
       label: { ar: 'النوع', en: 'Type' },
       access: { update: superAdminFieldAccess },
-      options: [
-        { value: 'hospital', label: { ar: 'مستشفى', en: 'Hospital' } },
-        { value: 'clinic', label: { ar: 'عيادة', en: 'Clinic' } },
-      ] },
+      admin: { description: 'Entity type. Drives the default feature template copied into new entities.' } },
+    // UI-only: when a super-admin selects/changes the `type`, live-apply that type's `defaultFeatures`
+    // template to `features` (Capabilities). Renders and stores nothing — the component reads `type`
+    // and writes `features`. Super-admin-gated (both fields are super-admin-update-only).
+    { name: 'applyTypeTemplate', type: 'ui',
+      admin: { components: { Field: '/src/admin/ApplyTypeTemplate#default' },
+        condition: (_data, _sibling, { user }) => isSuperAdmin(user as UserLike | null) } },
     { name: 'domains', type: 'text', hasMany: true,
       label: { ar: 'النطاقات', en: 'Domains' },
       access: { update: superAdminFieldAccess },
@@ -172,11 +374,17 @@ export const Tenants: CollectionConfig = {
           name: 'social',
           type: 'group',
           label: { ar: 'وسائل التواصل', en: 'Social' },
-          fields: [
-            { name: 'facebookUrl', type: 'text', label: { ar: 'فيسبوك', en: 'Facebook' } },
-            { name: 'xUrl', type: 'text', label: { ar: 'إكس', en: 'X' } },
-            { name: 'youtubeUrl', type: 'text', label: { ar: 'يوتيوب', en: 'YouTube' } },
-          ],
+          // One optional profile URL per platform. Empty is allowed; a non-empty value must be a
+          // valid http(s) URL. Existing facebook/x/youtube values keep their column names.
+          fields: SOCIAL_PLATFORMS.map(({ key, label }) => ({
+            name: `${key}Url`,
+            type: 'text' as const,
+            label,
+            validate: (value: unknown) => {
+              if (value === undefined || value === null || value === '') return true
+              return /^https?:\/\//i.test(String(value)) || 'Enter a valid http(s) URL.'
+            },
+          })),
         },
         {
           name: 'hours',
@@ -188,6 +396,70 @@ export const Tenants: CollectionConfig = {
           ],
         },
       ],
+    },
+    // Tenant-controlled social auto-publishing. Gated by the `socialPublishing` setting
+    // entitlement (a platform operator may withhold it). `enabled` is the master switch;
+    // `defaultAutoPublish` is the default applied to newly created Articles when they omit it;
+    // `includedPlatforms` selects which of the eight platforms each auto-published Article is sent
+    // to. WhatsApp is intentionally absent (contact channel, not a public feed). Per-platform
+    // OAuth connections live in a separate collection (Task E) and are joined in the publishing UI.
+    {
+      name: 'socialPublishing',
+      type: 'group',
+      label: { ar: 'النشر التلقائي على وسائل التواصل', en: 'Social auto-publishing' },
+      admin: { condition: (data, _sibling, { user }) => groupIsVisible(data, user, 'socialPublishing') },
+      fields: [
+        {
+          name: 'enabled',
+          type: 'checkbox',
+          defaultValue: false,
+          label: { ar: 'تفعيل النشر التلقائي', en: 'Enable auto-publishing' },
+          admin: {
+            description:
+              'Master switch. When off, no Article is auto-published regardless of per-platform toggles.',
+          },
+        },
+        {
+          name: 'defaultAutoPublish',
+          type: 'checkbox',
+          defaultValue: false,
+          label: { ar: 'النشر التلقائي للمقالات الجديدة افتراضيًا', en: 'Auto-publish new Articles by default' },
+        },
+        {
+          name: 'includedPlatforms',
+          type: 'select',
+          hasMany: true,
+          options: SOCIAL_PLATFORMS.map(({ key, label }) => ({ value: key, label })),
+          label: { ar: 'المنصات المشمولة', en: 'Included platforms' },
+          admin: {
+            description:
+              'Platforms each auto-published Article is sent to. Connect each platform in the publishing panel (requires platform app configuration / approval).',
+          },
+        },
+      ],
+    },
+    // Super-admin-only reset control on existing documents. Confirms, calls the reset endpoint,
+    // surfaces success/error, and reloads the document so stored state is visible. Hidden from
+    // tenant admins and on the create form (no id yet).
+    {
+      name: 'resetFeatures',
+      type: 'ui',
+      label: { ar: 'إعادة الضبط', en: 'Reset' },
+      admin: {
+        components: { Field: '/src/admin/ResetTenantFeatures#default' },
+        condition: (_data, _sibling, { user }) => isSuperAdmin(user as UserLike | null),
+      },
+    },
+    // Social connection panel: per-platform Connect/Disconnect + last result. Shown only when the
+    // socialPublishing group is visible (super-admin or entitled tenant admin), on existing docs.
+    {
+      name: 'socialConnections',
+      type: 'ui',
+      label: { ar: 'اتصالات التواصل', en: 'Social connections' },
+      admin: {
+        components: { Field: '/src/admin/SocialConnectionsPanel#default' },
+        condition: (data, _sibling, { user }) => groupIsVisible(data, user, 'socialPublishing'),
+      },
     },
   ],
 }

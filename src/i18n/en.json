@@ -171,8 +171,13 @@
     ],
     "social": {
       "facebook": "Facebook",
+      "instagram": "Instagram",
       "x": "X",
+      "threads": "Threads",
+      "snapchat": "Snapchat",
       "youtube": "YouTube",
+      "linkedin": "LinkedIn",
+      "tiktok": "TikTok",
       "ministryBadge": "Ministry of Health",
       "accreditationBadge": "Accreditation Badge"
     }

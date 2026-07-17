@@ -26,6 +26,7 @@ type PayloadLike = {
 }
 
 let payload: PayloadLike | undefined
+let tenantTypeId: number | string
 let tenantId: number | string
 let adminUser: Record<string, unknown>
 let editorUser: Record<string, unknown>
@@ -33,7 +34,8 @@ let editorUser: Record<string, unknown>
 const seedTenant = {
   name: 'Integration Hospital',
   slug: `integration-${process.pid}-${Date.now()}`,
-  type: 'hospital',
+  // `type` is a relationship to tenant-types; resolved to an id in the before hook below.
+  type: undefined as number | string | undefined,
   // Branding is intentionally NOT entitled — it holds stored data that must survive.
   settingsEntitlement: ['contact', 'general'],
   branding: { initials: 'IH', themeColor: '#15504f' },
@@ -56,6 +58,16 @@ test.before(async () => {
   payload = (await getPayload({ config })) as unknown as PayloadLike
   // Build the full schema on the isolated DB from the versioned migrations (validates the SQL too).
   await payload.db.migrate()
+
+  // `tenants.type` is a required relationship to tenant-types. On a fresh scratch DB no tenant
+  // types are seeded by the migration (it derives them from existing tenants), so create one.
+  const tenantType = await payload.create({
+    collection: 'tenant-types',
+    data: { slug: `hospital-${process.pid}-${Date.now()}`, name: 'Hospital', defaultFeatures: ['articles'] },
+    overrideAccess: true,
+  })
+  tenantTypeId = tenantType.id as number
+  seedTenant.type = tenantTypeId
 
   tenantId = (await payload.create({
     collection: 'tenants',

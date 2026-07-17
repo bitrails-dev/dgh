@@ -47,10 +47,12 @@ for (const spec of SPECS) {
   console.log(`✓ ${spec.collection}: ${kept.size} files`)
 }
 
-// Globals → src/content/settings/*.json (singletons, not markdown). Keys must match the
-// shapes Astro imports directly (hero.json, contact.json).
+// Settings → src/content/settings/*.json (singletons, not markdown). Keys must match the
+// shapes Astro imports directly (hero.json, contact.json). The HospitalSettings global was retired
+// (commit 7196283): hero/contact now live per-tenant, so export the first tenant's settings.
 {
-  const g: any = await payload.findGlobal({ slug: 'hospital-settings', locale: 'all', depth: 0 })
+  const { docs: tenants } = await payload.find({ collection: 'tenants', locale: 'all', depth: 0, limit: 1 })
+  const g: any = tenants[0] ?? {}
   const settingsDir = path.join(CONTENT, 'settings')
   mkdirSync(settingsDir, { recursive: true })
 
@@ -71,8 +73,13 @@ for (const spec of SPECS) {
     addressAr: ar(c.address),
     social: {
       facebookUrl: c.social?.facebookUrl || '',
+      instagramUrl: c.social?.instagramUrl || '',
       xUrl: c.social?.xUrl || '',
+      threadsUrl: c.social?.threadsUrl || '',
+      snapchatUrl: c.social?.snapchatUrl || '',
       youtubeUrl: c.social?.youtubeUrl || '',
+      linkedinUrl: c.social?.linkedinUrl || '',
+      tiktokUrl: c.social?.tiktokUrl || '',
     },
     hours: (c.hours || []).map((x: any) => ({ day: en(x.day), dayAr: ar(x.day), time: en(x.time), timeAr: ar(x.time) })),
   }

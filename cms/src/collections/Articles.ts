@@ -1,4 +1,5 @@
 import type { Block, CollectionConfig } from 'payload'
+import { defaultAutoPublishFromTenant, queueSocialPublish } from '../social/hook'
 
 // Article body is composed of ordered blocks. Structure/order is shared across locales;
 // text fields inside each block are localized (ar default + en).
@@ -73,6 +74,12 @@ export const Articles: CollectionConfig = {
   },
   admin: { useAsTitle: 'title', defaultColumns: ['title', 'date', 'categoryRel', 'featured'] },
   access: { read: () => true },
+  hooks: {
+    // `autoPublish` defaults from the tenant on create when omitted; the afterChange hook fans out
+    // the social publish (create-only, non-blocking, fully isolated — never affects the save).
+    beforeChange: [defaultAutoPublishFromTenant],
+    afterChange: [queueSocialPublish],
+  },
   fields: [
     { name: 'slug', type: 'text', required: true, unique: true,
       label: { ar: 'المعرّف', en: 'Slug' },
@@ -91,6 +98,10 @@ export const Articles: CollectionConfig = {
       label: { ar: 'الصورة المصغّرة', en: 'Thumbnail' } },
     { name: 'featured', type: 'checkbox', defaultValue: false,
       label: { ar: 'مميّز', en: 'Featured' } },
+    // Per-article opt-in to social auto-publish. Defaults (on create) from the tenant's
+    // socialPublishing.defaultAutoPublish; explicit false is preserved.
+    { name: 'autoPublish', type: 'checkbox',
+      label: { ar: 'النشر التلقائي', en: 'Auto-publish to social' } },
     // Composable body. Shared structure across locales; text inside blocks is localized.
     { name: 'content', type: 'blocks',
       label: { ar: 'المحتوى', en: 'Content' },

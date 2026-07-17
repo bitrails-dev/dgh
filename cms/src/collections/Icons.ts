@@ -18,7 +18,6 @@ export const Icons: CollectionConfig = {
   },
   upload: {
     staticDir: '../public/uploads/icons',
-    staticURL: '/uploads/icons',
     mimeTypes: ['image/svg+xml'],
   },
   fields: [

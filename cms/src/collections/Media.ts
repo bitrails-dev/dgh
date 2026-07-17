@@ -9,7 +9,6 @@ export const Media: CollectionConfig = {
   access: { read: () => true },
   upload: {
     staticDir: '../public/uploads',
-    staticURL: '/uploads',
     mimeTypes: ['image/*'],
   },
   fields: [

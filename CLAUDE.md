@@ -36,7 +36,9 @@ Public-facing website for **Dumyat Public Hospital** (مستشفى دمياط ا
 ## Payload CMS (`cms/`)
 
 - **Next.js ~15.4** app hosting **Payload**, Lexical editor, **SQLite** via `@payloadcms/db-sqlite` + `@libsql/client`.
-- Localized (`ar` default + `en`, fallback on). Collections: Users, Media, Doctors, Departments, Articles, Events, Awards, Achievements, Testimonials; global: HospitalSettings.
+- Localized (`ar` default + `en`, fallback on). **Multi-tenant**: every content collection (Media, Categories, Doctors, Departments, Articles, Events, Awards, Achievements, Testimonials) is scoped to a `tenant` via `@payloadcms/plugin-multi-tenant`; plus `Users` (auth), `Tenants` + `TenantTypes` (per-entity settings/branding/contact + feature templates), and a shared unscoped `Icons` library.
+- **No globals.** The retired `HospitalSettings` global's fields live per-tenant on `Tenants` (branding/hero/contact + the `socialPublishing` group). The config ships `globals: []`.
+- **Social auto-publishing.** On Article create, a durable Payload **job** (`social-publish-article`) fans out to connected platforms via a registry of adapters. Tier-1 adapters ship (facebook, instagram, linkedin, youtube); tier-2 (x, threads, snapchat, tiktok) return honest `skipped`/`approval_required` outcomes. Internal hidden collections: `social-connections`, `social-publications`, `social-oauth-states`. Setup + provider approvals: `docs/superpowers/plans/2026-07-16-social-publishing-setup.md`.
 - Scripts: `pnpm dev` (port 3001), `pnpm generate:types`, `tsx scripts/export-to-content.ts` / `import-from-content.ts` to sync with `src/content`, `tsx scripts/migrate-images.ts` to (re)link images from markdown to Media uploads.
 - Schema is managed by **versioned migrations** (`src/migrations/`), not dev-mode push. Fresh databases require `npx payload migrate` before first boot (the `db.push: false` adapter option disables the auto-push). Re-running `migrate` is a no-op once applied.
 
@@ -68,3 +70,17 @@ CMS (`cms/.env.example`): `PAYLOAD_SECRET`, `DATABASE_URI` (default `file:./cms.
 - Localized content fields come in pairs (`title` / `titleAr`); pick by `lang`.
 - Prefer Astro components for static/SSR content; reach for `.vue` (`client:visible` etc.) only when interactivity is needed.
 - Keep Tailwind usage on the custom token scales; don't introduce ad-hoc hex colors.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The canonical default triage-label vocabulary is used. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repository uses a multi-context layout. See `docs/agents/domain.md`.

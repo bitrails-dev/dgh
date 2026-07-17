@@ -53,8 +53,14 @@ for (const spec of SPECS) {
     const statAr = (x: any = {}) => ({ value: x.valueAr ?? '', unit: x.unitAr ?? '' })
     const statEn = (x: any = {}) => ({ value: x.value ?? '', unit: x.unit ?? '' })
 
-    await payload.updateGlobal({
-      slug: 'hospital-settings',
+    // HospitalSettings global retired (commit 7196283): hero/contact now live per-tenant. Import
+    // into the first tenant for each locale.
+    const { docs: tenants } = await payload.find({ collection: 'tenants', limit: 1 })
+    const tenant = tenants[0]
+    if (!tenant) throw new Error('No tenant found to import settings into.')
+    await payload.update({
+      collection: 'tenants',
+      id: tenant.id,
       locale: 'ar',
       data: {
         hero: { years: statAr(s.years), departments: statAr(s.departments), patients: statAr(s.patients), staff: statAr(s.staff) },
@@ -65,10 +71,11 @@ for (const spec of SPECS) {
           social: contact.social,
           hours: (contact.hours || []).map((h: any) => ({ day: h.dayAr, time: h.timeAr })),
         },
-      },
+      } as any,
     })
-    await payload.updateGlobal({
-      slug: 'hospital-settings',
+    await payload.update({
+      collection: 'tenants',
+      id: tenant.id,
       locale: 'en',
       data: {
         hero: { years: statEn(s.years), departments: statEn(s.departments), patients: statEn(s.patients), staff: statEn(s.staff) },
@@ -76,9 +83,9 @@ for (const spec of SPECS) {
           address: contact.address,
           hours: (contact.hours || []).map((h: any) => ({ day: h.day, time: h.time })),
         },
-      },
+      } as any,
     })
-    console.log('✓ hospital-settings: imported hero + contact')
+    console.log('✓ tenant settings: imported hero + contact')
   }
 }
 

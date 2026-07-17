@@ -1,63 +1,80 @@
-# CMS Architecture: Payload CMS + Astro
+# CMS Architecture: Payload CMS (multi-tenant) + Astro (SSR)
 
 ## Overview
 
-Content is authored in **Payload CMS** (in `cms/`), exported to **markdown files** in
-`src/content/`, committed to git, and **Astro** rebuilds the static site. Payload is the editor;
-git markdown is the build source. The public site never queries the CMS at runtime, so a CMS
-outage cannot break a deploy.
+Content is authored in **Payload CMS** (`cms/`), and the public **Astro** site reads it **live over
+REST at request/build time** — there is no markdown-export step and no git content. Payload is the
+source of truth; the Astro site is its consumer. The CMS is multi-tenant: one deployment serves many
+entities (e.g. a hospital, a clinic), each resolved per request.
 
 ```
-Editor → Payload admin → local libSQL → `npm run export` → src/content/*.md → git push → Astro rebuild (Cloudflare Pages)
+Editor → Payload admin (Next.js, :3001) → SQLite (libSQL)
+Astro (Node SSR, :4321) ──REST GET /api/<collection>?locale=all──→ Payload (live)
 ```
 
-## Why this shape
+> Previously this project exported Payload content to `src/content/*.md` and built a static site on
+> Cloudflare Pages. **That flow is retired.** `src/content/**` is legacy seed data only; the live
+> source of truth is the CMS. The `scripts/{export,import}-from-content.ts` tools remain as legacy
+> one-time seed helpers (they reference the retired `hospital-settings` global and are not in the
+> build/runtime path).
 
-- **Astro already builds from markdown** (`src/content.config.ts` glob loaders). Payload writing
-  markdown means the public site needs **zero changes** and keeps building statically on the free
-  Cloudflare Pages tier.
-- **Content stays in git** — diffable, reviewable, small commits, trivial rollback.
-- **Build is decoupled from the CMS** — no live API dependency at build time.
-- **Payload provides the editor, auth, roles, drafts, and bilingual (ar/en) modeling** out of the
-  box — no custom dashboard to maintain, no admin token shipped to the browser.
+## Multi-tenancy
+
+- A **Tenant** is an entity (hospital, clinic, …). `Tenants` carries its identity (`name`, `slug`,
+  `domains`), branding/hero/contact, `features` (gates public-site sections + admin collections),
+  and `socialPublishing`.
+- `Tenants.type` is a relationship to the extensible **`TenantTypes`** collection; each type carries a
+  `defaultFeatures` template copied into a new tenant only when `features` is omitted.
+- The `@payloadcms/plugin-multi-tenant` injects a required, indexed `tenant` field on every content
+  collection. Super-admins bypass scoping; tenant admins see only their tenant. Capability access
+  (`tenantFeatureAccessPlugin`) hides disabled collections from non-super users.
+- The public site resolves one tenant per request by host (or `TENANT_SLUG`) in `src/lib/tenant.ts`,
+  then filters content by `tenant.id` and gates the surface by `tenant.features`.
 
 ## Localization
 
-Payload localization is enabled (`ar` default, `en` secondary). Each concept is **one field**
-marked `localized: true` instead of duplicated `title` / `titleAr` columns. The export flattens
-each localized field `F` back to the frontmatter keys Astro expects: `F` (en) + `FAr` (ar).
+Payload localization is enabled (`ar` default, `en` secondary, fallback on). Each concept is one
+field marked `localized: true`; the Astro content layer reads `?locale=all` and normalizes `{en, ar}`
+(`src/lib/tenant.ts`, `src/content.config.ts`).
 
-## The seam
+## Content layer (live from Payload)
 
-`cms/scripts/specs.ts` is the single source of the Payload↔markdown mapping. Its frontmatter keys
-must match `src/content.config.ts`. Two thin scripts use it:
-
-- `cms/scripts/export-to-content.ts` — Payload → `src/content/*.md` (run after editing).
-- `cms/scripts/import-from-content.ts` — `src/content/*.md` → Payload (one-time seed).
+`src/content.config.ts` uses Astro's content-layer loaders (v6) — each collection (`articles`,
+`doctors`, …) fetches live from `GET {CMS_URL}/api/<slug>?locale=all&depth=1` and validates with
+Zod. The Astro build therefore requires the CMS to be reachable.
 
 ## Collections
 
-`doctors`, `departments`, `articles`, `events`, `awards`, `achievements`, `testimonials`, plus
-`users` (auth). These mirror the Astro content collections one-to-one. There is intentionally no
-`media`/uploads collection or `news` collection — current images are external URLs and the site
-has no news collection.
+Content: `doctors`, `departments`, `articles`, `events`, `awards`, `achievements`, `testimonials`,
+`media`, `categories` — all tenant-scoped. `users` (auth), `tenants`, `tenant-types`, and a shared
+`icons` library.
 
-## Globals (site config)
+Social publishing (internal — `admin.hidden`, fully access-locked, managed only via Local API + the
+OAuth endpoints): `social-connections` (encrypted per-tenant provider tokens), `social-publications`
+(idempotent `[article, platform]` result rows), `social-oauth-states` (one-time OAuth state **and**
+multi-account selection sessions).
 
-Singletons (hero stats, contact info) live in the `hospital-settings` **Global**, not a collection.
-The export writes them to `src/content/settings/hero.json` and `contact.json` — the exact JSON the
-site imports directly (`HeroSection`, `ContactSection`, `TheSidebar`). UI translation strings
-(`src/i18n/*.json`) stay developer-managed and are intentionally not in the CMS.
+There are **no globals** — `globals: []`. Per-tenant settings live on the `Tenants` collection.
+
+## Social auto-publishing
+
+When an Article with `autoPublish` on is created, the `queueSocialPublish` afterChange hook enqueues
+one durable Payload **job** (`social-publish-article`) carrying only stable IDs `{ tenantId,
+articleId }`. A worker (`payload jobs:run`, or in-process via `jobs.autoRun`) recomputes the target
+platforms at run time and publishes through the adapter registry, writing idempotent
+`social-publications` rows. Transient failures (429/5xx/network) retry with bounded exponential
+backoff; permanent failures and explicit skips never retry. OAuth connect/callback/disconnect +
+multi-account selection live under `/api/social/*`. Details + provider approvals:
+`docs/superpowers/plans/2026-07-16-social-publishing-setup.md`.
 
 ## Tech stack
 
 | Component | Technology |
 |---|---|
-| Public site | Astro 6 static + Vue islands, Tailwind, astro-i18next (ar/en) |
-| CMS | Payload 3 (Next.js) in `cms/` |
+| Public site | Astro (Node SSR, standalone adapter) + Vue islands, Tailwind, Pinia |
+| CMS | Payload 3.85.1 (Next.js ~15.4) in `cms/` |
 | CMS database | local libSQL — embedded `file:./cms.db` or a local `turso dev` server |
-| Editor auth | Payload `users` collection (sessions, roles) |
-| Publish | `npm run export` → git commit → Cloudflare Pages rebuild |
-| Hosting | Astro on Cloudflare Pages; Payload runs locally (Node) |
+| Editor auth | Payload `users` (sessions, roles: super-admin / admin / editor) |
+| Schema | versioned migrations (`cms/src/migrations`, `push: false`) |
 
-See `cms/README.md` for setup and the daily publish flow.
+See `CLAUDE.md` for commands and `docs/DEPLOYMENT.md` for hosting + the social-publishing worker.

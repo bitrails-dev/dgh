@@ -1,0 +1,101 @@
+// Crypto core for social publishing (Task D/E). Node `crypto` stdlib only — no dependencies.
+//
+// Two responsibilities:
+//   1. AES-256-GCM symmetric encryption for provider OAuth tokens at rest. Key is derived from
+//      PAYLOAD_SECRET via HKDF; the blob carries a version byte so the key can be rotated later
+//      without a mass re-encrypt. GCM auth tag → any tamper / wrong-secret decrypt fails closed.
+//   2. HMAC-SHA256 signed, expiring OAuth `state` for the connect/callback flow (constant-time
+//      verify). One-time use is enforced separately by the social-oauth-states collection.
+//
+// Plaintext never reaches clients or logs: callers receive/return only the base64 blob and the
+// signed state token.
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHmac,
+  hkdfSync,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto'
+
+const KEY_VERSION = 1
+const KEY_LEN = 32 // AES-256
+const IV_LEN = 12 // GCM nonce
+const TAG_LEN = 16
+
+const secretKey = (): string => process.env.PAYLOAD_SECRET || ''
+
+// ponytail: one HKDF derivation per process call is cheap (sub-millisecond); cache only if profiling shows it matters.
+const deriveKey = (secret: string): Buffer =>
+  Buffer.from(hkdfSync('sha256', secret, 'payload-social', 'aes-256-gcm-token-v1', KEY_LEN))
+
+export type EncryptedToken = string
+
+export function encryptToken(plaintext: string, secret: string = secretKey()): EncryptedToken {
+  const key = deriveKey(secret)
+  const iv = randomBytes(IV_LEN)
+  const cipher = createCipheriv('aes-256-gcm', key, iv)
+  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  // [version(1)][iv(12)][authTag(16)][ciphertext...]
+  return Buffer.concat([Buffer.from([KEY_VERSION]), iv, tag, ciphertext]).toString('base64')
+}
+
+export function decryptToken(blob: EncryptedToken, secret: string = secretKey()): string {
+  const buf = Buffer.from(blob, 'base64')
+  if (buf.length < 1 + IV_LEN + TAG_LEN) throw new Error('Malformed token blob.')
+  const version = buf[0]
+  if (version !== KEY_VERSION) throw new Error(`Unsupported token key version: ${version}.`)
+  const iv = buf.subarray(1, 1 + IV_LEN)
+  const tag = buf.subarray(1 + IV_LEN, 1 + IV_LEN + TAG_LEN)
+  const ciphertext = buf.subarray(1 + IV_LEN + TAG_LEN)
+  const decipher = createDecipheriv('aes-256-gcm', deriveKey(secret), iv)
+  decipher.setAuthTag(tag)
+  // Throws on tag mismatch (tamper / wrong key) — fail closed.
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+}
+
+// --- OAuth state --------------------------------------------------------------------------
+
+export type StatePayload = {
+  tenantId: number | string
+  platform: string
+  nonce: string
+  exp: number
+  returnTo?: string
+}
+
+export function signState(p: StatePayload, secret: string = secretKey()): string {
+  const body = Buffer.from(JSON.stringify(p)).toString('base64url')
+  const mac = createHmac('sha256', secret).update(body).digest('base64url')
+  return `${body}.${mac}`
+}
+
+export function verifyState(token: string, secret: string = secretKey()): StatePayload {
+  const sep = token.lastIndexOf('.')
+  const body = token.slice(0, sep)
+  const mac = token.slice(sep + 1)
+  if (!body || !mac) throw new Error('Malformed state token.')
+  const expected = createHmac('sha256', secret).update(body).digest()
+  const got = Buffer.from(mac, 'base64url')
+  // Constant-time compare; length guard prevents throwing inside timingSafeEqual.
+  if (got.length !== expected.length || !timingSafeEqual(got, expected)) {
+    throw new Error('Invalid state signature.')
+  }
+  let p: StatePayload
+  try {
+    p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as StatePayload
+  } catch {
+    throw new Error('Malformed state payload.')
+  }
+  if (typeof p.exp !== 'number' || Date.now() > p.exp) throw new Error('State expired.')
+  return p
+}
+
+// OAuth callback must only redirect to an internal admin path (no open-redirect to external hosts).
+export function isSafeReturnPath(path: string): boolean {
+  if (!path.startsWith('/')) return false
+  // Reject protocol-relative (`//host`) and backslash tricks.
+  if (path.startsWith('//') || path.startsWith('/\\')) return false
+  return true
+}

@@ -83,6 +83,6 @@ test('branding, hero, contact details, and social links remain entity-editable s
   if (!social || !('fields' in social)) throw new TypeError('Social settings must be a group')
   assert.deepEqual(
     social.fields.filter((field) => 'name' in field).map((field) => field.name),
-    ['facebookUrl', 'xUrl', 'youtubeUrl'],
+    ['facebookUrl', 'instagramUrl', 'xUrl', 'threadsUrl', 'snapchatUrl', 'youtubeUrl', 'linkedinUrl', 'tiktokUrl'],
   )
 })

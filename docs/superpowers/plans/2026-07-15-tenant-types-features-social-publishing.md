@@ -4,6 +4,23 @@ Date: 2026-07-15
 Baseline commit: `7196283` (`feat(cms): add tenant entitlements and migrate article blocks`)
 Implementation model: `zai-coding-plan/glm-5.2` through `.agents/skills/opencode-delegate`
 
+## Handoff status
+
+- Safe baseline commits already exist:
+  - `7196283` — tenant setting entitlements and Article legacy-field migration.
+  - `11c9d1c` — this detailed implementation plan.
+- A delegated Task A run was interrupted. It left an **uncommitted and untrusted partial
+  implementation** in the working tree, including Tenant Type collection/config changes, a reset UI,
+  migration files, and tests. The next implementer must inspect the actual `git status` and diff,
+  retain correct work, fix incomplete/incorrect work, and prove Task A before starting Task B.
+- No delegated implementation after `11c9d1c` has been reviewed or accepted by the orchestrator.
+- Never store briefs, event logs, results, or other task data inside `.git`. Use the operating-system
+  temporary directory for ephemeral artifacts and delete them after use.
+- Do not run migrations against `cms/cms.db`. Migration work and rehearsal must use scratch databases
+  or verified temporary copies.
+- The directly executable handoff prompt is the companion document:
+  `docs/superpowers/plans/2026-07-15-opencode-sequential-handoff.md`.
+
 ## 1. Objective and scope
 
 Implement the following as one coherent, migration-safe CMS capability:

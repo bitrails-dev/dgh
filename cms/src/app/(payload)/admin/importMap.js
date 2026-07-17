@@ -1,3 +1,6 @@
+import { default as default_1e18f0a27adaaaa2b38cd0539a48a6a4 } from '../../../../src/admin/ApplyTypeTemplate'
+import { default as default_a73e2fdf9a4791b27024184de18ac534 } from '../../../../src/admin/ResetTenantFeatures'
+import { default as default_e99d0aed9dfc890bd50df9ea9a4ebf2f } from '../../../../src/admin/SocialConnectionsPanel'
 import { WatchTenantCollection as WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
 import { TenantField as TenantField_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
 import { AssignTenantFieldTrigger as AssignTenantFieldTrigger_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
@@ -27,11 +30,15 @@ import { BoldFeatureClient as BoldFeatureClient_e70f5e05f09f93e00b997edb1ef0c864
 import { ItalicFeatureClient as ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864 } from '@payloadcms/richtext-lexical/client'
 import { default as default_7d8303051d68365404c3a3ef3adc496b } from '../../../../src/admin/LogoutNavLink'
 import { TenantSelector as TenantSelector_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
+import { default as default_1615d210c2544c5b192ded1d1e07144f } from '../../../../src/admin/InlineCreateDismissalProvider'
 import { TenantSelectionProvider as TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
 export const importMap = {
+  "/src/admin/ApplyTypeTemplate#default": default_1e18f0a27adaaaa2b38cd0539a48a6a4,
+  "/src/admin/ResetTenantFeatures#default": default_a73e2fdf9a4791b27024184de18ac534,
+  "/src/admin/SocialConnectionsPanel#default": default_e99d0aed9dfc890bd50df9ea9a4ebf2f,
   "@payloadcms/plugin-multi-tenant/client#WatchTenantCollection": WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a,
   "@payloadcms/plugin-multi-tenant/client#TenantField": TenantField_1d0591e3cf4f332c83a86da13a0de59a,
   "@payloadcms/plugin-multi-tenant/client#AssignTenantFieldTrigger": AssignTenantFieldTrigger_1d0591e3cf4f332c83a86da13a0de59a,
@@ -61,6 +68,7 @@ export const importMap = {
   "@payloadcms/richtext-lexical/client#ItalicFeatureClient": ItalicFeatureClient_e70f5e05f09f93e00b997edb1ef0c864,
   "/src/admin/LogoutNavLink#default": default_7d8303051d68365404c3a3ef3adc496b,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelector": TenantSelector_d6d5f193a167989e2ee7d14202901e62,
+  "/src/admin/InlineCreateDismissalProvider#default": default_1615d210c2544c5b192ded1d1e07144f,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelectionProvider": TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }
