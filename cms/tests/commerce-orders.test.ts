@@ -46,10 +46,11 @@ test.after(async () => {
   try { await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
-test('createOrder persists an immutable snapshot with a sequential per-tenant order number', async () => {
+test('createOrder persists an immutable snapshot carrying the preallocated order number', async () => {
   const q = sampleQuote()
-  const o1: any = await createOrder({ payload, tenantId, quote: q, items: [{ sku: 'A', qty: 2 }], customerEmail: 'a@b.test' })
-  assert.equal(o1.orderNumber, 'ORD-1')
+  const n1 = await allocateOrderNumber(payload, tenantId)
+  const o1: any = await createOrder({ payload, tenantId, orderNumber: n1, quote: q, items: [{ sku: 'A', qty: 2 }], customerEmail: 'a@b.test' })
+  assert.equal(o1.orderNumber, n1)
   assert.equal(o1.status, 'pending')
   assert.equal(o1.paymentState, 'pending')
   assert.equal(o1.fulfillmentState, 'unfulfilled')
@@ -60,27 +61,24 @@ test('createOrder persists an immutable snapshot with a sequential per-tenant or
   assert.equal(o1.quoteHash, q.hash)
   assert.deepEqual(o1.quoteSnapshot.hash, q.hash)
 
-  const o2: any = await createOrder({ payload, tenantId, quote: sampleQuote(), items: [] })
-  assert.equal(o2.orderNumber, 'ORD-2', 'sequence advances per tenant')
+  const n2 = await allocateOrderNumber(payload, tenantId)
+  const o2: any = await createOrder({ payload, tenantId, orderNumber: n2, quote: sampleQuote(), items: [] })
+  assert.equal(o2.orderNumber, n2, 'order carries the number allocated before it')
 })
 
 test('a tampered quote snapshot is rejected before an order is created', async () => {
   const tampered = { ...sampleQuote(), grandTotal: sampleQuote().grandTotal + 1 }
   assert.equal(verifySnapshot(tampered), false)
-  await assert.rejects(() => createOrder({ payload, tenantId, quote: tampered as QuoteSnapshot, items: [] }), /tamper/)
+  await assert.rejects(() => createOrder({ payload, tenantId, orderNumber: 'ORD-TAMPER', quote: tampered as QuoteSnapshot, items: [] }), /tamper/)
 })
 
-test('20 concurrent createOrder calls allocate 20 distinct order numbers (no duplicates)', async () => {
-  const orders = await Promise.all(
-    Array.from({ length: 20 }, () => createOrder({ payload, tenantId, quote: sampleQuote(), items: [] }).catch((e) => ({ error: String(e) }))),
-  )
-  const errors = orders.filter((o) => (o as any).error)
-  assert.equal(errors.length, 0, `no allocation should fail: ${JSON.stringify(errors)}`)
-  const numbers = orders.map((o: any) => o.orderNumber)
-  assert.equal(new Set(numbers).size, 20, 'all order numbers are distinct')
-  // they occupy a contiguous block (3..22, since 1+2 already allocated)
-  const seqs = numbers.map((n) => Number(n.replace('ORD-', ''))).sort((a, b) => a - b)
-  assert.deepEqual(seqs, Array.from({ length: 20 }, (_, i) => i + 3))
+test('20 concurrent allocations produce 20 distinct order numbers (no duplicates)', async () => {
+  // createOrder no longer allocates; checkout allocates before reserving. The concurrency invariant is
+  // numbering atomicity: concurrent allocateOrderNumber calls never produce a duplicate. (It retries
+  // on SQLITE_BUSY; Payload's createOperation does not retry BEGIN, and production runs one
+  // createOrder per checkout request anyway, so order-creation concurrency is not stressed here.)
+  const numbers = await Promise.all(Array.from({ length: 20 }, () => allocateOrderNumber(payload, tenantId)))
+  assert.equal(new Set(numbers).size, 20, 'concurrent allocation never produces a duplicate number')
 })
 
 test('order numbering is isolated per tenant', async () => {

@@ -10,9 +10,10 @@
 // writes, so N concurrent reserves for a single unit award exactly one winner; the rest read
 // rowsAffected = 0 and get INSUFFICIENT_STOCK. No application-level lock is needed.
 //
-// stock_reservations carries a partial unique index (tenant, level, cart_token) WHERE status='active'
-// so a re-reserve for the same cart+level is idempotent. Movement tables are append-only at the API
-// layer; only this module writes them (overrideAccess).
+// stock_reservations carries a partial unique index (tenant, level, order_ref) WHERE status='active'
+// so a re-reserve for the same order+level is idempotent (exact sku+qty match, else CONFLICT). The
+// browser never sees order_ref; checkout always sets it (cart_token stays for audit only). Movement
+// tables are append-only at the API layer; only this module writes them (overrideAccess).
 
 import { sql } from '@payloadcms/db-sqlite'
 import type { Payload } from 'payload'
@@ -61,7 +62,7 @@ const requirePositiveInt = (q: number): void => {
 // --- reservation --------------------------------------------------------------------------
 
 export type ReserveOk = { ok: true; reservationId: number; levelId: number }
-export type ReserveErr = { ok: false; code: 'NOT_FOUND' | 'INSUFFICIENT_STOCK' }
+export type ReserveErr = { ok: false; code: 'NOT_FOUND' | 'INSUFFICIENT_STOCK' | 'CONFLICT' }
 export type ReserveResult = ReserveOk | ReserveErr
 
 export interface ReserveInput {
@@ -71,6 +72,10 @@ export interface ReserveInput {
   sku: string
   quantity: number
   cartToken: string
+  // Order-scoped identity. When set (checkout always sets it), reserve is idempotent on an exact
+  // (order, level, sku, quantity) match and returns CONFLICT on a mismatch (changed quantity) —
+  // closing C-02. When unset, a fresh reservation is created (legacy / direct test calls).
+  orderRef?: string
   ttlMs?: number
   actor?: string
   source?: string
@@ -79,6 +84,7 @@ export interface ReserveInput {
 export async function reserve(input: ReserveInput): Promise<ReserveResult> {
   const { payload, tenantId, locationId, sku, quantity, cartToken } = input
   requirePositiveInt(quantity)
+  const orderRef = input.orderRef ?? null
   const ttl = input.ttlMs ?? DEFAULT_RESERVATION_TTL_MS
   const expiresAt = new Date(Date.now() + ttl).toISOString()
   const actor = input.actor ?? null
@@ -91,13 +97,22 @@ export async function reserve(input: ReserveInput): Promise<ReserveResult> {
     if (!level) return { ok: false, code: 'NOT_FOUND' } as const
     const levelId = toId(level.id)
 
-    // Idempotent re-reserve: an active hold for this cart+level already exists (e.g. page reload
-    // mid-checkout). Return it without re-incrementing reserved. Changing a cart's quantity requires
-    // releaseCart + reserve, not a second reserve with a different quantity.
-    const existing = await tx.run(sql`SELECT \`id\` FROM \`stock_reservations\`
-      WHERE \`tenant_id\` = ${tenantId} AND \`level_id\` = ${levelId} AND \`cart_token\` = ${cartToken}
-        AND \`status\` = 'active' LIMIT 1`)
-    if (existing.rows[0]) return { ok: true, reservationId: toId(existing.rows[0].id), levelId } as const
+    // Order-scoped idempotency (C-02): when an orderRef is given and an active hold already exists for
+    // this (tenant, level, order), return it unchanged ONLY on an exact sku+quantity match. A mismatch
+    // (the cart's quantity changed) is a CONFLICT that changes no counters — the caller must release
+    // and re-reserve. Without an orderRef (legacy / direct test calls) this check is skipped.
+    if (orderRef !== null) {
+      const existing = await tx.run(sql`SELECT \`id\`, \`sku\`, \`quantity\` FROM \`stock_reservations\`
+        WHERE \`tenant_id\` = ${tenantId} AND \`level_id\` = ${levelId} AND \`order_ref\` = ${orderRef}
+          AND \`status\` = 'active' LIMIT 1`)
+      const ex = existing.rows[0]
+      if (ex) {
+        if (toId(ex.quantity) === quantity && String(ex.sku) === sku) {
+          return { ok: true, reservationId: toId(ex.id), levelId } as const
+        }
+        return { ok: false, code: 'CONFLICT' } as const
+      }
+    }
 
     // Atomic oversell guard.
     const upd = await tx.run(sql`UPDATE \`inventory_levels\` SET \`reserved\` = \`reserved\` + ${quantity}
@@ -105,8 +120,8 @@ export async function reserve(input: ReserveInput): Promise<ReserveResult> {
     if (upd.rowsAffected === 0) return { ok: false, code: 'INSUFFICIENT_STOCK' } as const
 
     const ins = await tx.run(sql`INSERT INTO \`stock_reservations\`
-      (\`level_id\`, \`sku\`, \`quantity\`, \`cart_token\`, \`status\`, \`expires_at\`, \`source\`, \`tenant_id\`)
-      VALUES (${levelId}, ${sku}, ${quantity}, ${cartToken}, 'active', ${expiresAt}, ${source}, ${tenantId})`)
+      (\`level_id\`, \`sku\`, \`quantity\`, \`cart_token\`, \`status\`, \`expires_at\`, \`order_ref\`, \`source\`, \`tenant_id\`)
+      VALUES (${levelId}, ${sku}, ${quantity}, ${cartToken}, 'active', ${expiresAt}, ${orderRef}, ${source}, ${tenantId})`)
     const reservationId = toId(ins.lastInsertRowid)
 
     await tx.run(sql`INSERT INTO \`stock_movements\`
@@ -215,20 +230,19 @@ export async function releaseCart(input: {
   })
 }
 
-// Commit every active reservation in a cart — consume stock (on_hand down, reserved down), mark the
-// reservations committed, write commit movements. Called when an order's payment is captured so a
-// paid order actually consumes its reserved inventory. Atomic + idempotent: only `active`
-// reservations are selected, so re-running after a commit is a no-op.
-export async function commitCart(input: {
+// Commit every active reservation belonging to an ORDER — the capture-side counterpart to the
+// order-scoped reserve. Closing C-01: committing one order consumes only that order's reservations,
+// even when another order shares the cart token. Atomic + idempotent (only `active` rows are selected,
+// so a re-run after commit is a no-op).
+export async function commitOrder(input: {
   payload: Payload
   tenantId: number | string
-  cartToken: string
-  orderRef?: string
+  orderNumber: string
   actor?: string
 }): Promise<{ committed: number }> {
   return runTx(input.payload, async (tx) => {
     const rows = await tx.run(sql`SELECT \`id\`, \`level_id\`, \`quantity\` FROM \`stock_reservations\`
-      WHERE \`tenant_id\` = ${input.tenantId} AND \`cart_token\` = ${input.cartToken} AND \`status\` = 'active'`)
+      WHERE \`tenant_id\` = ${input.tenantId} AND \`order_ref\` = ${input.orderNumber} AND \`status\` = 'active'`)
     let committed = 0
     for (const row of rows.rows) {
       const reservationId = toId(row.id)
@@ -240,13 +254,39 @@ export async function commitCart(input: {
       if (upd.rowsAffected === 0) continue
       const after = await tx.run(sql`SELECT \`on_hand\` FROM \`inventory_levels\` WHERE \`id\` = ${levelId}`)
       const resultingOnHand = toId((after.rows[0] ?? {}).on_hand ?? 0)
-      await tx.run(sql`UPDATE \`stock_reservations\` SET \`status\` = 'committed', \`order_ref\` = ${input.orderRef ?? null} WHERE \`id\` = ${reservationId}`)
+      await tx.run(sql`UPDATE \`stock_reservations\` SET \`status\` = 'committed' WHERE \`id\` = ${reservationId}`)
       await tx.run(sql`INSERT INTO \`stock_movements\`
         (\`level_id\`, \`type\`, \`quantity\`, \`resulting_on_hand\`, \`reason\`, \`reservation_id\`, \`order_ref\`, \`actor\`, \`tenant_id\`)
-        VALUES (${levelId}, 'commit', ${-qty}, ${resultingOnHand}, ${'commit'}, ${reservationId}, ${input.orderRef ?? null}, ${input.actor ?? null}, ${input.tenantId})`)
+        VALUES (${levelId}, 'commit', ${-qty}, ${resultingOnHand}, ${'commit'}, ${reservationId}, ${input.orderNumber}, ${input.actor ?? null}, ${input.tenantId})`)
       committed += 1
     }
     return { committed }
+  })
+}
+
+// Release every active reservation belonging to an ORDER (checkout compensation / unpaid-order
+// release). Order-scoped, so releasing one order never releases another order's reservation (C-01).
+export async function releaseOrder(input: {
+  payload: Payload
+  tenantId: number | string
+  orderNumber: string
+  reason?: string
+  actor?: string
+}): Promise<{ released: number }> {
+  return runTx(input.payload, async (tx) => {
+    const rows = await tx.run(sql`SELECT \`id\` FROM \`stock_reservations\`
+      WHERE \`tenant_id\` = ${input.tenantId} AND \`order_ref\` = ${input.orderNumber} AND \`status\` = 'active'`)
+    let released = 0
+    for (const row of rows.rows) {
+      const r = await settleReservation(tx, 'released', {
+        tenantId: input.tenantId,
+        reservationId: toId(row.id),
+        reason: input.reason,
+        actor: input.actor,
+      })
+      if (r.ok && !r.idempotent) released += 1
+    }
+    return { released }
   })
 }
 

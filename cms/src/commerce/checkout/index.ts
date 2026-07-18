@@ -9,8 +9,9 @@
 import type { Payload } from 'payload'
 import { money } from '../money'
 import { quote, type QuoteSnapshot } from '../pricing'
-import { commitCart, releaseCart, reserve } from '../inventory'
+import { commitOrder, releaseOrder, reserve } from '../inventory'
 import { createOrder } from '../orders/create'
+import { allocateOrderNumber } from '../orders/numbering'
 import { resolvePricedLines } from '../store/shared'
 import type { PaymentState } from '../payments/state'
 
@@ -40,11 +41,36 @@ export type CheckoutResult =
   | { ok: true; order: unknown; quote: QuoteSnapshot; reserved: number }
   | { ok: false; code: 'PRODUCT_NOT_FOUND' | 'INSUFFICIENT_STOCK' | 'TAMPER'; detail?: unknown }
 
-export async function checkout(input: CheckoutInput): Promise<CheckoutResult> {
-  const { payload, tenantId, cartToken, lines, locationId, currency, taxMode } = input
+// Per-line / per-order ceilings (plan §13.4). Lines are normalized — SKUs trimmed and duplicate SKUs
+// summed with overflow + ceiling checks — before any product lookup or reservation, so a cart never
+// reserves the wrong quantity (C-02).
+const MAX_LINE_QUANTITY = 999
+const MAX_LINES_PER_ORDER = 100
 
-  // 1. Resolve products (server-authoritative prices) via the shared resolver — base sku OR variant
-  // sku — so a variant sku is the single key into both pricing and inventory.
+function normalizeLines(lines: CheckoutLine[]): CheckoutLine[] {
+  if (!Array.isArray(lines) || lines.length === 0) throw new Error('checkout requires at least one line')
+  if (lines.length > MAX_LINES_PER_ORDER) throw new Error(`checkout exceeds the per-order line ceiling (${MAX_LINES_PER_ORDER})`)
+  const sums = new Map<string, number>()
+  for (const l of lines) {
+    const sku = (l?.sku ?? '').toString().trim()
+    if (!sku) throw new Error('checkout line has a blank SKU')
+    if (!Number.isInteger(l.quantity) || l.quantity < 1) throw new Error(`checkout line quantity must be a positive integer, got ${l.quantity}`)
+    const next = (sums.get(sku) ?? 0) + l.quantity
+    if (!Number.isSafeInteger(next) || next > MAX_LINE_QUANTITY) throw new Error(`checkout line quantity for "${sku}" exceeds the ceiling (${MAX_LINE_QUANTITY})`)
+    sums.set(sku, next)
+  }
+  return Array.from(sums, ([sku, quantity]) => ({ sku, quantity }))
+}
+
+export async function checkout(input: CheckoutInput): Promise<CheckoutResult> {
+  const { payload, tenantId, cartToken, locationId, currency, taxMode } = input
+
+  // 1. Normalize + validate lines before any product lookup: trim SKU, sum duplicates, reject blank
+  //    SKUs / non-integer / sub-1 quantities / over-ceiling totals (C-02).
+  const lines = normalizeLines(input.lines)
+
+  // 2. Resolve products (server-authoritative prices) via the shared resolver — base sku OR variant
+  //    sku — so a variant sku is the single key into both pricing and inventory.
   const resolved = await resolvePricedLines(payload, tenantId, lines, currency)
   if (!resolved.ok) return { ok: false, code: 'PRODUCT_NOT_FOUND', detail: resolved.detail }
   const products = new Map<string, { id: number | string; price: number; taxBps: number; name?: string }>()
@@ -52,21 +78,26 @@ export async function checkout(input: CheckoutInput): Promise<CheckoutResult> {
     products.set(l.sku, { id: l.productId, price: l.unitPrice.amount, taxBps: l.taxBps, name: l.name })
   }
 
-  // 2. Reserve inventory per line; release the whole cart on any shortage (no partial holds leak).
+  // 3. Allocate the order number exactly once, BEFORE any reservation. Order-number gaps after a
+  //    failed checkout are accepted; sequences are never decremented or reused (plan §5 commit 1.3).
+  const orderNumber = await allocateOrderNumber(payload, tenantId)
+
+  // 4. Reserve per normalized line, order-scoped. On any failure, compensate by releasing THIS order's
+  //    reservations; if compensation itself fails, the throw propagates (never a soft checkout error).
   let reserved = 0
   for (const line of lines) {
     const r = await reserve({
       payload, tenantId, locationId, sku: line.sku, quantity: line.quantity, cartToken,
-      ttlMs: input.reservationTtlMs,
+      orderRef: orderNumber, ttlMs: input.reservationTtlMs,
     })
     if (!r.ok) {
-      await releaseCart({ payload, tenantId, cartToken, reason: 'checkout_insufficient' }).catch(() => {})
-      return { ok: false, code: 'INSUFFICIENT_STOCK', detail: { sku: line.sku } }
+      await releaseOrder({ payload, tenantId, orderNumber, reason: r.code === 'CONFLICT' ? 'reserve_conflict' : 'checkout_insufficient' })
+      return { ok: false, code: 'INSUFFICIENT_STOCK', detail: { sku: line.sku, reason: r.code } }
     }
     reserved += 1
   }
 
-  // 3. Server-side quote from resolved product prices.
+  // 5. Server-side quote from resolved product prices.
   const quoteLines = lines.map((l) => {
     const p = products.get(l.sku)!
     return { key: l.sku, sku: l.sku, quantity: l.quantity, unitPrice: money(p.price, currency), taxBps: p.taxBps }
@@ -81,26 +112,28 @@ export async function checkout(input: CheckoutInput): Promise<CheckoutResult> {
     giftCardTenders: (input.giftCardTenders ?? []).map((g) => money(g.amount, g.currency)),
   })
 
-  // 4. Create the order (tamper-checked snapshot + number). On any failure, release the reservation.
+  // 6. Create the order with the preallocated number (tamper-checked snapshot). On failure, release
+  //    the order's reservations.
   const items = lines.map((l) => {
     const p = products.get(l.sku)!
     return { sku: l.sku, name: p.name, quantity: l.quantity, unitPrice: p.price }
   })
   try {
     const order = await createOrder({
-      payload, tenantId, quote: q, items,
+      payload, tenantId, orderNumber, quote: q, items,
       customerEmail: input.customerEmail, customerPhone: input.customerPhone,
       cartToken, shippingAddress: input.shippingAddress, billingAddress: input.billingAddress,
     })
     return { ok: true, order, quote: q, reserved }
   } catch (err) {
-    await releaseCart({ payload, tenantId, cartToken, reason: 'order_create_failed' }).catch(() => {})
+    await releaseOrder({ payload, tenantId, orderNumber, reason: 'order_create_failed' })
     return { ok: false, code: 'TAMPER', detail: String(err) }
   }
 }
 
 // On payment capture, consume the order's reserved stock (closes the reserve→commit loop). Finds the
-// order by its per-tenant orderNumber and commits its cartToken reservation. Idempotent: a second
+// order by its per-tenant orderNumber, then commits ONLY that order's reservations (order-scoped —
+// never another order's reservations that happen to share a cart token; C-01). Idempotent: a second
 // call after commit finds no active reservations and commits nothing.
 export async function commitOrderInventory(input: {
   payload: Payload
@@ -114,9 +147,8 @@ export async function commitOrderInventory(input: {
     overrideAccess: true,
     limit: 1,
   })
-  const order = docs[0] as { cartToken?: string | null } | undefined
-  if (!order || !order.cartToken) return { committed: 0, found: false }
-  const { committed } = await commitCart({ payload, tenantId, cartToken: order.cartToken, orderRef: orderNumber })
+  if (!docs[0]) return { committed: 0, found: false }
+  const { committed } = await commitOrder({ payload, tenantId, orderNumber })
   return { committed, found: true }
 }
 

@@ -72,15 +72,18 @@ test('50 concurrent reservations against 5 units never oversell', async () => {
   assert.equal(active.totalDocs, 5, 'five active reservation rows')
 })
 
-test('re-reserving the same cart+level is idempotent and never double-counts', async () => {
+test('order-scoped reserve is idempotent on an exact match and CONFLICT on a mismatch (C-02)', async () => {
   const sku = nextSku()
   const level = await seedLevel(payload, tenantId, locationId, sku, 10)
-  const r1 = await reserve({ payload, tenantId, locationId, sku, quantity: 3, cartToken: 'dup-cart' })
-  const r2 = await reserve({ payload, tenantId, locationId, sku, quantity: 3, cartToken: 'dup-cart' })
+  const r1 = await reserve({ payload, tenantId, locationId, sku, quantity: 3, cartToken: 'dup-cart', orderRef: 'ORD-IDEM' })
+  const r2 = await reserve({ payload, tenantId, locationId, sku, quantity: 3, cartToken: 'dup-cart', orderRef: 'ORD-IDEM' })
   assert.ok(r1.ok && r2.ok)
-  if (r1.ok && r2.ok) assert.equal(r1.reservationId, r2.reservationId, 'same reservation returned')
-  const lvl = await readLevel(level)
-  assert.equal(lvl.reserved, 3, 'reserved counted once, not twice')
+  if (r1.ok && r2.ok) assert.equal(r1.reservationId, r2.reservationId, 'exact (order, level, sku, qty) match returns the same reservation')
+  assert.equal((await readLevel(level)).reserved, 3, 'reserved counted once, not twice')
+  // A different quantity for the same order+level is a CONFLICT that changes no counters.
+  const conflict = await reserve({ payload, tenantId, locationId, sku, quantity: 5, cartToken: 'dup-cart', orderRef: 'ORD-IDEM' })
+  assert.ok(!conflict.ok && (conflict as any).code === 'CONFLICT', 'mismatched quantity conflicts')
+  assert.equal((await readLevel(level)).reserved, 3, 'conflict changed no counters')
 })
 
 test('commit consumes on-hand and is idempotent on repeat', async () => {

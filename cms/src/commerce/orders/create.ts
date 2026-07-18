@@ -6,11 +6,13 @@
 import type { Payload } from 'payload'
 import type { QuoteSnapshot } from '../pricing'
 import { verifySnapshot } from '../pricing'
-import { allocateOrderNumber } from './numbering'
 
 export interface CreateOrderInput {
   payload: Payload
   tenantId: number | string
+  // Preallocated by checkout BEFORE any reservation (so reservations can be order-scoped); never
+  // allocated here. Sequences are append-only — gaps after a failed checkout are accepted.
+  orderNumber: string
   quote: QuoteSnapshot
   items: unknown
   customerEmail?: string
@@ -25,13 +27,12 @@ export async function createOrder(input: CreateOrderInput) {
   if (!verifySnapshot(input.quote)) {
     throw new Error('quote snapshot failed tamper verification')
   }
-  const orderNumber = await allocateOrderNumber(input.payload, input.tenantId)
   return input.payload.create({
     collection: 'orders',
     overrideAccess: true,
     data: {
       tenant: input.tenantId,
-      orderNumber,
+      orderNumber: input.orderNumber,
       cartToken: input.cartToken,
       customerEmail: input.customerEmail,
       customerPhone: input.customerPhone,
