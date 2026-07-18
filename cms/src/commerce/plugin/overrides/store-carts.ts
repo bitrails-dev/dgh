@@ -8,8 +8,7 @@
 // generated HTTP surface here. The exported operations remain available for Local API use.
 //
 // Extension fields (§3.7):
-//  - `selectedShippingMethod`: relationship to retained shipping-methods — DEFERRED to Wave C4 (see
-//    inline note below; `shipping-methods` does not exist until the C4 policy lane lands).
+//  - `selectedShippingMethod`: relationship to retained shipping-methods.
 //  - `promotionCodes`: normalized text array (max 10) — validated server-side against persisted
 //    promotions; never trusted from the client totals.
 //  - `giftCardTokenHash`: nullable text — HMAC of the applied gift-card code; the raw code is never
@@ -23,13 +22,13 @@ import type { CollectionOverride } from '@payloadcms/plugin-ecommerce/types'
 import { STORE_COLLECTION_SLUGS } from '../slugs'
 
 export const cartExtensionFields: Field[] = [
-  // `selectedShippingMethod` (relationship → `shipping-methods`, Plan §3.7) is DEFERRED to Wave C4.
-  // `shipping-methods` is a policy collection (Plan §3.10) created by the C4 policy lane, which runs
-  // AFTER B4. Payload's config sanitizer rejects a `relationTo` whose target is not a registered
-  // collection, so declaring the field here would break `generate:types` at B4. The C4 lane MUST
-  // re-add this field here — `{ name: 'selectedShippingMethod', type: 'relationship',
-  // relationTo: 'shipping-methods', label: { en: 'Selected shipping method', ar: 'طريقة الشحن المختارة' } }`
-  // — once it registers the shipping-methods collection.
+  {
+    name: 'selectedShippingMethod',
+    type: 'relationship',
+    // `shipping-methods` is the retained policy collection (Plan §3.10), registered in Wave C4.
+    relationTo: 'shipping-methods',
+    label: { en: 'Selected shipping method', ar: 'طريقة الشحن المختارة' },
+  },
   {
     name: 'promotionCodes',
     type: 'array',

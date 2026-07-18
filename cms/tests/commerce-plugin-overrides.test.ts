@@ -565,10 +565,7 @@ test('store-carts extension includes promotionCodes(maxRows 10) and giftCardToke
   assert.equal(promo.type, 'array')
   assert.equal(promo.maxRows, 10)
   assert.ok(byName.has('giftCardTokenHash'))
-  // `selectedShippingMethod` is deferred to Wave C4 (the `shipping-methods` policy collection lands
-  // in C4, after B4). It is intentionally absent from cartExtensionFields at B4; C4 re-adds the field
-  // and flips this assertion back to `assert.ok(byName.has('selectedShippingMethod'))`.
-  assert.equal(byName.has('selectedShippingMethod'), false)
+  assert.ok(byName.has('selectedShippingMethod'))
   assert.ok(byName.has('quoteVersion'))
 })
 

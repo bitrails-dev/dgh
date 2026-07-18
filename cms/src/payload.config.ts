@@ -63,6 +63,16 @@ import { overrideStoreCarts } from './commerce/plugin/overrides/store-carts'
 import { overrideStoreAddresses } from './commerce/plugin/overrides/store-addresses'
 import { overrideStoreOrders } from './commerce/plugin/overrides/store-orders'
 import { overrideStoreTransactions } from './commerce/plugin/overrides/store-transactions'
+// Plugin-first commerce policy collections (Wave C4) — tenant-scoped tax/shipping/promotion/gift-card
+// persistence backing the authoritative quoteCart (plan §3.10).
+import { TaxZones } from './commerce/policies/collections/TaxZones'
+import { TaxRates } from './commerce/policies/collections/TaxRates'
+import { ShippingZones } from './commerce/policies/collections/ShippingZones'
+import { ShippingMethods } from './commerce/policies/collections/ShippingMethods'
+import { Promotions } from './commerce/policies/collections/Promotions'
+import { PromotionRedemptions } from './commerce/policies/collections/PromotionRedemptions'
+import { GiftCards } from './commerce/policies/collections/GiftCards'
+import { GiftCardLedger } from './commerce/policies/collections/GiftCardLedger'
 // Side effect: registers every platform adapter (tier-1 real + tier-2 honest-deferred) into the
 // default registry, so each of the eight platforms resolves to a typed adapter with an explicit
 // outcome — no generic missing-adapter fallback.
@@ -119,6 +129,16 @@ export default buildConfig({
     Products,
     Carts,
     Customers,
+    // Plugin-first commerce policy collections (Wave C4): tenant-scoped tax/shipping/promotion/
+    // gift-card persistence backing the authoritative quoteCart (plan §3.10).
+    TaxZones,
+    TaxRates,
+    ShippingZones,
+    ShippingMethods,
+    Promotions,
+    PromotionRedemptions,
+    GiftCards,
+    GiftCardLedger,
   ],
   // HospitalSettings global retired: its fields now live per-tenant on the Tenants collection.
   globals: [],
@@ -231,6 +251,15 @@ export default buildConfig({
         'store-addresses': {},
         'store-orders': {},
         'store-transactions': {},
+        // Plugin-first commerce policy collections (Wave C4) — tenant-scoped.
+        'tax-zones': {},
+        'tax-rates': {},
+        'shipping-zones': {},
+        'shipping-methods': {},
+        promotions: {},
+        'promotion-redemptions': {},
+        'gift-cards': {},
+        'gift-card-ledger': {},
       },
       // Platform operators (roles includes super-admin) bypass tenant scoping and see all tenants.
       userHasAccessToAllTenants: (user) =>
