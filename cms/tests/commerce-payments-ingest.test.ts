@@ -45,7 +45,14 @@ test.before(async () => {
   settingsId = (settings as any).id
 })
 test.after(async () => {
-  try { await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
+  try {
+    // Root cause of the payments-ingest teardown flake: @payloadcms/drizzle's destroy() nulls
+    // `drizzle` but never closes the underlying @libsql/client native Sqlite3Client, which then
+    // intermittently access-violates (0xC0000005) at process exit on Windows. Close it explicitly
+    // first, while payload.db.drizzle still exists. Test-harness hygiene, not a Phase 1 logic change.
+    try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* best-effort native close */ }
+    await payload.destroy()
+  } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
 async function readSettings(tid: number | string) {
