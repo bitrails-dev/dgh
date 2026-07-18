@@ -199,14 +199,20 @@ export async function seedLegacyTransaction(db: DB, input: LegacyTransactionInpu
 // per tenant, which the test controls by using distinct emails).
 export async function seedLegacyCustomer(db: DB, input: LegacyCustomerInput): Promise<number> {
   const normalized = input.normalizedEmail ?? input.email.toLowerCase().trim()
+  // Post-B2 (Wave B2) `customers` is a Payload auth collection: the server-derived username
+  // `<tenantId>:<normalizedEmail>` (globally unique) replaces the dropped password_hash /
+  // password_salt / verified / verification_token_hash / reset_token_hash columns. Map the legacy
+  // input onto the auth columns so existing fixture callers (which pass passwordHash/passwordSalt)
+  // keep working unchanged.
+  const username = `${input.tenantId}:${normalized}`
   await db.run(sql`
     INSERT INTO \`customers\` (
-      \`email\`, \`normalized_email\`, \`name\`, \`phone\`,
-      \`password_hash\`, \`password_salt\`, \`verified\`,
-      \`verification_token_hash\`, \`reset_token_hash\`, \`status\`, \`tenant_id\`
+      \`email\`, \`normalized_email\`, \`name\`, \`phone\`, \`username\`,
+      \`salt\`, \`hash\`, \`_verified\`, \`_verificationtoken\`, \`reset_password_token\`,
+      \`status\`, \`tenant_id\`
     ) VALUES (
-      ${input.email}, ${normalized}, ${input.name ?? null}, ${input.phone ?? null},
-      ${input.passwordHash ?? null}, ${input.passwordSalt ?? null},
+      ${input.email}, ${normalized}, ${input.name ?? null}, ${input.phone ?? null}, ${username},
+      ${input.passwordSalt ?? null}, ${input.passwordHash ?? null},
       ${input.verified === true ? 1 : 0},
       ${input.verificationTokenHash ?? null}, ${input.resetTokenHash ?? null},
       ${input.status ?? 'active'}, ${input.tenantId}

@@ -29,7 +29,7 @@ const INTEGRATION_FILES = [
   'tests/commerce-orders.test.ts',
   'tests/commerce-payments-ingest.test.ts',
   'tests/commerce-state-enforcement.test.ts',
-  'tests/commerce-store-auth.test.ts',
+  'tests/commerce-customer-payload-auth.test.ts',
   'tests/commerce-store-cart.test.ts',
   'tests/commerce-store-catalog.test.ts',
   'tests/commerce-store-checkout.test.ts',

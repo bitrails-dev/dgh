@@ -28,27 +28,19 @@ test.after(async () => {
   try { try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* libsql native teardown fix (commit 1630a03) */ } await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
-test('customer email is server-normalized; duplicate normalized email per tenant is rejected', async () => {
-  const c1: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: 'Alice@Test.com', name: 'Alice', passwordHash: 'h', passwordSalt: 's' } as any })
-  assert.equal(c1.normalizedEmail, 'alice@test.com', 'email normalized server-side')
+test('customer username is server-derived; duplicate email per tenant is rejected, cross-tenant allowed', async () => {
+  // Payload-auth model (B2): username = `<tenantId>:<normalizedEmail>`, globally unique. Payload
+  // hashes the password via its auth strategy; the username is derived by a beforeChange hook.
+  const c1: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: 'Alice@Test.com', password: 'password123', name: 'Alice' } as any })
+  assert.equal(c1.username, `${tenantA}:alice@test.com`, 'username server-derived from tenant + normalized email')
 
-  // same tenant, same identity in different case/spacing -> rejected by the compound unique index
+  // same tenant, same identity (case/spacing differ) -> same username -> rejected by the unique index
   await assert.rejects(
-    () => payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: '  alice@test.com  ', name: 'Dup' } as any }),
+    () => payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: '  alice@test.com  ', password: 'password123' } as any }),
   )
-  // different tenant, same email -> allowed (tenant-local identity)
-  const c2: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantB, email: 'Alice@Test.com', name: 'Alice B' } as any })
+  // different tenant, same email -> different username -> allowed (tenant-local identity)
+  const c2: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantB, email: 'Alice@Test.com', password: 'password123', name: 'Alice B' } as any })
   assert.ok(c2.id !== c1.id, 'a different tenant may have the same email')
-})
-
-test('customer credentials persist and are read-only via field access (write-only config)', async () => {
-  // Field access.read = false on passwordHash/Salt hides them from any read; here we verify storage
-  // (system paths read them via overrideAccess). The hidden-from-client guarantee is config-enforced
-  // (same pattern proven in commerce-settings).
-  const c: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: 'secret@test.com', passwordHash: 'HASH', passwordSalt: 'SALT' } as any })
-  const priv: any = await payload.findByID({ collection: 'customers', id: c.id, overrideAccess: true })
-  assert.equal(priv.passwordHash, 'HASH', 'credentials persisted, retrievable by system paths')
-  assert.equal(priv.passwordSalt, 'SALT')
 })
 
 test('cart token is unique per tenant; items are stored as JSON', async () => {

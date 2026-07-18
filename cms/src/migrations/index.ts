@@ -17,6 +17,7 @@ import * as migration_20260717_100300_commerce_products from './20260717_100300_
 import * as migration_20260717_100400_commerce_carts_customers from './20260717_100400_commerce_carts_customers';
 import * as migration_20260717_100500_commerce_products_media_variants from './20260717_100500_commerce_products_media_variants';
 import * as migration_20260718_100000_commerce_order_scoped_reservations from './20260718_100000_commerce_order_scoped_reservations';
+import * as migration_20260718_200000_customers_payload_auth from './20260718_200000_customers_payload_auth';
 
 export const migrations = [
   {
@@ -77,7 +78,7 @@ export const migrations = [
   {
     up: migration_20260716_135203_social_oauth_pkce.up,
     down: migration_20260716_135203_social_oauth_pkce.down,
-    name: '20260716_135203_social_oauth_pkce'
+    name: '20260716_135203_social_oauth_pkce',
   },
   {
     up: migration_20260717_100000_commerce_inventory.up,
@@ -113,5 +114,10 @@ export const migrations = [
     up: migration_20260718_100000_commerce_order_scoped_reservations.up,
     down: migration_20260718_100000_commerce_order_scoped_reservations.down,
     name: '20260718_100000_commerce_order_scoped_reservations',
+  },
+  {
+    up: migration_20260718_200000_customers_payload_auth.up,
+    down: migration_20260718_200000_customers_payload_auth.down,
+    name: '20260718_200000_customers_payload_auth',
   },
 ];
