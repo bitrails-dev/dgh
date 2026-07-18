@@ -4,6 +4,7 @@ import { buildConfig } from 'payload'
 import { sqliteAdapter } from '@payloadcms/db-sqlite'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { multiTenantPlugin } from '@payloadcms/plugin-multi-tenant'
+import { ecommercePlugin, defaultCartItemMatcher } from '@payloadcms/plugin-ecommerce'
 import { en } from '@payloadcms/translations/languages/en'
 import { ar } from '@payloadcms/translations/languages/ar'
 
@@ -47,6 +48,21 @@ import { socialPublishTask } from './social/jobs'
 import { commerceWebhookEndpoints } from './commerce/payments/endpoints'
 import { commerceStoreEndpoints } from './commerce/store/endpoints'
 import { processPaymentEventTask } from './commerce/payments/job'
+// Plugin-first commerce (Wave B4). The ecommerce plugin owns base products/variants/carts/addresses/
+// orders/transactions under collision-free `store-*` slugs (plan §3.1). B1 override modules append our
+// extension fields + tenant hooks; B2 made `customers` Payload-auth; B4 wires the plugin into the config.
+import { STORE_COLLECTION_SLUGS } from './commerce/plugin/slugs'
+import { EGP } from './commerce/plugin/currency'
+import { commercePluginAccess } from './commerce/plugin/access'
+import { validateStoreSellable } from './commerce/plugin/validate-sellable'
+import { overrideStoreProducts } from './commerce/plugin/overrides/store-products'
+import { overrideStoreVariants } from './commerce/plugin/overrides/store-variants'
+import { overrideStoreVariantTypes } from './commerce/plugin/overrides/store-variant-types'
+import { overrideStoreVariantOptions } from './commerce/plugin/overrides/store-variant-options'
+import { overrideStoreCarts } from './commerce/plugin/overrides/store-carts'
+import { overrideStoreAddresses } from './commerce/plugin/overrides/store-addresses'
+import { overrideStoreOrders } from './commerce/plugin/overrides/store-orders'
+import { overrideStoreTransactions } from './commerce/plugin/overrides/store-transactions'
 // Side effect: registers every platform adapter (tier-1 real + tier-2 honest-deferred) into the
 // default registry, so each of the eight platforms resolves to a typed adapter with an explicit
 // outcome — no generic missing-adapter fallback.
@@ -140,6 +156,42 @@ export default buildConfig({
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: { outputFile: path.resolve(dirname, 'payload-types.ts') },
   plugins: [
+    // Order is fixed (plan §3.2): ecommerce FIRST so it appends the `store-*` collections to the
+    // incoming config, then multiTenantPlugin attaches tenant fields/access to those generated
+    // collections, then tenantFeatureAccessPlugin gates them behind the `commerce` feature. The
+    // commerce feature flag stays OFF for all tenants until the release gates pass (plan §0.11).
+    // Payment adapters (paymobAdapter/kashierAdapter) are Wave D — paymentMethods is empty for now.
+    ecommercePlugin({
+      access: commercePluginAccess,
+      addresses: {
+        supportedCountries: [{ label: 'Egypt', value: 'EG' }],
+        addressesCollectionOverride: overrideStoreAddresses,
+      },
+      carts: {
+        allowGuestCarts: true,
+        cartItemMatcher: defaultCartItemMatcher,
+        cartsCollectionOverride: overrideStoreCarts,
+      },
+      currencies: {
+        defaultCurrency: 'EGP',
+        supportedCurrencies: [EGP],
+      },
+      customers: { slug: 'customers' },
+      inventory: false,
+      orders: { ordersCollectionOverride: overrideStoreOrders },
+      payments: { paymentMethods: [] },
+      products: {
+        productsCollectionOverride: overrideStoreProducts,
+        validation: validateStoreSellable,
+        variants: {
+          variantsCollectionOverride: overrideStoreVariants,
+          variantTypesCollectionOverride: overrideStoreVariantTypes,
+          variantOptionsCollectionOverride: overrideStoreVariantOptions,
+        },
+      },
+      slugMap: STORE_COLLECTION_SLUGS,
+      transactions: { transactionsCollectionOverride: overrideStoreTransactions },
+    }),
     multiTenantPlugin({
       // Every content collection is scoped to a tenant (injects a required, indexed `tenant`
       // relationship). `icons` is intentionally omitted — it's a shared, platform-wide library.
@@ -167,6 +219,18 @@ export default buildConfig({
         products: {},
         carts: {},
         customers: {},
+        // Plugin-first commerce collections (Wave B4). The ecommerce plugin generates these `store-*`
+        // collections; multiTenantPlugin runs after it (see plugins order below) to attach the tenant
+        // relationship + tenant-scoped access. Legacy products/carts/orders/transactions remain
+        // registered above for read-only side-by-side migration until Wave F2.
+        'store-products': {},
+        'store-variants': {},
+        'store-variant-types': {},
+        'store-variant-options': {},
+        'store-carts': {},
+        'store-addresses': {},
+        'store-orders': {},
+        'store-transactions': {},
       },
       // Platform operators (roles includes super-admin) bypass tenant scoping and see all tenants.
       userHasAccessToAllTenants: (user) =>
