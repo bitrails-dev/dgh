@@ -36,6 +36,8 @@ const INTEGRATION_FILES = [
   'tests/commerce-store-quote.test.ts',
   'tests/commerce-webhook-endpoint.test.ts',
   'tests/commerce-migration-fixtures.test.ts',
+  'tests/commerce-migration-additive.test.ts',
+  'tests/commerce-inventory-adaptation.test.ts',
 ]
 
 const NATIVE_ACCESS_VIOLATION = 3221225477 // 0xC0000005 — Windows STATUS_ACCESS_VIOLATION
