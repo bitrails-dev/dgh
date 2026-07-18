@@ -264,3 +264,58 @@ test('idempotency: the same key on different tenants is independent', async () =
   assert.equal(b.status, 200)
   assert.notEqual(a.body.orderNumber, b.body.orderNumber, 'distinct orders in distinct tenants')
 })
+
+// === Phase 1 review fixes — defense in depth + fingerprint normalization stability.
+
+test('idempotency: a malformed key is rejected with 400 before any commerce work', async () => {
+  const r = await placeOrder(payload, tenantId, {
+    cartToken: 'C-BAD-KEY',
+    items: [{ sku: 'SKU-COD', quantity: 1 }],
+    customerEmail: 'x@y.z',
+    paymentMethod: 'cod',
+    idempotencyKey: 'not-a-uuid',
+  })
+  assert.equal(r.status, 400)
+  assert.equal(r.body.error, 'invalid_idempotency_key')
+  const { docs: badOrders } = await payload.find({
+    collection: 'orders',
+    where: { and: [{ tenant: { equals: tenantId } }, { checkoutKey: { equals: 'not-a-uuid' } }] },
+    overrideAccess: true,
+    limit: 10,
+  })
+  assert.equal(badOrders.length, 0, 'no order created from a malformed key')
+})
+
+test('idempotency: equivalent carts (duplicate SKU summed) replay identically under one key', async () => {
+  await seedLevel(payload, tenantId, locationId, 'SKU-NORM', 10)
+  await seedProduct(tenantId, 'SKU-NORM', 1000)
+  const key = '44444444-4444-4444-8444-444444444444'
+  // First submission: two lines for the same SKU. checkout() normalizes to one line (qty 3); the
+  // fingerprint must be computed over the SAME normalized form or a pre-summed replay would falsely 409.
+  const first = await placeOrder(payload, tenantId, {
+    cartToken: 'C-NORM',
+    items: [{ sku: 'SKU-NORM', quantity: 1 }, { sku: 'SKU-NORM', quantity: 2 }],
+    customerEmail: 'n@y.z',
+    paymentMethod: 'cod',
+    idempotencyKey: key,
+  })
+  assert.equal(first.status, 200)
+  // Same key, same logical cart expressed as one pre-summed line => same fingerprint => replay.
+  const second = await placeOrder(payload, tenantId, {
+    cartToken: 'C-NORM',
+    items: [{ sku: 'SKU-NORM', quantity: 3 }],
+    customerEmail: 'n@y.z',
+    paymentMethod: 'cod',
+    idempotencyKey: key,
+  })
+  assert.equal(second.status, 200)
+  assert.equal(second.body.orderNumber, first.body.orderNumber, 'replayed the same order')
+  assert.equal(second.body.replayed, true)
+  const { docs } = await payload.find({
+    collection: 'orders',
+    where: { and: [{ tenant: { equals: tenantId } }, { checkoutKey: { equals: key } }] },
+    overrideAccess: true,
+    limit: 10,
+  })
+  assert.equal(docs.length, 1, 'still one order — no duplicate from the equivalent replay')
+})

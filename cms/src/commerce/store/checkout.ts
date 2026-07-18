@@ -50,17 +50,37 @@ export function isUuidV4(key: string | undefined | null): key is string {
   return typeof key === 'string' && UUID_V4.test(key.trim())
 }
 
-// SHA-256 over the normalized checkout payload: sorted line sku+quantity, shipping + billing address,
-// and payment method. (Promotion codes, gift-card code hash and shipping method join the fingerprint
-// when they land in Phases 5/6.) Same fingerprint => same business request; a mismatch under one key => 409.
+// Deep-sort object keys, trim string leaves, and pass scalars through — so key-insertion order and
+// insignificant whitespace cannot flip the fingerprint. Arrays keep order (line order is normalized
+// separately by summing per SKU).
+function canonicalize(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonicalize)
+  if (v && typeof v === 'object') {
+    return Object.keys(v as Record<string, unknown>).sort().reduce<Record<string, unknown>>((acc, k) => {
+      acc[k] = canonicalize((v as Record<string, unknown>)[k])
+      return acc
+    }, {})
+  }
+  if (typeof v === 'string') return v.trim()
+  return v
+}
+
+// SHA-256 over the normalized checkout payload: duplicate SKUs summed to one quantity (matching
+// checkout()'s normalizeLines), lines sorted by SKU, addresses canonicalized, and payment method.
+// (Promotion codes, gift-card code hash and shipping method join the fingerprint in Phases 5/6.)
+// Same fingerprint => same business request; a mismatch under one key => 409.
 function checkoutFingerprint(input: PlaceOrderInput): string {
-  const items = input.items
-    .map((i) => ({ s: String(i.sku).trim(), q: i.quantity }))
-    .sort((a, b) => (a.s < b.s ? -1 : a.s > b.s ? 1 : 0))
+  const summed = new Map<string, number>()
+  for (const it of input.items) {
+    const sku = String(it.sku ?? '').trim()
+    if (!sku) continue
+    summed.set(sku, (summed.get(sku) ?? 0) + Number(it.quantity))
+  }
+  const items = [...summed.entries()].map(([s, q]) => ({ s, q })).sort((a, b) => (a.s < b.s ? -1 : a.s > b.s ? 1 : 0))
   const canonical = JSON.stringify({
     i: items,
-    s: input.shippingAddress ?? null,
-    b: input.billingAddress ?? null,
+    s: canonicalize(input.shippingAddress ?? null),
+    b: canonicalize(input.billingAddress ?? null),
     pm: input.paymentMethod,
   })
   return createHash('sha256').update(canonical).digest('hex')
@@ -78,13 +98,15 @@ async function findOrderByCheckoutKey(payload: Payload, tenantId: number | strin
     | undefined
 }
 
-// Replay an already-placed order (same key, same fingerprint), or 409 when the body changed.
+// Replay an already-placed order (same key, same fingerprint), or 409 when the body changed. A keyed
+// order always carries a fingerprint (written with the key), so a missing stored fingerprint means
+// corrupt/legacy state — fail closed rather than silently dedup an unknown body.
 function replayOrConflict(
   existing: { orderNumber: string; amountDue: number; currency: string; paymentState?: string; checkoutFingerprint?: string },
   fingerprint: string | undefined,
   currency: string,
 ): { status: number; body: Record<string, unknown> } {
-  if (fingerprint && existing.checkoutFingerprint && existing.checkoutFingerprint !== fingerprint) {
+  if (!existing.checkoutFingerprint || existing.checkoutFingerprint !== fingerprint) {
     return { status: 409, body: { error: 'idempotency_conflict' } }
   }
   return {
@@ -114,6 +136,11 @@ export async function placeOrder(
   input: PlaceOrderInput,
   opts?: { buildAdapter?: AdapterBuilder },
 ): Promise<{ status: number; body: Record<string, unknown> }> {
+  // Defense in depth (commit 1.4): a directly-called placeOrder rejects a malformed idempotency key
+  // before any commerce work, mirroring checkoutHandler's header validation.
+  if (input.idempotencyKey !== undefined && !isUuidV4(input.idempotencyKey)) {
+    return { status: 400, body: { error: 'invalid_idempotency_key' } }
+  }
   const settings = await loadCommerceSettings(payload, tenantId)
   if (!settings) return { status: 503, body: { error: 'commerce_not_configured' } }
 

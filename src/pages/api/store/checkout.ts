@@ -25,5 +25,7 @@ export const POST: APIRoute = async ({ locals, cookies, request, clientAddress }
     }
     headers["idempotency-key"] = idempotencyKey.trim();
   }
-  return cmsFetch(slug, `/checkout`, { method: "POST", headers, body: JSON.stringify({ ...body, cartToken }) });
+  // Strip any client-supplied body.idempotencyKey so the signed header is the only path (commit 1.4).
+  const { idempotencyKey: _omit, ...rest } = (body ?? {}) as Record<string, unknown>;
+  return cmsFetch(slug, `/checkout`, { method: "POST", headers, body: JSON.stringify({ ...rest, cartToken }) });
 };

@@ -16,6 +16,10 @@ const placing = ref(false);
 const placed = ref<{ orderNumber: string; method: string } | null>(null);
 const redirecting = ref(false);
 const error = ref("");
+// One RFC 4122 v4 idempotency key per in-flight checkout attempt (commit 1.4): reused across network
+// retries so a lost response cannot create a duplicate order; cleared after a definitive business
+// response so a genuine new submission mints a fresh key. Not template-reactive, so a plain let.
+let idempotencyKey: string | null = null;
 
 const form = reactive({
   email: "",
@@ -39,8 +43,7 @@ async function load() {
   }
 }
 
-// One RFC 4122 v4 idempotency key per submission (commit 1.4): a network retry within this call
-// reuses it; a new submission (after a completed or failed response) mints a fresh key.
+// RFC 4122 v4 generator. One key is minted per in-flight checkout attempt and reused on retry.
 function uuidV4(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   const b = (crypto as Crypto).getRandomValues(new Uint8Array(16));
@@ -54,7 +57,7 @@ async function submit() {
   placing.value = true;
   error.value = "";
   placed.value = null;
-  const idempotencyKey = uuidV4();
+  if (!idempotencyKey) idempotencyKey = uuidV4();
   try {
     const returnUrl = `${window.location.origin}${props.lang === "en" ? "/en" : ""}/checkout`;
     const r = await storeApi.checkout({
@@ -66,6 +69,10 @@ async function submit() {
       returnUrl,
       idempotencyKey,
     });
+    // An empty 2xx body is indeterminate (we don't know if the order was created) — treat it like a
+    // network failure: keep the key so a retry dedups, instead of clearing it and risking a duplicate.
+    if (!r) throw new Error("empty_checkout_response");
+    idempotencyKey = null; // terminal success → next submission mints a fresh key
     if (r.checkoutUrl) {
       redirecting.value = true;
       window.location.href = r.checkoutUrl;
@@ -73,6 +80,9 @@ async function submit() {
     }
     placed.value = { orderNumber: r.orderNumber, method: form.paymentMethod };
   } catch (e: any) {
+    // A business response (HTTP error carrying a body) is terminal → clear the key. A network failure
+    // (no response) is indeterminate → KEEP the key so a retry dedups against any order that was made.
+    if (e?.body) idempotencyKey = null;
     error.value = e?.body?.error === "insufficient_stock" ? s.checkout.insufficientStock : e?.body?.error || s.checkout.error;
   } finally {
     placing.value = false;
