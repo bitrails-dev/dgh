@@ -30,7 +30,7 @@ test.before(async () => {
   locationId = await seedLocation(payload, tenantId)
 })
 test.after(async () => {
-  try { await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
+  try { try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* libsql native teardown fix (commit 1630a03) */ } await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
 async function seedProduct(sku: string, price: number, taxBps = 0) {

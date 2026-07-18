@@ -25,7 +25,7 @@ test.before(async () => {
   ;({ tenantId: tenantB } = await seedTenant(payload))
 })
 test.after(async () => {
-  try { await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
+  try { try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* libsql native teardown fix (commit 1630a03) */ } await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
 test('customer email is server-normalized; duplicate normalized email per tenant is rejected', async () => {

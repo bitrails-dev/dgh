@@ -81,6 +81,10 @@ test.before(async () => {
 })
 test.after(async () => {
   try {
+    // libsql native client teardown fix (see commit 1630a03): @payloadcms/drizzle's destroy() never
+    // closes the underlying @libsql/client Sqlite3Client, which intermittently access-violates
+    // (0xC0000005) at process exit on Windows. Close it explicitly first.
+    try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* */ }
     await payload.destroy()
   } finally {
     try {
