@@ -44,7 +44,13 @@ export const storeApi = {
     billingAddress?: unknown;
     returnUrl?: string;
     locationId?: string;
-  }) => req<any>(`/checkout`, { method: "POST", body: JSON.stringify(payload) }),
+    idempotencyKey?: string;
+  }) =>
+    req<any>(`/checkout`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: payload.idempotencyKey ? { "idempotency-key": payload.idempotencyKey } : undefined,
+    }),
   register: (payload: { email: string; password: string; name?: string; phone?: string }) =>
     req<{ customer: any; expiresIn?: number }>(`/auth/register`, { method: "POST", body: JSON.stringify(payload) }),
   login: (payload: { email: string; password: string }) =>

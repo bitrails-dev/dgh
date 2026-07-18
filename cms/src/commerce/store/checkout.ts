@@ -11,6 +11,7 @@ import { checkout } from '../checkout'
 import { money } from '../money'
 import { loadGatewayConfig, type GatewayProvider } from '../payments/settings'
 import { buildPaymentAdapter, type AdapterBuilder } from '../payments/adapters/registry'
+import { createHash } from 'node:crypto'
 import { loadCommerceSettings, readJsonBody, resolveStoreTenant } from './shared'
 
 export interface PlaceOrderItem {
@@ -21,6 +22,9 @@ export interface PlaceOrderItem {
 export interface PlaceOrderInput {
   cartToken: string
   items: PlaceOrderItem[]
+  // RFC 4122 UUID v4 from the browser's Idempotency-Key header (commit 1.4). When present, a replay
+  // returns the already-created order; a different normalized payload returns 409.
+  idempotencyKey?: string
   customerEmail?: string
   customerPhone?: string
   shippingAddress?: unknown
@@ -38,6 +42,61 @@ const checkoutFailure = (
 ): { status: number; body: Record<string, unknown> } => {
   const status = code === 'INSUFFICIENT_STOCK' ? 409 : code === 'PRODUCT_NOT_FOUND' ? 422 : 500
   return { status, body: { error: code, detail } }
+}
+
+// RFC 4122 v4 — the only key shape accepted (commit 1.4). Rejects malformed keys before any work.
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+export function isUuidV4(key: string | undefined | null): key is string {
+  return typeof key === 'string' && UUID_V4.test(key.trim())
+}
+
+// SHA-256 over the normalized checkout payload: sorted line sku+quantity, shipping + billing address,
+// and payment method. (Promotion codes, gift-card code hash and shipping method join the fingerprint
+// when they land in Phases 5/6.) Same fingerprint => same business request; a mismatch under one key => 409.
+function checkoutFingerprint(input: PlaceOrderInput): string {
+  const items = input.items
+    .map((i) => ({ s: String(i.sku).trim(), q: i.quantity }))
+    .sort((a, b) => (a.s < b.s ? -1 : a.s > b.s ? 1 : 0))
+  const canonical = JSON.stringify({
+    i: items,
+    s: input.shippingAddress ?? null,
+    b: input.billingAddress ?? null,
+    pm: input.paymentMethod,
+  })
+  return createHash('sha256').update(canonical).digest('hex')
+}
+
+async function findOrderByCheckoutKey(payload: Payload, tenantId: number | string, checkoutKey: string) {
+  const { docs } = await payload.find({
+    collection: 'orders',
+    where: { and: [{ tenant: { equals: tenantId } }, { checkoutKey: { equals: checkoutKey } }] },
+    overrideAccess: true,
+    limit: 1,
+  })
+  return docs[0] as
+    | { orderNumber: string; amountDue: number; currency: string; paymentState?: string; checkoutFingerprint?: string }
+    | undefined
+}
+
+// Replay an already-placed order (same key, same fingerprint), or 409 when the body changed.
+function replayOrConflict(
+  existing: { orderNumber: string; amountDue: number; currency: string; paymentState?: string; checkoutFingerprint?: string },
+  fingerprint: string | undefined,
+  currency: string,
+): { status: number; body: Record<string, unknown> } {
+  if (fingerprint && existing.checkoutFingerprint && existing.checkoutFingerprint !== fingerprint) {
+    return { status: 409, body: { error: 'idempotency_conflict' } }
+  }
+  return {
+    status: 200,
+    body: {
+      orderNumber: existing.orderNumber,
+      amountDue: existing.amountDue,
+      currency: existing.currency || currency,
+      paymentState: existing.paymentState ?? 'pending',
+      replayed: true,
+    },
+  }
 }
 
 // Unified place-order orchestration:
@@ -72,10 +131,21 @@ export async function placeOrder(
     locationId = loc.id
   }
 
+  // Idempotency (commit 1.4): if a key is present, replay an already-placed order before reserving
+  // any stock, and reject a same-key/different-body replay with 409.
+  const idempotencyKey = isUuidV4(input.idempotencyKey) ? input.idempotencyKey.trim() : undefined
+  const fingerprint = idempotencyKey ? checkoutFingerprint(input) : undefined
+  if (idempotencyKey) {
+    const existing = await findOrderByCheckoutKey(payload, tenantId, idempotencyKey)
+    if (existing) return replayOrConflict(existing, fingerprint, settings.currency)
+  }
+
   const result = await checkout({
     payload,
     tenantId,
     cartToken: input.cartToken,
+    checkoutKey: idempotencyKey,
+    checkoutFingerprint: fingerprint,
     lines: input.items,
     locationId,
     currency: settings.currency,
@@ -85,7 +155,16 @@ export async function placeOrder(
     shippingAddress: input.shippingAddress,
     billingAddress: input.billingAddress,
   })
-  if (!result.ok) return checkoutFailure(result.code, result.detail)
+  if (!result.ok) {
+    // A concurrent same-key request may have won the (tenant_id, checkout_key) race: our reservation
+    // was compensated by releaseOrder inside checkout and createOrder surfaced as a TAMPER failure.
+    // Re-read the winner and replay it (or 409 if its body differs) instead of returning an error.
+    if (idempotencyKey) {
+      const existing = await findOrderByCheckoutKey(payload, tenantId, idempotencyKey)
+      if (existing) return replayOrConflict(existing, fingerprint, settings.currency)
+    }
+    return checkoutFailure(result.code, result.detail)
+  }
 
   const orderNumber = (result.order as { orderNumber: string }).orderNumber
   const amountDue = result.quote.amountDue
@@ -146,7 +225,16 @@ const checkoutHandler = async (req: PayloadRequest): Promise<Response> => {
   const body = await readJsonBody(req)
   if (!body) return Response.json({ error: 'invalid_body' }, { status: 400 })
 
-  const { status, body: resp } = await placeOrder(req.payload, tenant.id, body as PlaceOrderInput)
+  // Idempotency-Key (commit 1.4): accept the header (or body fallback for direct API use); reject a
+  // malformed key with 400 before any commerce work.
+  const idempotencyKey = req.headers.get('idempotency-key') || (body as { idempotencyKey?: string }).idempotencyKey
+  if (idempotencyKey !== undefined && !isUuidV4(idempotencyKey)) {
+    return Response.json({ error: 'invalid_idempotency_key' }, { status: 400 })
+  }
+  const { status, body: resp } = await placeOrder(req.payload, tenant.id, {
+    ...(body as PlaceOrderInput),
+    idempotencyKey: idempotencyKey || undefined,
+  })
   return Response.json(resp, { status })
 }
 

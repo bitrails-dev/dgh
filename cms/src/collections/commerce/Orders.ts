@@ -56,6 +56,8 @@ export const Orders: CollectionConfig = {
   fields: [
     { name: 'orderNumber', type: 'text', required: true, index: true, label: { ar: 'رقم الطلب', en: 'Order number' } },
     { name: 'cartToken', type: 'text', index: true, label: { ar: 'رمز السلة', en: 'Cart token' }, admin: { description: 'Links the order to its stock reservation; committed on payment capture.' } },
+    { name: 'checkoutKey', type: 'text', index: true, label: { ar: 'مفتاح المعاملة', en: 'Checkout key' }, admin: { description: 'Idempotency key (RFC 4122 UUID v4). Unique per tenant (partial unique index) — a replay returns the same order.' } },
+    { name: 'checkoutFingerprint', type: 'text', label: { ar: 'بصمة المعاملة', en: 'Checkout fingerprint' }, admin: { description: 'SHA-256 of the normalized checkout payload — a replay must match or the API returns 409.' } },
     { name: 'customerEmail', type: 'text', index: true, label: { ar: 'بريد العميل', en: 'Customer email' } },
     { name: 'customerPhone', type: 'text', label: { ar: 'هاتف العميل', en: 'Customer phone' } },
     { name: 'status', type: 'select', required: true, defaultValue: 'pending', options: opts(ORDER_STATES), label: { ar: 'حالة الطلب', en: 'Order status' } },

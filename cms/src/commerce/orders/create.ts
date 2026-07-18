@@ -13,6 +13,10 @@ export interface CreateOrderInput {
   // Preallocated by checkout BEFORE any reservation (so reservations can be order-scoped); never
   // allocated here. Sequences are append-only — gaps after a failed checkout are accepted.
   orderNumber: string
+  // Idempotency key + payload fingerprint (commit 1.4). Optional; set when the shopper sends an
+  // Idempotency-Key so a replay returns the same order and a changed body conflicts (409).
+  checkoutKey?: string
+  checkoutFingerprint?: string
   quote: QuoteSnapshot
   items: unknown
   customerEmail?: string
@@ -33,6 +37,8 @@ export async function createOrder(input: CreateOrderInput) {
     data: {
       tenant: input.tenantId,
       orderNumber: input.orderNumber,
+      checkoutKey: input.checkoutKey,
+      checkoutFingerprint: input.checkoutFingerprint,
       cartToken: input.cartToken,
       customerEmail: input.customerEmail,
       customerPhone: input.customerPhone,

@@ -196,3 +196,71 @@ test('gateway not configured -> 422 gateway_not_configured', async () => {
   assert.equal(r.status, 422)
   assert.equal(r.body.error, 'gateway_not_configured')
 })
+
+// === Commit 1.4 — checkout request idempotency (Idempotency-Key + payload fingerprint).
+
+test('idempotency: concurrent same-key checkouts create one order and one reservation set', async () => {
+  await seedLevel(payload, tenantId, locationId, 'SKU-IDEM', 20)
+  await seedProduct(tenantId, 'SKU-IDEM', 1000)
+  const key = '11111111-1111-4111-8111-111111111111'
+  const body = {
+    cartToken: 'C-IDEM', items: [{ sku: 'SKU-IDEM', quantity: 3 }],
+    customerEmail: 'i@y.z', paymentMethod: 'cod' as const, idempotencyKey: key,
+  }
+  const [a, b] = await Promise.all([placeOrder(payload, tenantId, body), placeOrder(payload, tenantId, body)])
+  assert.equal(a.status, 200)
+  assert.equal(b.status, 200)
+  assert.equal(a.body.orderNumber, b.body.orderNumber, 'both resolve to the same order')
+  const { docs } = await payload.find({
+    collection: 'orders',
+    where: { and: [{ tenant: { equals: tenantId } }, { checkoutKey: { equals: key } }] },
+    overrideAccess: true, limit: 10,
+  })
+  assert.equal(docs.length, 1, 'exactly one order for the key')
+  // One reservation set: the loser's hold is compensated by releaseOrder, so reserved == 3, not 6.
+  const lvl = await getLevel({ payload, tenantId, locationId, sku: 'SKU-IDEM' })
+  assert.equal(lvl?.reserved, 3, 'reserved exactly once (3), not doubled')
+})
+
+test('idempotency: same key with a different body returns 409 idempotency_conflict', async () => {
+  await seedLevel(payload, tenantId, locationId, 'SKU-CONF', 20)
+  await seedProduct(tenantId, 'SKU-CONF', 1000)
+  const key = '22222222-2222-4222-8222-222222222222'
+  const first = await placeOrder(payload, tenantId, {
+    cartToken: 'C-CONF', items: [{ sku: 'SKU-CONF', quantity: 1 }],
+    customerEmail: 'c@y.z', paymentMethod: 'cod', idempotencyKey: key,
+  })
+  assert.equal(first.status, 200)
+  // Same key, different quantity => different fingerprint => 409, and no second order.
+  const second = await placeOrder(payload, tenantId, {
+    cartToken: 'C-CONF', items: [{ sku: 'SKU-CONF', quantity: 5 }],
+    customerEmail: 'c@y.z', paymentMethod: 'cod', idempotencyKey: key,
+  })
+  assert.equal(second.status, 409)
+  assert.equal(second.body.error, 'idempotency_conflict')
+  const { docs } = await payload.find({
+    collection: 'orders',
+    where: { and: [{ tenant: { equals: tenantId } }, { checkoutKey: { equals: key } }] },
+    overrideAccess: true, limit: 10,
+  })
+  assert.equal(docs.length, 1, 'still only the first order')
+})
+
+test('idempotency: the same key on different tenants is independent', async () => {
+  await seedLevel(payload, tenantId, locationId, 'SKU-TA', 10)
+  await seedProduct(tenantId, 'SKU-TA', 1000)
+  await seedLevel(payload, noGatewayTenantId, noGatewayLocationId, 'SKU-TB', 10)
+  await seedProduct(noGatewayTenantId, 'SKU-TB', 1000)
+  const key = '33333333-3333-4333-8333-333333333333'
+  const a = await placeOrder(payload, tenantId, {
+    cartToken: 'C-TA', items: [{ sku: 'SKU-TA', quantity: 1 }],
+    customerEmail: 't@y.z', paymentMethod: 'cod', idempotencyKey: key,
+  })
+  const b = await placeOrder(payload, noGatewayTenantId, {
+    cartToken: 'C-TB', items: [{ sku: 'SKU-TB', quantity: 1 }],
+    customerEmail: 't@y.z', paymentMethod: 'cod', idempotencyKey: key,
+  })
+  assert.equal(a.status, 200)
+  assert.equal(b.status, 200)
+  assert.notEqual(a.body.orderNumber, b.body.orderNumber, 'distinct orders in distinct tenants')
+})

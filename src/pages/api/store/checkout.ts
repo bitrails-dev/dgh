@@ -16,5 +16,14 @@ export const POST: APIRoute = async ({ locals, cookies, request, clientAddress }
   const headers: Record<string, string> = {};
   const session = getSessionToken(cookies);
   if (session) headers["x-session-token"] = session;
+  // Forward the Idempotency-Key (RFC 4122 v4) so a checkout retry returns the same order; reject a
+  // malformed key before touching commerce state.
+  const idempotencyKey = request.headers.get("idempotency-key");
+  if (idempotencyKey !== null) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey.trim())) {
+      return json({ error: "invalid_idempotency_key" }, 400);
+    }
+    headers["idempotency-key"] = idempotencyKey.trim();
+  }
   return cmsFetch(slug, `/checkout`, { method: "POST", headers, body: JSON.stringify({ ...body, cartToken }) });
 };

@@ -24,6 +24,10 @@ export interface CheckoutInput {
   payload: Payload
   tenantId: number | string
   cartToken: string
+  // Idempotency key + payload fingerprint (commit 1.4); forwarded into createOrder so the
+  // (tenant_id, checkout_key) unique index enforces "one order per key".
+  checkoutKey?: string
+  checkoutFingerprint?: string
   lines: CheckoutLine[]
   locationId: number | string
   currency: string
@@ -121,6 +125,7 @@ export async function checkout(input: CheckoutInput): Promise<CheckoutResult> {
   try {
     const order = await createOrder({
       payload, tenantId, orderNumber, quote: q, items,
+      checkoutKey: input.checkoutKey, checkoutFingerprint: input.checkoutFingerprint,
       customerEmail: input.customerEmail, customerPhone: input.customerPhone,
       cartToken, shippingAddress: input.shippingAddress, billingAddress: input.billingAddress,
     })
