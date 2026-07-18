@@ -1,0 +1,41 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import TheFooter from "../components/layout/TheFooter.astro";
+import CartBadge from "../components/shop/CartBadge.vue";
+import { getStrings, localePath } from "../i18n";
+
+// Storefront chrome: a slim shop header (shop / account / cart with a live count badge) over the
+// BaseLayout shell. Modeled on PortalLayout. Pages under /shop, /cart, /checkout, /account use this.
+interface Props {
+  lang: "ar" | "en";
+  strings: any;
+  title: string;
+  description: string;
+  noindex?: boolean;
+}
+const { lang, strings, title, description, noindex = true } = Astro.props;
+const s = strings.shop;
+---
+<BaseLayout lang={lang} strings={strings} title={title} description={description} noindex={noindex}>
+  <header class="bg-navy-900 text-ivory-50 sticky top-0 z-30 shadow-sm">
+    <div class="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+      <a href={localePath("/shop", lang)} class="font-display-ar text-xl font-bold text-ivory-50">
+        {lang === "ar" ? "المتجر" : "Shop"}
+      </a>
+      <nav class="flex items-center gap-5 text-sm">
+        <a href={localePath("/shop", lang)} class="hover:text-teal-300 transition-colors">{s.nav.shop}</a>
+        <a href={localePath("/account", lang)} class="hover:text-teal-300 transition-colors">{s.nav.account}</a>
+        <a href={localePath("/cart", lang)} class="relative inline-flex items-center gap-1 hover:text-teal-300 transition-colors">
+          {s.nav.cart}
+          <CartBadge lang={lang} client:load />
+        </a>
+      </nav>
+    </div>
+  </header>
+  <section class="py-8 min-h-[60vh]">
+    <div class="container mx-auto px-4">
+      <slot />
+    </div>
+  </section>
+  <TheFooter lang={lang} strings={strings} />
+</BaseLayout>

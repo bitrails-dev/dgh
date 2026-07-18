@@ -24,12 +24,29 @@ import { SocialConnections } from './collections/SocialConnections'
 import { SocialPublications } from './collections/SocialPublications'
 import { SocialOAuthStates } from './collections/SocialOAuthStates'
 import {
+  InventoryLocations,
+  InventoryLevels,
+  StockMovements,
+  StockReservations,
+  InventoryTransfers,
+  CommerceSettings,
+  PaymentEvents,
+  Orders,
+  Transactions,
+  Products,
+  Carts,
+  Customers,
+} from './collections/commerce'
+import {
   authenticatedFieldAccess,
   manageUserScopeFieldAccess,
 } from './access/userAccess'
 import { tenantFeatureAccessPlugin } from './plugins/tenantFeatureAccess'
 import { socialEndpoints } from './social/oauth/endpoints'
 import { socialPublishTask } from './social/jobs'
+import { commerceWebhookEndpoints } from './commerce/payments/endpoints'
+import { commerceStoreEndpoints } from './commerce/store/endpoints'
+import { processPaymentEventTask } from './commerce/payments/job'
 // Side effect: registers every platform adapter (tier-1 real + tier-2 honest-deferred) into the
 // default registry, so each of the eight platforms resolves to a typed adapter with an explicit
 // outcome — no generic missing-adapter fallback.
@@ -70,22 +87,42 @@ export default buildConfig({
     SocialConnections,
     SocialPublications,
     SocialOAuthStates,
+    // Commerce inventory collections (gated on the `commerce` feature; see tenantFeatureAccess).
+    InventoryLocations,
+    InventoryLevels,
+    StockMovements,
+    StockReservations,
+    InventoryTransfers,
+    // Tenant-global commerce settings (one per tenant) + idempotent payment-event ledger.
+    CommerceSettings,
+    PaymentEvents,
+    // Order/transaction model (own collections — the ecommerce plugin does not compose with
+    // multi-tenant; see docs/superpowers/plans/2026-07-17-commerce-implementation.md).
+    Orders,
+    Transactions,
+    Products,
+    Carts,
+    Customers,
   ],
   // HospitalSettings global retired: its fields now live per-tenant on the Tenants collection.
   globals: [],
-  // OAuth connect/callback/disconnect for tenant social connections (tenant-access-controlled).
-  endpoints: socialEndpoints,
+  // OAuth connect/callback/disconnect for tenant social connections (tenant-access-controlled), plus
+  // the commerce payment webhook routes (source of truth for payment status).
+  endpoints: [...socialEndpoints, ...commerceWebhookEndpoints, ...commerceStoreEndpoints],
   // Durable social-publishing. The Article create hook enqueues the `social-publish-article` task;
   // a worker process (`payload jobs:run`) drains it with bounded exponential retry. Exclusive
   // per-article concurrency requires enableConcurrencyControl (adds an indexed concurrencyKey).
   jobs: {
-    tasks: [socialPublishTask],
+    tasks: [socialPublishTask, processPaymentEventTask],
     enableConcurrencyControl: true,
-    // Drain the `social-publishing` queue in-process (every minute) so a single `next start` process
-    // is self-sufficient. For higher throughput or process isolation, also run a dedicated worker:
-    // `payload jobs:run --queue social-publishing --limit 10 --cron '* * * * *'`. NOTE: autoRun is NOT
-    // suitable for serverless platforms (Vercel/Lambda) — run the dedicated worker there instead.
-    autoRun: [{ cron: '* * * * *', queue: 'social-publishing', limit: 10 }],
+    // Drain the `social-publishing` + `commerce` queues in-process (every minute) so a single
+    // `next start` process is self-sufficient. For higher throughput or process isolation, also run a
+    // dedicated worker: `payload jobs:run --queue <queue> --limit 10 --cron '* * * * *'`. NOTE:
+    // autoRun is NOT suitable for serverless platforms (Vercel/Lambda) — run a dedicated worker there.
+    autoRun: [
+      { cron: '* * * * *', queue: 'social-publishing', limit: 10 },
+      { cron: '* * * * *', queue: 'commerce', limit: 20 },
+    ],
   },
   editor: lexicalEditor(),
   i18n: {
@@ -116,6 +153,20 @@ export default buildConfig({
         awards: {},
         achievements: {},
         testimonials: {},
+        // Commerce inventory collections are tenant-scoped: each tenant owns its locations, levels,
+        // movements, reservations, and transfers.
+        'inventory-locations': {},
+        'inventory-levels': {},
+        'stock-movements': {},
+        'stock-reservations': {},
+        'inventory-transfers': {},
+        'commerce-settings': {},
+        'payment-events': {},
+        orders: {},
+        transactions: {},
+        products: {},
+        carts: {},
+        customers: {},
       },
       // Platform operators (roles includes super-admin) bypass tenant scoping and see all tenants.
       userHasAccessToAllTenants: (user) =>
@@ -142,8 +193,17 @@ export default buildConfig({
       url: process.env.DATABASE_URI || 'file:./cms.db',
       authToken: process.env.DATABASE_AUTH_TOKEN,
     },
-    // Rely on versioned migrations (src/migrations) instead of the dev-mode
-    // schema push, which collides with existing indexes when migrations exist.
+    // Rely on versioned migrations (src/migrations) instead of the dev-mode schema push, which
+    // collides with existing indexes when migrations exist.
     push: false,
+    // Commerce-grade SQLite safety. AUTOINCREMENT PKs so deleted ids are never reused; a 5s
+    // busy-timeout so contending writers wait (and serialize) instead of erroring under concurrency;
+    // IMMEDIATE transactions that acquire the write lock up front (predictable SQLITE_BUSY at the
+    // start, never a mid-transaction deadlock); WAL with synchronous=FULL for durable crash-safe
+    // commits. Together these make stock-reservation/order-creation write contention correct.
+    autoIncrement: true,
+    busyTimeout: 5000,
+    transactionOptions: { behavior: 'immediate' },
+    wal: { synchronous: 'FULL' },
   }),
 })

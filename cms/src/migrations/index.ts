@@ -10,6 +10,12 @@ import * as migration_20260715_233507_article_auto_publish from './20260715_2335
 import * as migration_20260716_122728_social_publishing_jobs from './20260716_122728_social_publishing_jobs';
 import * as migration_20260716_124059_social_selection_sessions from './20260716_124059_social_selection_sessions';
 import * as migration_20260716_135203_social_oauth_pkce from './20260716_135203_social_oauth_pkce';
+import * as migration_20260717_100000_commerce_inventory from './20260717_100000_commerce_inventory';
+import * as migration_20260717_100100_commerce_settings_events from './20260717_100100_commerce_settings_events';
+import * as migration_20260717_100200_commerce_orders from './20260717_100200_commerce_orders';
+import * as migration_20260717_100300_commerce_products from './20260717_100300_commerce_products';
+import * as migration_20260717_100400_commerce_carts_customers from './20260717_100400_commerce_carts_customers';
+import * as migration_20260717_100500_commerce_products_media_variants from './20260717_100500_commerce_products_media_variants';
 
 export const migrations = [
   {
@@ -71,5 +77,35 @@ export const migrations = [
     up: migration_20260716_135203_social_oauth_pkce.up,
     down: migration_20260716_135203_social_oauth_pkce.down,
     name: '20260716_135203_social_oauth_pkce'
+  },
+  {
+    up: migration_20260717_100000_commerce_inventory.up,
+    down: migration_20260717_100000_commerce_inventory.down,
+    name: '20260717_100000_commerce_inventory',
+  },
+  {
+    up: migration_20260717_100100_commerce_settings_events.up,
+    down: migration_20260717_100100_commerce_settings_events.down,
+    name: '20260717_100100_commerce_settings_events',
+  },
+  {
+    up: migration_20260717_100200_commerce_orders.up,
+    down: migration_20260717_100200_commerce_orders.down,
+    name: '20260717_100200_commerce_orders',
+  },
+  {
+    up: migration_20260717_100300_commerce_products.up,
+    down: migration_20260717_100300_commerce_products.down,
+    name: '20260717_100300_commerce_products',
+  },
+  {
+    up: migration_20260717_100400_commerce_carts_customers.up,
+    down: migration_20260717_100400_commerce_carts_customers.down,
+    name: '20260717_100400_commerce_carts_customers',
+  },
+  {
+    up: migration_20260717_100500_commerce_products_media_variants.up,
+    down: migration_20260717_100500_commerce_products_media_variants.down,
+    name: '20260717_100500_commerce_products_media_variants',
   },
 ];

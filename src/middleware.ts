@@ -13,6 +13,9 @@ const FEATURE_ROUTES: Array<[RegExp, TenantFeature]> = [
   [/^\/(en\/)?achievements(\/|$)/, "achievements"],
   [/^\/(en\/)?testimonials(\/|$)/, "testimonials"],
   [/^\/(en\/)?portal(\/|$)/, "portal"],
+  // Commerce storefront (shop, cart, checkout, account) + its same-origin BFF. Pages gate on the
+  // `commerce` feature; the /api/store/* routes check storeTenantSlug() themselves (not matched here).
+  [/^\/(en\/)?(shop|cart|checkout|account)(\/|$)/, "commerce"],
 ];
 
 // Resolve the tenant once per request from the host (or TENANT_SLUG), expose it on

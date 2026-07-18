@@ -25,14 +25,21 @@ const TAG_LEN = 16
 
 const secretKey = (): string => process.env.PAYLOAD_SECRET || ''
 
+// HKDF `info`/salt couples key derivation to a purpose. The default `payload-social` isolates social
+// OAuth tokens; commerce reuses the same primitives under `payload-commerce` (see commerce/crypto.ts)
+// so each domain's keys are independent — one purpose's material can never derive the other's.
 // ponytail: one HKDF derivation per process call is cheap (sub-millisecond); cache only if profiling shows it matters.
-const deriveKey = (secret: string): Buffer =>
-  Buffer.from(hkdfSync('sha256', secret, 'payload-social', 'aes-256-gcm-token-v1', KEY_LEN))
+const deriveKey = (secret: string, purpose: string = 'payload-social'): Buffer =>
+  Buffer.from(hkdfSync('sha256', secret, purpose, 'aes-256-gcm-token-v1', KEY_LEN))
 
 export type EncryptedToken = string
 
-export function encryptToken(plaintext: string, secret: string = secretKey()): EncryptedToken {
-  const key = deriveKey(secret)
+export function encryptToken(
+  plaintext: string,
+  secret: string = secretKey(),
+  purpose: string = 'payload-social',
+): EncryptedToken {
+  const key = deriveKey(secret, purpose)
   const iv = randomBytes(IV_LEN)
   const cipher = createCipheriv('aes-256-gcm', key, iv)
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
@@ -41,7 +48,11 @@ export function encryptToken(plaintext: string, secret: string = secretKey()): E
   return Buffer.concat([Buffer.from([KEY_VERSION]), iv, tag, ciphertext]).toString('base64')
 }
 
-export function decryptToken(blob: EncryptedToken, secret: string = secretKey()): string {
+export function decryptToken(
+  blob: EncryptedToken,
+  secret: string = secretKey(),
+  purpose: string = 'payload-social',
+): string {
   const buf = Buffer.from(blob, 'base64')
   if (buf.length < 1 + IV_LEN + TAG_LEN) throw new Error('Malformed token blob.')
   const version = buf[0]
@@ -49,7 +60,7 @@ export function decryptToken(blob: EncryptedToken, secret: string = secretKey())
   const iv = buf.subarray(1, 1 + IV_LEN)
   const tag = buf.subarray(1 + IV_LEN, 1 + IV_LEN + TAG_LEN)
   const ciphertext = buf.subarray(1 + IV_LEN + TAG_LEN)
-  const decipher = createDecipheriv('aes-256-gcm', deriveKey(secret), iv)
+  const decipher = createDecipheriv('aes-256-gcm', deriveKey(secret, purpose), iv)
   decipher.setAuthTag(tag)
   // Throws on tag mismatch (tamper / wrong key) — fail closed.
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')

@@ -17,8 +17,11 @@
 	"dependencies": {
 		"@libsql/client": "^0.14.0",
 		"@payloadcms/db-sqlite": "3.85.1",
+		"@payloadcms/email-nodemailer": "^3.85.1",
 		"@payloadcms/next": "3.85.1",
+		"@payloadcms/plugin-ecommerce": "^3.85.1",
 		"@payloadcms/plugin-multi-tenant": "3.85.1",
+		"@payloadcms/plugin-search": "^3.85.1",
 		"@payloadcms/richtext-lexical": "3.85.1",
 		"@payloadcms/translations": "3.85.1",
 		"dotenv": "^16.4.7",
@@ -31,6 +34,7 @@
 		"sharp": "^0.35.2"
 	},
 	"devDependencies": {
+		"@playwright/test": "^1.61.1",
 		"@types/node": "^22.10.0",
 		"@types/react": "^19.0.0",
 		"autoprefixer": "^10.5.2",

@@ -329,5 +329,86 @@
       "refreshSlots": "Refresh slots",
       "loadSlots": "Load slots"
     }
+  },
+  "shop": {
+    "title": "Shop",
+    "description": "Browse and order products from our store.",
+    "nav": {
+      "shop": "Shop",
+      "cart": "Cart",
+      "checkout": "Checkout",
+      "account": "Account"
+    },
+    "product": {
+      "addToCart": "Add to cart",
+      "added": "Added",
+      "viewProduct": "View product",
+      "variants": "Options",
+      "selectVariant": "Select an option",
+      "quantity": "Quantity",
+      "price": "Price",
+      "description": "Description",
+      "notFound": "Product not found.",
+      "outOfStock": "Out of stock"
+    },
+    "cart": {
+      "title": "Your cart",
+      "empty": "Your cart is empty.",
+      "continueShopping": "Continue shopping",
+      "checkout": "Proceed to checkout",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "total": "Total",
+      "quantity": "Qty",
+      "remove": "Remove",
+      "update": "Update",
+      "quoteError": "Some items are no longer available."
+    },
+    "checkout": {
+      "title": "Checkout",
+      "contact": "Contact",
+      "email": "Email",
+      "phone": "Phone (optional)",
+      "address": "Address",
+      "city": "City",
+      "paymentMethod": "Payment method",
+      "cod": "Cash on delivery",
+      "bank": "Bank transfer",
+      "paymob": "Pay online (card)",
+      "kashier": "Pay online",
+      "placeOrder": "Place order",
+      "placing": "Placing order…",
+      "orderPlaced": "Order placed!",
+      "orderNumber": "Order number",
+      "redirecting": "Redirecting to payment…",
+      "error": "Could not place the order.",
+      "insufficientStock": "Some items are out of stock.",
+      "manualConfirm": "We will confirm your order manually."
+    },
+    "account": {
+      "title": "Account",
+      "signIn": "Sign in",
+      "register": "Create account",
+      "email": "Email",
+      "password": "Password",
+      "name": "Name",
+      "phone": "Phone",
+      "signInAction": "Sign in",
+      "registerAction": "Create account",
+      "signOut": "Sign out",
+      "haveAccount": "Already have an account?",
+      "noAccount": "No account?",
+      "welcome": "Welcome",
+      "ordersTitle": "Order history",
+      "noOrders": "Order history is not available yet.",
+      "loading": "Loading…",
+      "error": "Could not complete the request.",
+      "invalidCredentials": "Invalid email or password.",
+      "emailInUse": "An account with this email already exists."
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "rateLimited": "Too many requests. Please wait and try again."
+    }
   }
 }

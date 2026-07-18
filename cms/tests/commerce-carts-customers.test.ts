@@ -1,0 +1,63 @@
+// Carts + customers: server-normalized email identity (unique per tenant), tenant isolation, and
+// write-only credentials. Runs against an isolated throwaway DB migrated from scratch.
+import assert from 'node:assert/strict'
+import { rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import test from 'node:test'
+import type { Payload } from 'payload'
+
+const TEMP_DB = join(tmpdir(), `commerce-carts-itest-${process.pid}-${Date.now()}.db`)
+process.env.DATABASE_URI = `file:${TEMP_DB}`
+process.env.PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || 'commerce-carts-itest-secret'
+
+const { default: config } = await import('../src/payload.config')
+const { getPayload } = await import('payload')
+const { seedTenant } = await import('./helpers/commerce')
+const payload = (await getPayload({ config })) as unknown as Payload
+await payload.db.migrate()
+
+let tenantA: number | string
+let tenantB: number | string
+
+test.before(async () => {
+  ;({ tenantId: tenantA } = await seedTenant(payload))
+  ;({ tenantId: tenantB } = await seedTenant(payload))
+})
+test.after(async () => {
+  try { await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
+})
+
+test('customer email is server-normalized; duplicate normalized email per tenant is rejected', async () => {
+  const c1: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: 'Alice@Test.com', name: 'Alice', passwordHash: 'h', passwordSalt: 's' } as any })
+  assert.equal(c1.normalizedEmail, 'alice@test.com', 'email normalized server-side')
+
+  // same tenant, same identity in different case/spacing -> rejected by the compound unique index
+  await assert.rejects(
+    () => payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: '  alice@test.com  ', name: 'Dup' } as any }),
+  )
+  // different tenant, same email -> allowed (tenant-local identity)
+  const c2: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantB, email: 'Alice@Test.com', name: 'Alice B' } as any })
+  assert.ok(c2.id !== c1.id, 'a different tenant may have the same email')
+})
+
+test('customer credentials persist and are read-only via field access (write-only config)', async () => {
+  // Field access.read = false on passwordHash/Salt hides them from any read; here we verify storage
+  // (system paths read them via overrideAccess). The hidden-from-client guarantee is config-enforced
+  // (same pattern proven in commerce-settings).
+  const c: any = await payload.create({ collection: 'customers', overrideAccess: true, data: { tenant: tenantA, email: 'secret@test.com', passwordHash: 'HASH', passwordSalt: 'SALT' } as any })
+  const priv: any = await payload.findByID({ collection: 'customers', id: c.id, overrideAccess: true })
+  assert.equal(priv.passwordHash, 'HASH', 'credentials persisted, retrievable by system paths')
+  assert.equal(priv.passwordSalt, 'SALT')
+})
+
+test('cart token is unique per tenant; items are stored as JSON', async () => {
+  const cart: any = await payload.create({ collection: 'carts', overrideAccess: true, data: { tenant: tenantA, cartToken: 'cart-1', customerEmail: 'a@b.test', currency: 'EGP', items: [{ sku: 'X', quantity: 2 }] } as any })
+  assert.deepEqual(cart.items, [{ sku: 'X', quantity: 2 }])
+  await assert.rejects(
+    () => payload.create({ collection: 'carts', overrideAccess: true, data: { tenant: tenantA, cartToken: 'cart-1' } as any }),
+  )
+  // same token, different tenant -> allowed
+  const cartB: any = await payload.create({ collection: 'carts', overrideAccess: true, data: { tenant: tenantB, cartToken: 'cart-1' } as any })
+  assert.ok(cartB.id !== cart.id)
+})
