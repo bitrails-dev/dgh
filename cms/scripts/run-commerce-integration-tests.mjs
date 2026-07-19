@@ -37,6 +37,7 @@ const INTEGRATION_FILES = [
   'tests/commerce-store-catalog.test.ts',
   'tests/commerce-store-checkout.test.ts',
   'tests/commerce-store-checkout-plugin.test.ts',
+  'tests/commerce-cutover-parity.integration.test.ts',
   'tests/commerce-store-quote.test.ts',
   'tests/commerce-webhook-endpoint.test.ts',
   'tests/commerce-migration-fixtures.test.ts',
