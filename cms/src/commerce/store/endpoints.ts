@@ -8,6 +8,7 @@ import { quoteEndpoints } from './quote'
 import { pluginCartEndpoints } from './cart-v2'
 import { authEndpoints } from './auth'
 import { checkoutEndpoints } from './checkout'
+import { orderEndpoints } from './orders'
 
 // The plugin-first cart endpoints (cart-v2.ts) supersede the legacy cart.ts HTTP surface on the
 // shared /cart path (Express first-match wins → only one /cart GET can be live). The legacy cart.ts
@@ -19,4 +20,5 @@ export const commerceStoreEndpoints: Endpoint[] = [
   ...pluginCartEndpoints,
   ...authEndpoints,
   ...checkoutEndpoints,
+  ...orderEndpoints,
 ]

@@ -11,10 +11,10 @@
 //
 // Pricing is authoritative at the CMS — the browser never sends totals (§3.7/§4.1).
 //
-// NOTE (Wave E3 continuation): the cart area is wired (Lane B) — the proxy injects the
-// store_cart_v2 cookie's cartId into cart requests and plants/clears the cookie from the response
-// cartId. The orders area still returns 501 `not_wired` until Lane C lands its signed orders
-// endpoint + x-session-token customer bridge.
+// NOTE (Wave E3 continuation): the cart area (Lane B) and orders area (Lane C) are wired. The proxy
+// injects the store_cart_v2 cookie's cartId into cart requests and plants/clears the cookie from the
+// response cartId; orders requests relay the store_session_v2 cookie as x-session-token (already
+// forwarded below) for the CMS customer bridge.
 
 import type { APIRoute } from "astro";
 import { Buffer } from "node:buffer";
@@ -72,11 +72,6 @@ export const ALL: APIRoute = async (ctx) => {
   const segments = url.pathname.replace(/^\/api\/store\/v2\//, "").split("/").filter(Boolean);
   const mapped = mapRoute(segments);
   if (!mapped) return json({ error: "not_found" }, 404);
-
-  // Wave E3 continuation — see file header. The orders CMS endpoint is still pending (Lane C).
-  if (mapped.area === "orders") {
-    return json({ error: "not_wired", detail: "CMS orders endpoint pending (Wave E3 continuation)" }, 501);
-  }
 
   const method = request.method.toUpperCase();
   const hasBody = method !== "GET" && method !== "HEAD";
