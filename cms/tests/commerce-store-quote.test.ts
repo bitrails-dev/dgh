@@ -53,6 +53,16 @@ test.before(async () => {
       variants: [{ sku: VARIANT_SKU, name: 'Red', price: 15000, taxBps: 0 }],
     } as any,
   })
+  // Plugin-first store-product mirror of BASE_SKU (10000 minor) so the rewired /quote endpoint — which
+  // resolves store-products/store-variants via quoteStoreItems — can price the HTTP happy path. The
+  // legacy quoteItems direct tests above still read the legacy `products` rows (retained until F2).
+  await payload.create({
+    collection: 'store-products', overrideAccess: true,
+    data: {
+      tenant: commerceTenantId, slug: 'slug-quote-base', sku: BASE_SKU,
+      priceInEGPEnabled: true, priceInEGP: 10000, taxClass: 'standard', trackInventory: true,
+    } as any,
+  })
   // A second commerce-enabled tenant with NO commerce-settings doc -> 503 commerce_not_configured.
   const b = await seedTenant(payload, { features: ['commerce'] })
   noSettingsTenantId = b.tenantId
@@ -128,12 +138,13 @@ test('handler: empty body -> 400 invalid_items', async () => {
   assert.deepEqual(await res.json(), { error: 'invalid_items' })
 })
 
-test('handler: a valid quote returns the snapshot, server-priced', async () => {
+test('handler: a valid quote returns the storefront shape, server-priced from store-products', async () => {
   const res = await handler(fakeReq(commerceSlug, JSON.stringify({ items: [{ sku: BASE_SKU, quantity: 2 }] })))
   assert.equal(res.status, 200)
   const body = await res.json()
   assert.equal(body.currency, 'EGP')
   assert.equal(body.taxMode, 'exclusive')
   assert.equal(body.grandTotal, 20000)
-  assert.ok(typeof body.hash === 'string' && body.hash.length > 0)
+  assert.equal(body.amountDue, 20000)
+  assert.ok(typeof body.quoteHash === 'string' && body.quoteHash.length > 0)
 })

@@ -1,13 +1,14 @@
 // Public storefront quote route: POST /api/commerce/store/:tenantSlug/quote
-// Server-authoritative price resolution. The browser posts ONLY items (sku + quantity); the server
-// resolves the tenant's currency, tax mode, and active prices, runs the pricing engine, and returns a
-// QuoteSnapshot the storefront renders (and the order later persists verbatim). Client-supplied
-// prices are never trusted — the body has no price field by contract. This handler is a thin wrapper
-// over quoteItems (commerce/store/shared.ts) so tenant resolution, the feature 404, settings load,
-// price resolution, and the engine each have ONE implementation shared with cart/checkout — mirroring
-// the webhook pattern in commerce/payments.
+// Server-authoritative, plugin-first price resolution. The browser posts ONLY items (sku + quantity);
+// the server resolves the tenant's currency + tax mode, resolves each SKU against the plugin
+// `store-products` / `store-variants`, runs the pricing engine, and returns the storefront quote the
+// storefront renders. Client-supplied prices are never trusted — the body has no price field by
+// contract. This handler is a thin wrapper over quoteStoreItems (commerce/store/quote-plugin.ts);
+// the legacy quoteItems read the legacy `products` collection and could not price plugin-first
+// catalogs. Gateway-signed by the Astro proxy upstream.
 import type { Endpoint, PayloadRequest } from 'payload'
-import { quoteItems, readJsonBody, resolveStoreTenant } from './shared'
+import { readJsonBody, resolveStoreTenant } from './shared'
+import { quoteStoreItems } from './quote-plugin'
 
 async function handleQuote(req: PayloadRequest): Promise<Response> {
   const tenantSlug = req.routeParams?.tenantSlug as string | undefined
@@ -22,16 +23,19 @@ async function handleQuote(req: PayloadRequest): Promise<Response> {
     return Response.json({ error: 'invalid_items' }, { status: 400 })
   }
 
-  const result = await quoteItems(req.payload, tenant.id, items as { sku: string; quantity: number }[])
+  const result = await quoteStoreItems(
+    req.payload,
+    tenant.id,
+    items as Array<{ sku: unknown; quantity: unknown }>,
+  )
   if (!result.ok) {
     return Response.json({ error: result.code, detail: result.detail }, { status: result.status })
   }
-  // snapshot already carries currency + taxMode; the explicit keys restate them as the authoritative
-  // response fields (placed after the spread so tsc does not flag them as overwritten — values match).
+  // Flat storefront quote fields + the priced line detail for rendering.
   return Response.json({
-    ...result.snapshot,
-    currency: result.currency,
-    taxMode: result.taxMode,
+    ...result.quote,
+    taxMode: result.snapshot.taxMode,
+    lines: result.snapshot.lines,
   })
 }
 
