@@ -1,0 +1,12 @@
+---
+import ShopLayout from "../../../../layouts/ShopLayout.astro";
+import { getStrings } from "../../../../i18n";
+import OrderHistory from "../../../../components/shop/OrderHistory.vue";
+
+// Order history (Wave E3). Lists the signed-in customer's orders via shopApi.orders.
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
+const strings = getStrings(lang);
+---
+<ShopLayout lang={lang} strings={strings} title={`${strings.shop.orders.title} | ${strings.site.name}`} description={strings.shop.orders.title}>
+  <OrderHistory lang={lang} strings={strings} client:load />
+</ShopLayout>

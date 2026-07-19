@@ -1,0 +1,13 @@
+---
+import ShopLayout from "../../../../layouts/ShopLayout.astro";
+import { getStrings } from "../../../../i18n";
+import OrderStatus from "../../../../components/shop/OrderStatus.vue";
+
+// Payment success return (Wave E3). The hosted-checkout provider redirects here; the island reads the
+// order number, fetches its authoritative state, and shows the truthful outcome.
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
+const strings = getStrings(lang);
+---
+<ShopLayout lang={lang} strings={strings} title={`${strings.shop.confirmation.title} | ${strings.site.name}`} description={strings.shop.confirmation.title}>
+  <OrderStatus lang={lang} strings={strings} variant="success" client:load />
+</ShopLayout>

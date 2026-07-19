@@ -361,6 +361,7 @@
       "total": "Total",
       "quantity": "Qty",
       "remove": "Remove",
+      "clear": "Clear cart",
       "update": "Update",
       "quoteError": "Some items are no longer available."
     },
@@ -409,6 +410,94 @@
     "errors": {
       "generic": "Something went wrong. Please try again.",
       "rateLimited": "Too many requests. Please wait and try again."
+    },
+    "catalog": {
+      "searchPlaceholder": "Search products",
+      "resultsOne": "1 product",
+      "resultsMany": "{n} products",
+      "noResults": "No products match your search.",
+      "empty": "No products available yet.",
+      "loading": "Loading products…",
+      "loadMore": "Load more",
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page",
+      "of": "of",
+      "priceFrom": "From"
+    },
+    "orders": {
+      "title": "Order history",
+      "empty": "You have no orders yet.",
+      "loading": "Loading orders…",
+      "error": "Could not load orders.",
+      "orderNumber": "Order",
+      "date": "Date",
+      "total": "Total",
+      "status": "Status",
+      "paymentMethod": "Payment",
+      "viewDetail": "View order",
+      "back": "Back to orders",
+      "items": "Items",
+      "notFound": "Order not found.",
+      "statusLabel": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "paid": "Paid",
+        "partially_paid": "Partially paid",
+        "fulfilled": "Fulfilled",
+        "cancelled": "Cancelled",
+        "refunded": "Refunded",
+        "failed": "Failed"
+      }
+    },
+    "confirmation": {
+      "title": "Order confirmation",
+      "success": "Thank you! Your order was received.",
+      "pending": "Your payment is pending. We will confirm shortly.",
+      "paid": "Payment confirmed.",
+      "failureTitle": "Payment could not be confirmed",
+      "failureBody": "Your order was created but payment did not complete. You can retry safely.",
+      "loading": "Loading your order…",
+      "retry": "Retry payment",
+      "viewOrders": "View order history",
+      "continueShopping": "Continue shopping",
+      "orderNumber": "Order number"
+    },
+    "reset": {
+      "forgotTitle": "Reset your password",
+      "forgotBody": "Enter your email and we will send you a reset link.",
+      "email": "Email",
+      "send": "Send reset link",
+      "sending": "Sending…",
+      "sent": "If an account exists, a reset link has been sent.",
+      "resetTitle": "Set a new password",
+      "newPassword": "New password",
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "updated": "Your password has been updated. You can sign in.",
+      "invalidToken": "This reset link is invalid or has expired.",
+      "backToLogin": "Back to sign in"
+    },
+    "address": {
+      "selectSaved": "Use a saved address",
+      "useNew": "Enter a new address",
+      "fullName": "Full name",
+      "line1": "Street address",
+      "line2": "Apartment / details (optional)",
+      "city": "City",
+      "governorate": "Governorate",
+      "postalCode": "Postal code",
+      "country": "Country",
+      "default": "Default"
+    },
+    "quote": {
+      "apply": "Apply",
+      "promoCode": "Promo code",
+      "giftCard": "Gift card",
+      "discount": "Discount",
+      "shipping": "Shipping",
+      "grandTotal": "Grand total",
+      "invalidCode": "This code could not be applied."
     }
   }
 }

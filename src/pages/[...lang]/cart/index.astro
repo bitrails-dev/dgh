@@ -1,12 +1,12 @@
 ---
 import ShopLayout from "../../../layouts/ShopLayout.astro";
 import { getStrings } from "../../../i18n";
-import { ensureCsrf } from "../../../lib/store/server";
 import CartView from "../../../components/shop/CartView.vue";
 
+// Cart (Wave E3). Reads/mutates the cookie-scoped plugin cart (store_cart_v2) via shopApi; the Astro
+// gateway proxy owns the cookie + signing. No CSRF cookie is needed on the v2 path.
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
-ensureCsrf(Astro.cookies);
 ---
 <ShopLayout lang={lang} strings={strings} title={`${strings.shop.cart.title} | ${strings.site.name}`} description={strings.shop.cart.title}>
   <CartView lang={lang} strings={strings} client:load />

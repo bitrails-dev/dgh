@@ -4,7 +4,9 @@
 // to the CMS shopper endpoints at ${CMS_URL}/api/commerce/store/:tenantSlug/*. The CMS is stateless
 // w.r.t. cookies — it verifies the session token we relay via X-Session-Token.
 import { randomUUID } from "node:crypto";
+import { Buffer } from "node:buffer";
 import { hasFeature } from "../tenant";
+import { sign } from "./gateway-sign";
 
 const CMS = import.meta.env.CMS_URL ?? "http://localhost:3000";
 const SECURE = import.meta.env.PROD;
@@ -115,4 +117,76 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   if (b.count >= limit) return false;
   b.count += 1;
   return true;
+}
+
+// --- Wave E3: signed gateway proxy (plugin-first store-carts, cookie `store_cart_v2`) -----------
+// The browser (src/components/shop/api.ts) talks same-origin /api/store/v2/* with credentials:"include".
+// These helpers back the proxy routes (src/pages/api/store/v2/*): the cart id (store-carts doc id)
+// lives in the Secure HttpOnly `store_cart_v2` cookie; the session token lives in `store_session_v2`.
+// Browser code never sees either cookie directly.
+
+const CART_COOKIE_V2 = "store_cart_v2";
+const SESSION_COOKIE_V2 = "store_session_v2";
+
+export function getCartIdV2(cookies: Cookies): string | undefined {
+  return cookies.get(CART_COOKIE_V2)?.value;
+}
+export function setCartIdV2(cookies: Cookies, cartId: string): void {
+  cookies.set(CART_COOKIE_V2, cartId, { httpOnly: true, sameSite: "lax", secure: SECURE, path: "/" });
+}
+export function clearCartIdV2(cookies: Cookies): void {
+  cookies.delete(CART_COOKIE_V2, { path: "/" });
+}
+export function getSessionTokenV2(cookies: Cookies): string | undefined {
+  return cookies.get(SESSION_COOKIE_V2)?.value;
+}
+export function setSessionTokenV2(cookies: Cookies, token: string): void {
+  cookies.set(SESSION_COOKIE_V2, token, { httpOnly: true, sameSite: "lax", secure: SECURE, path: "/", maxAge: SESSION_TTL });
+}
+export function clearSessionTokenV2(cookies: Cookies): void {
+  cookies.delete(SESSION_COOKIE_V2, { path: "/" });
+}
+
+// Resolve the CURRENT gateway key from Astro server env. These are server-only (not PUBLIC_), so the
+// secret never reaches the browser. Throws when unconfigured → proxy returns 502 gateway_unavailable.
+function gatewayKey(): { keyId: string; secret: Uint8Array } {
+  const keyId = import.meta.env.COMMERCE_GATEWAY_KEY_ID;
+  const secretB64 = import.meta.env.COMMERCE_GATEWAY_SECRET;
+  if (!keyId || !secretB64) throw new Error("COMMERCE_GATEWAY_KEY_ID/SECRET not configured");
+  return { keyId, secret: new Uint8Array(Buffer.from(secretB64, "base64")) };
+}
+
+// Sign + forward a request to the CMS signed store endpoint, returning the raw CMS Response. The
+// signature is over the CMS path+method+query+body (the exact bytes the verifier hashes). `slug` is
+// the resolved tenant slug (lowercased for the canonical tenant field).
+export async function signedCmsFetch(
+  slug: string,
+  cmsSubPathAndQuery: string,
+  init: { method?: string; body?: Uint8Array | Buffer; headers?: Record<string, string> } = {},
+): Promise<Response> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const fullPath = `/api/commerce/store/${encodeURIComponent(slug)}${cmsSubPathAndQuery}`;
+  const [purePath, query] = splitPath(fullPath);
+  const bodyBytes = init.body && (init.body as Uint8Array).byteLength > 0 ? Buffer.from(init.body as Uint8Array) : Buffer.alloc(0);
+  const { keyId, secret } = gatewayKey();
+  const signed = sign({
+    method,
+    path: purePath,
+    query: query ?? null,
+    tenantSlug: slug,
+    body: bodyBytes,
+    now: Date.now(),
+    keyId,
+    secret,
+  });
+  return fetch(`${CMS}${fullPath}`, {
+    method,
+    headers: { "content-type": "application/json", ...(init.headers ?? {}), ...signed.headers },
+    body: method === "GET" || method === "HEAD" ? undefined : bodyBytes,
+  });
+}
+
+function splitPath(p: string): [string, string | undefined] {
+  const i = p.indexOf("?");
+  return i === -1 ? [p, undefined] : [p.slice(0, i), p.slice(i + 1)];
 }

@@ -1,0 +1,13 @@
+---
+import ShopLayout from "../../../../layouts/ShopLayout.astro";
+import { getStrings } from "../../../../i18n";
+import PasswordReset from "../../../../components/shop/PasswordReset.vue";
+
+// Reset password (Wave E3). Reads the reset token from the URL query and confirms via
+// shopApi.auth.resetPassword. The token is read inside the island (works across View Transitions).
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
+const strings = getStrings(lang);
+---
+<ShopLayout lang={lang} strings={strings} title={`${strings.shop.reset.resetTitle} | ${strings.site.name}`} description={strings.shop.reset.resetTitle}>
+  <PasswordReset lang={lang} strings={strings} mode="confirm" client:load />
+</ShopLayout>

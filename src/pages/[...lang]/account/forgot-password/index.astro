@@ -1,0 +1,12 @@
+---
+import ShopLayout from "../../../../layouts/ShopLayout.astro";
+import { getStrings } from "../../../../i18n";
+import PasswordReset from "../../../../components/shop/PasswordReset.vue";
+
+// Forgot password (Wave E3). Requests a reset link via shopApi.auth.requestPasswordReset.
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
+const strings = getStrings(lang);
+---
+<ShopLayout lang={lang} strings={strings} title={`${strings.shop.reset.forgotTitle} | ${strings.site.name}`} description={strings.shop.reset.forgotTitle}>
+  <PasswordReset lang={lang} strings={strings} mode="request" client:load />
+</ShopLayout>

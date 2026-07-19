@@ -1,46 +1,14 @@
 ---
 import ShopLayout from "../../../layouts/ShopLayout.astro";
-import { getStrings, localePath } from "../../../i18n";
-import { cmsFetch, storeTenantSlug, ensureCsrf } from "../../../lib/store/server";
-import { formatMoney } from "../../../lib/store/money";
+import { getStrings } from "../../../i18n";
+import ShopCatalog from "../../../components/shop/ShopCatalog.vue";
 
+// Catalog list (Wave E3). The grid is a client-hydrated island that reads the signed store catalog
+// via shopApi (same-origin /api/store/v2/catalog → Astro gateway proxy → CMS plugin store). The
+// Astro proxy resolves the tenant + signs; this page stays seam-free and never imports store/server.
 const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
 const strings = getStrings(lang);
-ensureCsrf(Astro.cookies);
-
-// SSR the active catalog directly from the CMS storefront endpoint (the browser BFF is only for
-// interactive cart/auth/checkout). Degrades to an empty grid if the tenant has no commerce/products.
-const slug = storeTenantSlug(Astro.locals);
-let products: any[] = [];
-if (slug) {
-  try {
-    const r = await cmsFetch(slug, "/products?limit=48");
-    if (r.ok) products = ((await r.json()) as any).products ?? [];
-  } catch {
-    /* empty catalog */
-  }
-}
 ---
 <ShopLayout lang={lang} strings={strings} title={`${strings.shop.title} | ${strings.site.name}`} description={strings.shop.description}>
-  <h1 class="font-display-ar text-3xl font-bold text-navy-900 mb-6">{strings.shop.title}</h1>
-  {products.length === 0 ? (
-    <p class="text-ink-500">{lang === "ar" ? "لا توجد منتجات حاليًا." : "No products available yet."}</p>
-  ) : (
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-      {products.map((p: any) => (
-        <a href={localePath(`/shop/${p.slug || p.id}`, lang)} class="card block overflow-hidden hover:shadow-md transition-shadow">
-          {p.images?.[0]?.url ? (
-            <img src={p.images[0].url} alt={p.name} class="w-full aspect-square object-cover bg-ivory-100" />
-          ) : (
-            <div class="w-full aspect-square bg-ivory-100"></div>
-          )}
-          <div class="p-4">
-            <h3 class="font-semibold text-ink-900 line-clamp-2">{p.name}</h3>
-            <p class="text-teal-700 font-bold mt-1">{formatMoney(p.price)}</p>
-            <span class="inline-block mt-3 text-sm text-teal-700 font-medium">{strings.shop.product.viewProduct} →</span>
-          </div>
-        </a>
-      ))}
-    </div>
-  )}
+  <ShopCatalog lang={lang} strings={strings} client:load />
 </ShopLayout>

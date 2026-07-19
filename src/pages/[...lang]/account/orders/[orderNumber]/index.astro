@@ -1,0 +1,13 @@
+---
+import ShopLayout from "../../../../../layouts/ShopLayout.astro";
+import { getStrings } from "../../../../../i18n";
+import OrderDetail from "../../../../../components/shop/OrderDetail.vue";
+
+// Order detail (Wave E3). Fetches a single order by number via shopApi.order.
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
+const strings = getStrings(lang);
+const orderNumber = (Astro.params.orderNumber ?? "") as string;
+---
+<ShopLayout lang={lang} strings={strings} title={`${strings.shop.orders.title} | ${strings.site.name}`} description={strings.shop.orders.title}>
+  <OrderDetail lang={lang} strings={strings} orderNumber={orderNumber} client:load />
+</ShopLayout>

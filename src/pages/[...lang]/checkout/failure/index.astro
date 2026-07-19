@@ -1,0 +1,13 @@
+---
+import ShopLayout from "../../../../layouts/ShopLayout.astro";
+import { getStrings } from "../../../../i18n";
+import OrderStatus from "../../../../components/shop/OrderStatus.vue";
+
+// Payment failure return (Wave E3). The hosted-checkout provider redirects here on decline/cancel;
+// the island fetches the authoritative order state and offers a safe retry back to checkout.
+const lang: "ar" | "en" = Astro.params.lang === "en" ? "en" : "ar";
+const strings = getStrings(lang);
+---
+<ShopLayout lang={lang} strings={strings} title={`${strings.shop.confirmation.failureTitle} | ${strings.site.name}`} description={strings.shop.confirmation.failureTitle}>
+  <OrderStatus lang={lang} strings={strings} variant="failure" client:load />
+</ShopLayout>
