@@ -33,6 +33,7 @@ const INTEGRATION_FILES = [
   'tests/commerce-store-cart.test.ts',
   'tests/commerce-store-cart-v2.test.ts',
   'tests/commerce-store-orders.test.ts',
+  'tests/commerce-store-auth-gateway.test.ts',
   'tests/commerce-store-catalog.test.ts',
   'tests/commerce-store-checkout.test.ts',
   'tests/commerce-store-checkout-plugin.test.ts',
