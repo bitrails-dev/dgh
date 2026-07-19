@@ -7,12 +7,11 @@
 // network. Processing (state folding) is split into processPaymentEvent (events.ts) so it can run in
 // a commerce-queue job after the ACK.
 import type { Payload } from 'payload'
-import { sql } from '@payloadcms/db-sqlite'
 import type { PaymentAdapter } from './types'
-import { insertPaymentEvent, processPaymentEvent } from './events'
+import { insertPaymentEvent, reconcilePaymentEvents } from './events'
 import { loadGatewayConfig, type GatewayProvider } from './settings'
 import { buildPaymentAdapter, type AdapterBuilder } from './adapters/registry'
-import { COMMERCE_QUEUE, PROCESS_PAYMENT_EVENT_TASK } from './job'
+import { COMMERCE_QUEUE, PROCESS_PAYMENT_EVENT_TASK, buildProductionSideEffects } from './job'
 
 export interface IngestResult {
   status: number
@@ -115,15 +114,21 @@ export async function handleProviderWebhook(input: {
   return { status: result.status, body: { inserted: result.inserted, duplicate: result.duplicate } }
 }
 
-// Recovery sweep: fold every still-unprocessed payment event. Used by an operator/admin action or a
-// scheduled task to guarantee at-least-once processing even if a webhook's job enqueue was dropped.
-export async function reprocessUnprocessed(payload: Payload, limit = 100): Promise<{ processed: number }> {
-  const drizzle = (payload.db as unknown as { drizzle: { run: (s: ReturnType<typeof sql>) => Promise<{ rows: any[] }> } }).drizzle
-  const res = await drizzle.run(sql`SELECT \`id\` FROM \`payment_events\` WHERE \`processed\` = 0 ORDER BY \`id\` ASC LIMIT ${limit}`)
-  let processed = 0
-  for (const row of res.rows) {
-    await processPaymentEvent(payload, Number(row.id))
-    processed += 1
+// Recovery sweep: re-attempt every still-unprocessed payment event with the production side-effect
+// bundle, so a dropped webhook-job enqueue OR a worker that died mid-checkpoint is recovered. Used
+// by an operator/admin action or a scheduled task to guarantee at-least-once completion (C-03).
+// Returns the count of events that reached all-checkpoints-complete under this sweep. Events that
+// are still unfinished after the sweep (e.g., downstream system not yet wired) are visible to the
+// next sweep via their `processed = 0` flag.
+export async function reprocessUnprocessed(
+  payload: Payload,
+  limit = 100,
+): Promise<{ attempted: number; completed: number; stillUnfinished: number }> {
+  const sideEffects = buildProductionSideEffects(payload)
+  const r = await reconcilePaymentEvents(payload, { limit, sideEffects })
+  return {
+    attempted: r.attempted,
+    completed: r.completed,
+    stillUnfinished: r.stillUnfinished,
   }
-  return { processed }
 }
