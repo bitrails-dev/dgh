@@ -40,6 +40,7 @@ const INTEGRATION_FILES = [
   'tests/commerce-migration-additive.test.ts',
   'tests/commerce-inventory-adaptation.test.ts',
   'tests/commerce-payment-durability.test.ts',
+  'tests/commerce-notifications-event.test.ts',
 ]
 
 const NATIVE_ACCESS_VIOLATION = 3221225477 // 0xC0000005 — Windows STATUS_ACCESS_VIOLATION

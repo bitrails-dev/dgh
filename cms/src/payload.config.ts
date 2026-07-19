@@ -48,6 +48,10 @@ import { socialPublishTask } from './social/jobs'
 import { commerceWebhookEndpoints } from './commerce/payments/endpoints'
 import { commerceStoreEndpoints } from './commerce/store/endpoints'
 import { processPaymentEventTask } from './commerce/payments/job'
+// Wave E1: durable commerce notifications (Plan §7 E1). The D3 payment side-effect bundle enqueues
+// the `send-commerce-notification` task; registering its body here lets those events reach
+// processed=1 (and powers account-verification / password-reset / order + payment notifications).
+import { sendCommerceNotificationTask } from './commerce/notifications'
 // Plugin-first commerce (Wave B4). The ecommerce plugin owns base products/variants/carts/addresses/
 // orders/transactions under collision-free `store-*` slugs (plan §3.1). B1 override modules append our
 // extension fields + tenant hooks; B2 made `customers` Payload-auth; B4 wires the plugin into the config.
@@ -157,7 +161,7 @@ export default buildConfig({
   // a worker process (`payload jobs:run`) drains it with bounded exponential retry. Exclusive
   // per-article concurrency requires enableConcurrencyControl (adds an indexed concurrencyKey).
   jobs: {
-    tasks: [socialPublishTask, processPaymentEventTask],
+    tasks: [socialPublishTask, processPaymentEventTask, sendCommerceNotificationTask],
     enableConcurrencyControl: true,
     // Drain the `social-publishing` + `commerce` queues in-process (every minute) so a single
     // `next start` process is self-sufficient. For higher throughput or process isolation, also run a
