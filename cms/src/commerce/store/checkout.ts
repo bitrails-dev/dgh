@@ -12,7 +12,9 @@ import { money } from '../money'
 import { loadGatewayConfig, type GatewayProvider } from '../payments/settings'
 import { buildPaymentAdapter, type AdapterBuilder } from '../payments/adapters/registry'
 import { createHash } from 'node:crypto'
-import { loadCommerceSettings, readJsonBody, resolveStoreTenant } from './shared'
+import { loadCommerceSettings } from './shared'
+import { withVerifiedCommerceGateway } from './gateway'
+import { processCheckout, type ProcessCheckoutInput } from '../checkout/process'
 
 export interface PlaceOrderItem {
   sku: string
@@ -239,29 +241,57 @@ export async function placeOrder(
   }
 }
 
-// POST /commerce/store/:tenantSlug/checkout — resolve the tenant by slug (404 when unknown or without
-// the commerce feature), parse the JSON body (400 when missing/invalid), then place the order and pass
-// its {status, body} through unchanged.
+// POST /commerce/store/:tenantSlug/checkout — the plugin-first signed checkout (Plan §7 D4). The
+// handler reads the raw body ONCE, verifies the commerce-gateway signature/nonce/timestamp over those
+// exact bytes (reject before parse — unsigned calls get 401/403 and perform no write), resolves the
+// tenant, then runs the 10-step processCheckout. Provider webhooks live on separate routes
+// (/commerce/webhooks/{paymob,kashier} and the plugin's /api/payments/*) and never reach this handler,
+// so they are inherently gateway-exempt (Plan §4.2).
+//
+// `placeOrder` above is retained as the legacy orchestration exercised directly by the existing
+// commerce-store-checkout suite until Wave F2 retires the legacy runtime model.
 const checkoutHandler = async (req: PayloadRequest): Promise<Response> => {
   const tenantSlug = req.routeParams?.tenantSlug as string | undefined
   if (!tenantSlug) return Response.json({ error: 'missing_tenant' }, { status: 400 })
 
-  const tenant = await resolveStoreTenant(req.payload, tenantSlug)
-  if (!tenant) return Response.json({ error: 'not_found' }, { status: 404 })
+  // Read the raw body once — the gateway hashes these exact bytes before any JSON parse.
+  let rawText: string
+  try {
+    rawText = typeof req.text === 'function' ? await req.text() : ''
+  } catch {
+    return Response.json({ error: 'invalid_body' }, { status: 400 })
+  }
+  const bodyBytes = Buffer.from(rawText ?? '', 'utf8')
 
-  const body = await readJsonBody(req)
-  if (!body) return Response.json({ error: 'invalid_body' }, { status: 400 })
+  const verification = await withVerifiedCommerceGateway({ req, tenantSlug, bodyBytes })
+  if (!verification.ok) return Response.json(verification.body, { status: verification.status })
 
-  // Idempotency-Key (commit 1.4): accept the header (or body fallback for direct API use); reject a
-  // malformed key with 400 before any commerce work.
-  const idempotencyKey = req.headers.get('idempotency-key') || (body as { idempotencyKey?: string }).idempotencyKey
+  // Signature verified → safe to parse.
+  let body: unknown
+  try {
+    body = rawText ? JSON.parse(rawText) : null
+  } catch {
+    return Response.json({ error: 'invalid_body' }, { status: 400 })
+  }
+  const obj = body as Partial<ProcessCheckoutInput> | null
+  if (!obj || typeof obj !== 'object') {
+    return Response.json({ error: 'invalid_body' }, { status: 400 })
+  }
+  if (obj.cartId === undefined || obj.cartId === null || !obj.paymentMethod || obj.shippingAddress === undefined) {
+    return Response.json({ error: 'invalid_body', detail: 'cartId, paymentMethod, shippingAddress required' }, { status: 400 })
+  }
+
+  // Idempotency-Key: header or body fallback; reject a malformed key before any commerce work.
+  const idempotencyKey = req.headers.get('idempotency-key') || (obj as { idempotencyKey?: string }).idempotencyKey
   if (idempotencyKey !== undefined && !isUuidV4(idempotencyKey)) {
     return Response.json({ error: 'invalid_idempotency_key' }, { status: 400 })
   }
-  const { status, body: resp } = await placeOrder(req.payload, tenant.id, {
-    ...(body as PlaceOrderInput),
-    idempotencyKey: idempotencyKey || undefined,
-  })
+
+  const { status, body: resp } = await processCheckout(
+    req.payload,
+    verification.context,
+    { ...obj, idempotencyKey: idempotencyKey || undefined } as ProcessCheckoutInput,
+  )
   return Response.json(resp, { status })
 }
 

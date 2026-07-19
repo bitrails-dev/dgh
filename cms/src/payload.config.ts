@@ -63,6 +63,14 @@ import { overrideStoreCarts } from './commerce/plugin/overrides/store-carts'
 import { overrideStoreAddresses } from './commerce/plugin/overrides/store-addresses'
 import { overrideStoreOrders } from './commerce/plugin/overrides/store-orders'
 import { overrideStoreTransactions } from './commerce/plugin/overrides/store-transactions'
+// Wave D1/D2 payment adapters (Plan §3.2). Added to `paymentMethods` at D4 so the ecommerce plugin's
+// payment endpoints register for Paymob + Kashier; each adapter's first operation is the §3.2 tenant
+// re-read, so direct unsigned calls get 403 once the gateway helper stashes the resolved tenant.
+// `paymobAdapter` is D1's pre-built adapter INSTANCE (createPaymobAdapter()); `kashierAdapter` is a
+// factory (D2) — the two adapters were exported with different shapes, so one is passed directly and
+// the other invoked. Both yield a plugin PaymentAdapter for the paymentMethods array.
+import { paymobAdapter } from './commerce/payments/adapters/paymob'
+import { kashierAdapter } from './commerce/payments/adapters/kashier'
 // Plugin-first commerce policy collections (Wave C4) — tenant-scoped tax/shipping/promotion/gift-card
 // persistence backing the authoritative quoteCart (plan §3.10).
 import { TaxZones } from './commerce/policies/collections/TaxZones'
@@ -199,7 +207,7 @@ export default buildConfig({
       customers: { slug: 'customers' },
       inventory: false,
       orders: { ordersCollectionOverride: overrideStoreOrders },
-      payments: { paymentMethods: [] },
+      payments: { paymentMethods: [paymobAdapter, kashierAdapter()] },
       products: {
         productsCollectionOverride: overrideStoreProducts,
         validation: validateStoreSellable,
