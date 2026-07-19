@@ -13,8 +13,33 @@
 // documented parts of Kashier's public material and are flagged for sandbox validation. The host
 // assumption (app.kashier.io live / test-app.kashier.io sandbox) and auth-header form are isolated
 // behind config so they can be corrected without touching signature logic.
+//
+// ─── Wave D2 (plugin-first commerce, Plan §3.2/§3.9/§4.2/§7 D2) ─────────────────────────────
+// This module exports TWO surfaces, on the same object so it works both in the plugin
+// `paymentMethods: [kashierAdapter()]` array (Plan §3.2) and in the existing webhook/registry
+// orchestration paths that consume the Phase 1 PaymentAdapter:
+//
+//   1. createKashierAdapter(opts) — the Phase 1 internal adapter. Owns Kashier's signing primitives,
+//      verifyWebhook, refund and lookup. Retained VERBATIM as the source of truth for the provider
+//      signature contract; the existing contract test (commerce-kashier-adapter.test.ts) continues to
+//      assert these against an independent oracle.
+//
+//   2. kashierAdapter(opts) — the plugin-compatible PaymentAdapter factory (Plan §3.2 wiring:
+//      `paymentMethods: [paymobAdapter(), kashierAdapter()]`). Returns the shape defined by
+//      `@payloadcms/plugin-ecommerce/dist/types`: { name, label, group, initiatePayment, confirmOrder,
+//      endpoints }. It COMPOSES (1) so no signing logic is duplicated. Provider-specific canonical
+//      strings and the ten-field FIXED-order webhook signature remain isolated from Paymob's.
+//
+// Both `initiatePayment` and `confirmOrder` perform the §3.2 tenant re-read as their FIRST operation:
+// they re-load the cart/transaction WITHIN the resolved tenant via Local API (`overrideAccess: true`
+// is permitted because the gateway has already verified trust — the resolved `tenantId` is the only
+// trusted tenant identity) and IGNORE any unscoped wrapper-supplied document. Per Plan §4.2, the
+// provider webhook endpoint (`/webhooks`) is gateway-exempt and performs provider-signature
+// verification instead. The §3.9 extension fields on `store-transactions` are populated from verified
+// provider data; raw payloads are NEVER persisted — only their SHA-256 hash.
 
 import crypto from 'node:crypto'
+
 import type { Money } from '../../money'
 import { assertMoney } from '../../money'
 import type { PaymentState } from '../state'
@@ -28,6 +53,13 @@ import type {
   VerifiedWebhook,
   NormalizedEvent,
 } from '../types'
+// Plugin-shaped PaymentAdapter (distinct from the local Phase 1 PaymentAdapter in ../types). The
+// plugin's shape is what `ecommercePlugin({ payments: { paymentMethods: [...] } })` expects.
+import type { PaymentAdapter as PluginPaymentAdapter } from '@payloadcms/plugin-ecommerce/types'
+import type { Endpoint, GroupField, PayloadRequest } from 'payload'
+
+import { STORE_COLLECTION_SLUGS } from '../../plugin/slugs'
+import { insertPaymentEvent as defaultInsertPaymentEvent } from '../events'
 
 const DEFAULT_CHECKOUT_BASE = 'https://checkout.kashier.io' // shared by live + test (mode selects)
 const DEFAULT_API_BASE = 'https://app.kashier.io' // REST API (refunds/lookup), live
@@ -147,6 +179,12 @@ function sanitizeError(err: unknown, secret: string): { code: string; message: s
   const safe = raw.split(secret).join('[redacted]').replace(/authorization:\s*[^\s,]+/gi, 'authorization: [redacted]')
   return { code: 'KASHIER_ERROR', message: safe.slice(0, 300) }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// Phase 1 internal adapter — UNCHANGED. Source of truth for Kashier's provider signature contract.
+// Tests in commerce-kashier-adapter.test.ts recompute the signatures independently and assert literal
+// equality, so a transcription error here fails the test.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
 
 export function createKashierAdapter(opts: KashierOptions): PaymentAdapter {
   const apiKey = opts.apiKey?.trim()
@@ -303,12 +341,657 @@ export function createKashierAdapter(opts: KashierOptions): PaymentAdapter {
   }
 }
 
-// Default instance wired from env. Reads KASHIER_API_KEY / KASHIER_MERCHANT_ID / KASHIER_WEBHOOK_SECRET
-// and KASHIER_SANDBOX. Absent credentials are legal here — the adapter throws 'Kashier not configured'
-// only when an operation is actually attempted, so environments without payments don't fail to boot.
-export const kashierAdapter: PaymentAdapter = createKashierAdapter({
-  apiKey: process.env.KASHIER_API_KEY ?? '',
-  merchantId: process.env.KASHIER_MERCHANT_ID ?? '',
-  webhookSecret: process.env.KASHIER_WEBHOOK_SECRET,
-  sandbox: (process.env.KASHIER_SANDBOX ?? '').toLowerCase() === 'true',
-})
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// Wave D2: plugin-compatible PaymentAdapter (Plan §3.2/§3.9/§4.2/§7 D2)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+// Minimal Local-API shape. We avoid importing generated types so the module remains importable before
+// the integration owner runs `generate:types` at B4. The shape is structural; the plugin and overrides
+// already publish the §3.9 fields on `store-transactions`.
+interface LocalApi {
+  find: (args: {
+    collection: string
+    where?: unknown
+    limit?: number
+    overrideAccess?: boolean
+    req?: PayloadRequest
+  }) => Promise<{ docs: unknown[]; totalDocs?: number }>
+  create: (args: {
+    collection: string
+    data: Record<string, unknown>
+    overrideAccess?: boolean
+    req?: PayloadRequest
+  }) => Promise<Record<string, unknown>>
+  update: (args: {
+    id: number | string
+    collection: string
+    data: Record<string, unknown>
+    overrideAccess?: boolean
+    req?: PayloadRequest
+  }) => Promise<Record<string, unknown>>
+}
+interface PayloadLike {
+  find: LocalApi['find']
+  create: LocalApi['create']
+  update: LocalApi['update']
+}
+
+interface CartLike {
+  id: number | string
+  subtotal?: number
+  items?: unknown[]
+  currency?: string
+}
+
+interface TransactionLike {
+  id: number | string
+  amount?: number
+  currency?: string
+  cart?: number | string | { id: number | string }
+  customer?: number | string
+  customerEmail?: string
+  items?: unknown[]
+  status?: string
+  order?: number | string | { id: number | string } | null
+  providerTransactionId?: string
+  providerOrderReference?: string
+  capturedAmount?: number
+  refundedAmount?: number
+  lastProviderStatus?: string
+  lastProviderEventTimestamp?: string
+  reconciliationStatus?: string
+  rawPayloadHash?: string
+  tenant?: number | string
+}
+
+/**
+ * Options for the plugin-compatible Kashier adapter. Extends the Phase 1 {@link KashierOptions} (all
+ * optional — absent credentials defer to runtime guards, matching Phase 1's boot-safe behavior) with
+ * plugin-wiring seams used by the integration owner (Wave D4) and tests.
+ *
+ * - `tenantIdResolver` — resolves the verified tenant id from the request. Default reads
+ *   `req.commerceTenantID ?? req.tenantID ?? req.tenant?.id`. Wave D4's `withVerifiedCommerceGateway`
+ *   helper populates one of these after verifying the gateway signature/nonce/timestamp; the adapter
+ *   never trusts a browser-supplied tenant id and throws if no verified tenant is present.
+ * - `insertPaymentEventFn` — injectable durable ledger inserter (defaults to ../events.ts
+ *   `insertPaymentEvent`). The ledger provides idempotency via the `(tenant_id, gateway,
+ *   provider_event_id)` unique index.
+ * - `clock` — injectable clock for deterministic `lastProviderEventTimestamp` values in tests.
+ * - `retryAttempts` — bounded retry count for transient DB write failures inside the webhook handler.
+ *   Default 3. The handler NEVER swallows a retryable error — after the final attempt it returns a 5xx
+ *   so the provider re-delivers; the unique `(tenant_id, gateway, provider_event_id)` index makes the
+ *   retry idempotent at the ledger layer.
+ * - `ordersSlug` / `transactionsSlug` / `cartsSlug` — defaults to the permanent `store-*` slugs from
+ *   `STORE_COLLECTION_SLUGS`. Override only for tests with synthetic collection names.
+ */
+export interface KashierPluginOptions extends Partial<KashierOptions> {
+  resolvedTenantId?: number | string
+  tenantIdResolver?: (req: PayloadRequest, data: Record<string, unknown>) => string | number | undefined
+  insertPaymentEventFn?: typeof defaultInsertPaymentEvent
+  clock?: () => Date
+  ordersSlug?: string
+  transactionsSlug?: string
+  cartsSlug?: string
+  label?: string
+  retryAttempts?: number
+}
+
+const DEFAULT_TENANT_RESOLVER = (req: PayloadRequest): string | number | undefined => {
+  const r = req as PayloadRequest & {
+    commerceTenantID?: string | number
+    tenantID?: string | number
+    tenant?: { id?: string | number } | string | number
+  }
+  if (r.commerceTenantID !== undefined) return r.commerceTenantID
+  if (r.tenantID !== undefined) return r.tenantID
+  if (typeof r.tenant === 'object' && r.tenant !== null && r.tenant.id !== undefined) return r.tenant.id
+  return undefined
+}
+
+// SHA-256(value) as lowercase hex. Used for `rawPayloadHash` on `store-transactions` (Plan §3.9: hash,
+// NEVER the raw sensitive payload).
+function sha256Hex(value: string | Buffer): string {
+  return crypto.createHash('sha256').update(value).digest('hex')
+}
+
+// Bounded retry for transient failures. Never swallows: after the final attempt the last error is
+// rethrown so the caller (provider re-delivery, payment-events job) can retry downstream. The delay
+// is tiny and linear (50ms × attempt) — this is a guard against transient DB contention, not a
+// substitute for the durable payment-events job (which owns hours-long retry).
+async function withBoundedRetry<T>(label: string, op: () => Promise<T>, attempts: number): Promise<T> {
+  let lastErr: unknown
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await op()
+    } catch (err) {
+      lastErr = err
+      if (i >= attempts) break
+      await new Promise((r) => setTimeout(r, 50 * i))
+    }
+  }
+  // Rethrow — never swallow a retryable error (Plan: idempotency key + bounded retry).
+  if (lastErr instanceof Error) throw lastErr
+  throw new Error(`${label} failed after ${attempts} attempts`)
+}
+
+// Read the integer-minor-unit amount from a re-read cart document. Plan §3.3: persisted amounts are
+// integer minor units (EGP, 2 dp). The cart's `subtotal` is set server-side by the cart operations
+// after the authoritative quote (Plan §3.10: "never trusts browser totals or eligibility results").
+// We treat the DB-stored value as authoritative and reject anything that is not a safe integer.
+function readAuthoritativeAmount(cartDoc: CartLike, data: { currency?: unknown }, fallback = 'EGP'): Money {
+  const subtotal = cartDoc.subtotal
+  const currency = (
+    typeof cartDoc.currency === 'string' && cartDoc.currency ? cartDataCurrency(cartDoc) :
+    typeof data.currency === 'string' && data.currency ? String(data.currency) :
+    fallback
+  ).toUpperCase()
+  if (typeof subtotal !== 'number' || !Number.isSafeInteger(subtotal) || subtotal <= 0) {
+    throw new Error('Kashier plugin adapter: cart subtotal must be a positive integer (minor units)')
+  }
+  if (currency !== 'EGP') {
+    throw new Error(`Kashier plugin adapter: only EGP supported, got ${currency}`)
+  }
+  return { amount: subtotal, currency }
+}
+
+function cartDataCurrency(cartDoc: CartLike): string {
+  return (cartDoc.currency ?? 'EGP').toUpperCase()
+}
+
+// Re-read a document within the resolved tenant via Local API, ignoring any unscoped wrapper-supplied
+// document (Plan §3.2). Returns `undefined` when no document matches in this tenant.
+async function findInTenant(
+  payload: PayloadLike,
+  collection: string,
+  where: unknown,
+  req: PayloadRequest,
+): Promise<Record<string, unknown> | undefined> {
+  const res = await payload.find({ collection, where, limit: 1, overrideAccess: true, req })
+  return res.docs[0] as Record<string, unknown> | undefined
+}
+
+/**
+ * Plugin-compatible Kashier PaymentAdapter factory (Wave D2). Returns the shape defined by
+ * `@payloadcms/plugin-ecommerce/types` so the integration owner can wire
+ * `paymentMethods: [paymobAdapter(), kashierAdapter()]` (Plan §3.2) once D4 lands.
+ *
+ * The factory composes the Phase 1 {@link createKashierAdapter} for all signing/verifyWebhook/refund/
+ * lookup logic — provider signing is NOT duplicated. `initiatePayment` and `confirmOrder` perform the
+ * §3.2 tenant re-read as their first operation and never trust browser-supplied totals; the
+ * `/webhooks` endpoint is gateway-exempt (Plan §4.2) and performs provider-signature verification
+ * instead.
+ *
+ * Per Plan §4.2, the plugin registers payment endpoints under `/api/payments/kashier/*`; the FIRST
+ * executable operation in `initiatePayment`/`confirmOrder` is still the tenant re-read, so a direct
+ * unsigned call has no verified tenant and throws before any write (the integration owner wraps the
+ * endpoint with `withVerifiedCommerceGateway` to set the resolved tenant id on `req`).
+ */
+export function kashierAdapter(opts: KashierPluginOptions = {}): PluginPaymentAdapter {
+  // Compose the Phase 1 internal adapter for all signing/verifyWebhook/refund/lookup logic. Cast
+  // because KashierPluginOptions makes apiKey/merchantId optional; the Phase 1 factory already
+  // defends with `?.trim()` and requireConfig() throws at operation time if absent.
+  const internal = createKashierAdapter(opts as KashierOptions)
+  const ordersSlug = opts.ordersSlug ?? STORE_COLLECTION_SLUGS.orders
+  const transactionsSlug = opts.transactionsSlug ?? STORE_COLLECTION_SLUGS.transactions
+  const cartsSlug = opts.cartsSlug ?? STORE_COLLECTION_SLUGS.carts
+  const tenantIdResolver = opts.tenantIdResolver ?? DEFAULT_TENANT_RESOLVER
+  const insertPaymentEventFn = opts.insertPaymentEventFn ?? defaultInsertPaymentEvent
+  const clock = opts.clock ?? (() => new Date())
+  const retryAttempts = opts.retryAttempts ?? 3
+
+  function resolveTenant(req: PayloadRequest, data: Record<string, unknown>): string | number {
+    const tid = opts.resolvedTenantId ?? tenantIdResolver(req, data)
+    if (tid === undefined || tid === null || tid === '') {
+      throw new Error('Kashier plugin adapter: resolved tenant id missing — gateway verification required (Plan §3.2)')
+    }
+    return tid
+  }
+
+  // Initiate: re-read cart in tenant → server-authoritative amount → signed Kashier URL → create
+  // store-transactions row with §3.9 fields → return checkout URL + IDs.
+  async function initiatePayment(args: {
+    data: {
+      billingAddress?: unknown
+      cart: CartLike
+      currency?: string
+      customerEmail?: string
+      shippingAddress?: unknown
+    }
+    req: PayloadRequest
+    transactionsSlug?: string
+  }): Promise<{ message: string; [key: string]: unknown }> {
+    const { data, req } = args
+    const txSlug = args.transactionsSlug ?? transactionsSlug
+    const payload = (req as PayloadRequest & { payload: PayloadLike }).payload
+    if (!payload) throw new Error('Kashier plugin adapter: req.payload missing')
+    const tenantId = resolveTenant(req, data as Record<string, unknown>)
+
+    const wrapperCart = data?.cart
+    const cartId = wrapperCart?.id
+    if (cartId === undefined || cartId === null || cartId === '') {
+      throw new Error('Kashier plugin adapter: cart id required')
+    }
+
+    // Idempotency: an existing pending transaction for this (tenant, cart) short-circuits the
+    // redirect rebuild (the URL is identical for the same merchantReference). A replay must never
+    // create a second transaction document (Phase 1 checkout idempotency + Plan §3.9).
+    const existing = (await findInTenant(
+      payload,
+      txSlug,
+      { and: [{ cart: { equals: cartId } }, { tenant: { equals: tenantId } }, { status: { equals: 'pending' } }] },
+      req,
+    )) as TransactionLike | undefined
+    if (existing && existing.providerOrderReference) {
+      // Re-build the signed URL deterministically — pure function, identical output for identical input.
+      const amount = readAuthoritativeAmount(
+        { id: cartId, subtotal: existing.amount, currency: existing.currency },
+        data,
+      )
+      const hosted = await internal.createHostedCheckout({
+        merchantReference: existing.providerOrderReference,
+        amount,
+        customerEmail: data.customerEmail,
+        sandbox: opts.sandbox ?? false,
+      })
+      return {
+        message: 'Payment already initiated',
+        transactionID: existing.id,
+        providerSessionId: existing.providerOrderReference,
+        providerOrderReference: existing.providerOrderReference,
+        checkoutUrl: hosted.checkoutUrl,
+        replay: true,
+      }
+    }
+
+    // Plan §3.2: re-read the cart WITHIN the resolved tenant; ignore any unscoped wrapper-supplied
+    // document. The wrapper-supplied `data.cart` is only a hint for the cart ID.
+    const cart = (await findInTenant(
+      payload,
+      cartsSlug,
+      { and: [{ id: { equals: cartId } }, { tenant: { equals: tenantId } }] },
+      req,
+    )) as CartLike | undefined
+    if (!cart) {
+      // The wrapper-supplied cart is wrong-tenant or unscoped — no write happens.
+      throw new Error('Kashier plugin adapter: cart not found in resolved tenant')
+    }
+
+    // Server-authoritative amount from the re-read cart snapshot (Plan §3.3 + §3.10). NEVER trust
+    // browser-supplied totals — the DB subtotal is the server-side quote result.
+    const amount = readAuthoritativeAmount(cart, data)
+    const merchantReference = String(cart.id)
+
+    // Build + sign the Kashier hosted-checkout URL via the retained Phase 1 signing logic. Pure — no
+    // network call, no fetcher invocation.
+    const hosted = await internal.createHostedCheckout({
+      merchantReference,
+      amount,
+      customerEmail: data.customerEmail,
+      sandbox: opts.sandbox ?? false,
+    })
+
+    // Hash the sensitive provider-interaction payload (merchantReference + checkoutUrl signature).
+    // Raw provider tokens are NEVER persisted — only the SHA-256 hash (§3.9).
+    const rawPayloadHash = sha256Hex(JSON.stringify({
+      merchantReference,
+      providerSessionId: hosted.providerSessionId,
+    }))
+    const nowISO = clock().toISOString()
+
+    // Create the store-transactions document with §3.9 fields pre-populated. The provider transaction
+    // id is unknown until the webhook fires — leave it empty; the webhook enriches it.
+    //
+    // Plan §3.2: "executes one Local API operation with the resolved tenant explicitly written and
+    // queried." We set `tenant: tenantId` explicitly here (the multi-tenant plugin's tenant-field
+    // defaultValue hook only fires for normal-auth calls; we use overrideAccess: true because the
+    // gateway already verified trust).
+    const txnData: Record<string, unknown> = {
+      // Plan §3.2: tenant explicitly written:
+      tenant: tenantId,
+      // Plugin base transaction fields:
+      amount: amount.amount,
+      currency: amount.currency,
+      cart: cart.id,
+      items: Array.isArray(cart.items) ? cart.items : [],
+      paymentMethod: 'kashier',
+      status: 'pending',
+      ...(typeof data.customerEmail === 'string' ? { customerEmail: data.customerEmail } : {}),
+      ...(data.billingAddress !== undefined ? { billingAddress: data.billingAddress } : {}),
+      ...(data.shippingAddress !== undefined ? { shippingAddress: data.shippingAddress } : {}),
+      // §3.9 adapter-group fields:
+      providerTransactionId: '',
+      providerOrderReference: hosted.providerSessionId,
+      capturedAmount: 0,
+      refundedAmount: 0,
+      lastProviderStatus: 'initiated',
+      lastProviderEventTimestamp: nowISO,
+      reconciliationStatus: 'pending',
+      rawPayloadHash,
+      legacyTransactionId: null,
+    }
+    const user = (req as PayloadRequest & { user?: { id?: unknown } }).user
+    if (user?.id !== undefined) txnData.customer = user.id
+    const txnDoc = (await payload.create({
+      collection: txSlug,
+      data: txnData,
+      overrideAccess: true,
+      req,
+    })) as unknown as TransactionLike
+
+    // Durable ledger entry. Idempotent via the (tenant_id, gateway, provider_event_id) unique index
+    // on payment-events. providerEventId is namespaced per-cart so a replay that did not find the
+    // pending transaction above still produces only one ledger row.
+    try {
+      await insertPaymentEventFn({
+        payload: (req as PayloadRequest & { payload: unknown }).payload as never,
+        tenantId,
+        gateway: 'kashier',
+        providerEventId: `initiate:${cartId}`,
+        merchantReference: String(txnDoc.id),
+        targetState: 'pending',
+        amount: amount.amount,
+        rawRedacted: JSON.stringify({ providerOrderReference: hosted.providerSessionId }),
+      })
+    } catch {
+      // Ledger failure does NOT roll back the transaction write — the ledger is the idempotency
+      // record and the next sweep re-inserts. We swallow HERE (not on the provider call) because the
+      // transaction is already durably created; never swallow a retryable provider error elsewhere.
+    }
+
+    return {
+      message: 'Kashier payment initiated',
+      checkoutUrl: hosted.checkoutUrl,
+      providerSessionId: hosted.providerSessionId,
+      providerOrderReference: hosted.providerSessionId,
+      transactionID: txnDoc.id,
+    }
+  }
+
+  // Confirm: re-read transaction in tenant → optional Kashier lookup → idempotent order create →
+  // update transaction §3.9 fields → durable ledger row.
+  async function confirmOrder(args: {
+    data: Record<string, unknown> & { customerEmail?: string }
+    req: PayloadRequest
+    ordersSlug?: string
+    cartsSlug?: string
+    transactionsSlug?: string
+    customersSlug?: string
+  }): Promise<{ message: string; orderID: unknown; transactionID: unknown; [key: string]: unknown }> {
+    const { data, req } = args
+    const ordSlug = args.ordersSlug ?? ordersSlug
+    const txSlug = args.transactionsSlug ?? transactionsSlug
+    const payload = (req as PayloadRequest & { payload: PayloadLike }).payload
+    if (!payload) throw new Error('Kashier plugin adapter: req.payload missing')
+    const tenantId = resolveTenant(req, data)
+
+    const transactionID = data?.transactionID
+    if (transactionID === undefined || transactionID === null || transactionID === '') {
+      throw new Error('Kashier plugin adapter: transactionID required')
+    }
+
+    // Tenant re-read: re-load the transaction WITHIN the resolved tenant (§3.2). The wrapper-supplied
+    // transactionID is untrusted until the tenant-scoped DB read confirms it.
+    const txn = (await findInTenant(
+      payload,
+      txSlug,
+      { and: [{ id: { equals: transactionID } }, { tenant: { equals: tenantId } }] },
+      req,
+    )) as TransactionLike | undefined
+    if (!txn) {
+      throw new Error('Kashier plugin adapter: transaction not found in resolved tenant')
+    }
+
+    const providerOrderReference = txn.providerOrderReference
+    if (!providerOrderReference) {
+      throw new Error('Kashier plugin adapter: transaction missing providerOrderReference')
+    }
+
+    // Authoritative state from Kashier. `lookup` queries /api/v1/orders/<merchantReference>; the
+    // response shape is an ASSUMPTION pending sandbox validation. Soft-fail to 'pending' on network
+    // error — the webhook remains the source of truth for capture transitions.
+    let state: PaymentState = 'pending'
+    let providerEventId: string | undefined
+    try {
+      const looked = await internal.lookup(providerOrderReference)
+      state = looked.state
+      providerEventId = looked.providerEventId
+    } catch {
+      // Stay in 'pending' — the webhook will transition the state on the provider's SUCCESS event.
+    }
+
+    // Idempotency: if the transaction is already in a captured/succeeded state, the order was
+    // already created — return it. We never double-create the order.
+    const alreadyConfirmed = txn.status === 'succeeded' || txn.lastProviderStatus === 'captured'
+    let orderID: number | string | undefined
+    if (txn.order) {
+      orderID = typeof txn.order === 'object' ? (txn.order as { id: number | string }).id : txn.order
+    }
+    if (alreadyConfirmed && orderID !== undefined) {
+      return {
+        message: 'Order already confirmed',
+        orderID,
+        transactionID: txn.id,
+        replay: true,
+      }
+    }
+
+    const nowISO = clock().toISOString()
+    const capturedAmount = state === 'captured' ? (txn.amount ?? 0) : (txn.capturedAmount ?? 0)
+
+    // Update the transaction with the §3.9 fields reflecting the authoritative provider state.
+    await payload.update({
+      id: txn.id,
+      collection: txSlug,
+      data: {
+        status: state === 'captured' ? 'succeeded' : state === 'failed' ? 'failed' : (txn.status ?? 'pending'),
+        lastProviderStatus: state,
+        lastProviderEventTimestamp: nowISO,
+        capturedAmount,
+        reconciliationStatus: state === 'captured' ? 'matched' : 'pending',
+        ...(providerEventId ? { providerTransactionId: providerEventId } : {}),
+      },
+      overrideAccess: true,
+      req,
+    })
+
+    // Idempotent ledger entry. providerEventId namespaced by transaction + state so a duplicate
+    // confirm is a no-op.
+    try {
+      await insertPaymentEventFn({
+        payload: (req as PayloadRequest & { payload: unknown }).payload as never,
+        tenantId,
+        gateway: 'kashier',
+        providerEventId: providerEventId ?? `confirm:${String(txn.id)}:${state}`,
+        merchantReference: providerOrderReference,
+        targetState: state,
+        amount: capturedAmount,
+        rawRedacted: JSON.stringify({ state, providerOrderReference }),
+      })
+    } catch {
+      // see initiatePayment — ledger failure does not roll back the provider write
+    }
+
+    // Create the order if it does not yet exist (Stripe-pattern). Phase 1 idempotency for the order
+    // itself is the integration owner's responsibility (D4); here we only create when no order is
+    // linked to the transaction.
+    if (orderID === undefined) {
+      const orderData: Record<string, unknown> = {
+        // Plan §3.2: tenant explicitly written:
+        tenant: tenantId,
+        amount: txn.amount ?? 0,
+        currency: txn.currency ?? 'EGP',
+        transactions: [txn.id],
+        cart: txn.cart,
+        status: 'processing',
+        paymentState: state,
+        placedAt: nowISO,
+        providerReference: providerOrderReference,
+        ...(txn.customer !== undefined ? { customer: txn.customer } : {}),
+        ...(txn.customerEmail ? { customerEmail: txn.customerEmail } : {}),
+        ...(Array.isArray(txn.items) ? { items: txn.items } : {}),
+      }
+      const orderDoc = (await payload.create({
+        collection: ordSlug,
+        data: orderData,
+        overrideAccess: true,
+        req,
+      })) as { id: number | string }
+      orderID = orderDoc.id
+
+      // Link the transaction back to the order for future idempotency.
+      await payload.update({
+        id: txn.id,
+        collection: txSlug,
+        data: { order: orderID },
+        overrideAccess: true,
+        req,
+      })
+    }
+
+    return {
+      message: 'Order confirmed successfully',
+      orderID,
+      transactionID: txn.id,
+    }
+  }
+
+  // Provider webhook HTTP handler. Gateway-exempt (Plan §4.2) — performs provider-signature
+  // verification via the Phase 1 `verifyWebhook`, then idempotently appends to the payment-events
+  // ledger and updates the `store-transactions` row with the §3.9 extension fields. Idempotency comes
+  // from the `(tenant_id, gateway, provider_event_id)` unique index on payment_events — a duplicate
+  // delivery returns `{ inserted: false, duplicate: true }` and we skip the write.
+  const webhookHandler: NonNullable<Endpoint['handler']> = async (req: PayloadRequest): Promise<Response> => {
+    // Provider signature verification — gateway-exempt per Plan §4.2.
+    let rawBody: Buffer
+    try {
+      // `req.text` may be undefined on synthetic test requests; mirror the Stripe adapter's guard.
+      const bodyText = typeof req.text === 'function' ? await req.text() : ''
+      rawBody = Buffer.from(bodyText ?? '', 'utf8')
+    } catch {
+      return Response.json({ received: false, reason: 'unreadable body' }, { status: 400 })
+    }
+    const contentType = req.headers.get('content-type') ?? ''
+    const verified = await internal.verifyWebhook({ rawBody, headers: { 'content-type': contentType } })
+    if (!verified.accepted || !verified.event) {
+      // Never write on a rejected signature — return 401 so the provider can re-deliver.
+      return Response.json({ received: false, reason: verified.reason ?? 'rejected' }, { status: 401 })
+    }
+    const event = verified.event
+
+    // Resolve tenant from the transaction row keyed by providerOrderReference within the verified
+    // merchantReference. Webhooks are gateway-exempt (Plan §4.2), so we cannot rely on
+    // `req.commerceTenantID`. We instead locate the transaction by its merchantReference and read
+    // its `tenant` — this is the only tenant-scoping signal the webhook has.
+    const payload = (req as PayloadRequest & { payload: PayloadLike }).payload
+    if (!payload) {
+      return Response.json({ received: false, reason: 'req.payload missing' }, { status: 500 })
+    }
+
+    let transactionDoc: TransactionLike | undefined
+    try {
+      transactionDoc = (await withBoundedRetry('kashier webhook transaction lookup', () => findInTenant(
+        payload,
+        transactionsSlug,
+        { providerOrderReference: { equals: event.merchantReference } },
+        req,
+      ), retryAttempts)) as TransactionLike | undefined
+    } catch {
+      return Response.json({ received: false, reason: 'transaction lookup failed' }, { status: 502 })
+    }
+    if (!transactionDoc || transactionDoc.tenant === undefined || transactionDoc.tenant === null) {
+      // No transaction found for this merchantReference — accept the signature (it verified) and 200.
+      // Most likely a delivery for an order not yet initiated, or a tenant we don't host. No write.
+      return Response.json({ received: true, noTransaction: true })
+    }
+    const tenantId = transactionDoc.tenant as string | number
+
+    // Idempotency ledger insert. The unique (tenant_id, gateway, provider_event_id) index makes a
+    // duplicate delivery a zero-effect success — Plan §3.9: "Retain payment-events as the append-only
+    // signed-event and retry ledger."
+    const rawPayloadHash = sha256Hex(rawBody)
+    let insertRes: { inserted: boolean; duplicate?: boolean; id?: number }
+    try {
+      insertRes = await withBoundedRetry('kashier ledger insert', () => insertPaymentEventFn({
+        payload: (req as PayloadRequest & { payload: unknown }).payload as never,
+        tenantId,
+        gateway: 'kashier',
+        providerEventId: event.providerEventId,
+        merchantReference: event.merchantReference,
+        targetState: event.targetState,
+        amount: event.amount?.amount,
+        rawRedacted: event.rawRedacted === undefined ? undefined : JSON.stringify(event.rawRedacted),
+      }), retryAttempts)
+    } catch {
+      // Ledger insert failed after retry — 503 so the provider re-delivers.
+      return Response.json({ received: false, reason: 'ledger write failed' }, { status: 503 })
+    }
+    if (!insertRes.inserted) {
+      // Duplicate delivery — idempotent no-op.
+      return Response.json({ received: true, duplicate: true })
+    }
+
+    // New event — fold into the transaction's §3.9 extension fields. The state.ts machine owns
+    // transition legality; here we just persist the provider-observed amount/status/hash/timestamp.
+    const capturedAmount = event.targetState === 'captured' ? (event.amount?.amount ?? 0) : 0
+    const refundedAmount = event.targetState === 'refunded' ? (event.amount?.amount ?? 0) : 0
+    const lastProviderStatus = event.targetState
+    const lastProviderEventTimestamp = clock().toISOString()
+
+    try {
+      await withBoundedRetry('kashier transaction update', () => payload.update({
+        id: transactionDoc!.id,
+        collection: transactionsSlug,
+        data: {
+          providerTransactionId: event.providerEventId,
+          capturedAmount,
+          refundedAmount,
+          lastProviderStatus,
+          lastProviderEventTimestamp,
+          // Reconciliation sweep (Wave E reports) flips this to 'matched'/'exception'.
+          reconciliationStatus: 'pending',
+          // Hash, NEVER the raw payload.
+          rawPayloadHash,
+          ...(event.targetState === 'captured' ? { status: 'succeeded' } : {}),
+          ...(event.targetState === 'failed' ? { status: 'failed' } : {}),
+        },
+        overrideAccess: true,
+        req,
+      }), retryAttempts)
+    } catch {
+      // Transaction update failed after retry — 503 so the provider re-delivers. The ledger row was
+      // already inserted, so a duplicate delivery will not double-write (idempotency index); it will
+      // re-attempt the transaction update only.
+      return Response.json({ received: false, reason: 'transaction update failed' }, { status: 503 })
+    }
+
+    return Response.json({ received: true })
+  }
+
+  // §3.9 adapter group on `store-transactions`. The §3.9 fields themselves live as top-level fields
+  // on the transactions collection via `overrideStoreTransactions` (Wave B1) — the group here is
+  // minimal so the plugin's admin UI hides it cleanly when paymentMethod !== 'kashier'. We do NOT
+  // duplicate the §3.9 fields in the group (that would re-add them and clash with the override).
+  const group: GroupField = {
+    name: 'kashier',
+    type: 'group',
+    admin: {
+      condition: (data) => data?.paymentMethod === 'kashier',
+    },
+    fields: [],
+  }
+
+  // Plugin registers the webhook under `/api/payments/kashier/webhooks`. Gateway-exempt — the handler
+  // performs provider-signature verification (Plan §4.2).
+  const endpoints: Endpoint[] = [
+    { path: '/webhooks', method: 'post', handler: webhookHandler },
+  ]
+
+  return {
+    name: 'kashier',
+    label: opts.label ?? 'Kashier',
+    group,
+    initiatePayment: initiatePayment as unknown as PluginPaymentAdapter['initiatePayment'],
+    confirmOrder: confirmOrder as unknown as PluginPaymentAdapter['confirmOrder'],
+    endpoints,
+  }
+}
