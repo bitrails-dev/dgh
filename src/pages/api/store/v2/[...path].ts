@@ -11,10 +11,10 @@
 //
 // Pricing is authoritative at the CMS — the browser never sends totals (§3.7/§4.1).
 //
-// NOTE (Wave E3 continuation): cart + orders areas return 501 `not_wired` here. Their signed CMS
-// endpoints are deferred — they require the C4 `createPayloadQuoteCartLoader` (the legacy price
-// helpers read `products`, not `store-products`) and an x-session-token customer bridge for orders.
-// The cart-cookie helpers in server.ts (getCartIdV2/setCartIdV2/clearCartIdV2) activate with them.
+// NOTE (Wave E3 continuation): the cart area is wired (Lane B) — the proxy injects the
+// store_cart_v2 cookie's cartId into cart requests and plants/clears the cookie from the response
+// cartId. The orders area still returns 501 `not_wired` until Lane C lands its signed orders
+// endpoint + x-session-token customer bridge.
 
 import type { APIRoute } from "astro";
 import { Buffer } from "node:buffer";
@@ -25,6 +25,9 @@ import {
   getSessionTokenV2,
   setSessionTokenV2,
   clearSessionTokenV2,
+  getCartIdV2,
+  setCartIdV2,
+  clearCartIdV2,
 } from "../../../../lib/store/server";
 
 type Area = "catalog-list" | "catalog-detail" | "cart" | "quote" | "checkout" | "auth" | "orders";
@@ -70,9 +73,9 @@ export const ALL: APIRoute = async (ctx) => {
   const mapped = mapRoute(segments);
   if (!mapped) return json({ error: "not_found" }, 404);
 
-  // Wave E3 continuation — see file header. Cart/orders CMS endpoints are pending.
-  if (mapped.area === "cart" || mapped.area === "orders") {
-    return json({ error: "not_wired", detail: "CMS cart/orders endpoints pending (Wave E3 continuation)" }, 501);
+  // Wave E3 continuation — see file header. The orders CMS endpoint is still pending (Lane C).
+  if (mapped.area === "orders") {
+    return json({ error: "not_wired", detail: "CMS orders endpoint pending (Wave E3 continuation)" }, 501);
   }
 
   const method = request.method.toUpperCase();
@@ -85,13 +88,32 @@ export const ALL: APIRoute = async (ctx) => {
   const idem = request.headers.get("idempotency-key");
   if (idem) headers["idempotency-key"] = idem;
 
-  const cmsSub = mapped.cmsPath + (url.search || "");
+  let cmsSub = mapped.cmsPath + (url.search || "");
+  let forwardBody: Buffer = bodyBytes;
+
+  // Cart: inject the store_cart_v2 cookie's cartId into the forwarded request (query for GET, body
+  // for writes) so the signed CMS cart handler owns cart identity. The signature covers the modified
+  // bytes. The response cartId plants/clears the cookie (handled below).
+  if (mapped.area === "cart") {
+    const cookieCartId = getCartIdV2(cookies);
+    if (method === "GET") {
+      if (cookieCartId) cmsSub += `${cmsSub.includes("?") ? "&" : "?"}cartId=${encodeURIComponent(cookieCartId)}`;
+    } else {
+      try {
+        const parsed = bodyBytes.length ? JSON.parse(bodyBytes.toString("utf8")) : {};
+        const merged = { ...(parsed && typeof parsed === "object" ? parsed : {}), ...(cookieCartId ? { cartId: cookieCartId } : {}) };
+        forwardBody = Buffer.from(JSON.stringify(merged), "utf8");
+      } catch {
+        /* malformed body — forward as-is; the CMS returns 400 */
+      }
+    }
+  }
 
   let res: Response;
   try {
     res = await signedCmsFetch(slug, cmsSub, {
       method,
-      body: bodyBytes.length ? bodyBytes : undefined,
+      body: forwardBody.length ? forwardBody : undefined,
       headers,
     });
   } catch {
@@ -128,6 +150,19 @@ export const ALL: APIRoute = async (ctx) => {
       return json({ items: o.products ?? [], total: o.total ?? 0, page: 1 }, status);
     } catch {
       /* fall through to pass-through */
+    }
+  }
+
+  // Cart: plant/clear the store_cart_v2 cookie from the response cartId (only on success — a failed
+  // write must not wipe an existing cart cookie).
+  if (mapped.area === "cart" && ok) {
+    try {
+      const o = JSON.parse(text) as { cartId?: unknown };
+      const cid = typeof o.cartId === "string" ? o.cartId : "";
+      if (cid) setCartIdV2(cookies, cid);
+      else clearCartIdV2(cookies);
+    } catch {
+      /* non-JSON cart response — pass through without touching the cookie */
     }
   }
 
