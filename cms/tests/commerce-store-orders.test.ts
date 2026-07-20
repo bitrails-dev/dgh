@@ -115,3 +115,9 @@ test('cross-customer: one customer cannot see another customer\'s order', async 
   const detailFromB = await readOrder(payload, tenantId, b.customerId, '3001')
   assert.equal(detailFromB.status, 404)
 })
+
+// Runbook §7 item 2 — the collection-level beforeChange guard on store-orders validates `status` and
+// `fulfillmentState` against their state machines (orders/state.ts). `paymentState` is intentionally
+// NOT guarded — it is a singly-written denormalized projection of the payment-events ledger (see
+// store-orders.ts header comment for the rationale). No legal/illegal paymentState subtests belong here.
+

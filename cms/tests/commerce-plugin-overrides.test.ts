@@ -160,8 +160,20 @@ function assertOverrideContract(
     }
   })
 
-  test(`${name}: preserves hooks (spread)`, () => {
-    assert.deepEqual(result.hooks, defaults.hooks)
+  test(`${name}: preserves default hooks (spread; overrides may append)`, () => {
+    // Defaults must be preserved (not dropped) by the spread. An override may legitimately APPEND its
+    // own hook (e.g. store-orders' transition guard), so deepEqual against defaults would be too strict.
+    const d = (defaults.hooks ?? {}) as Record<string, unknown>
+    const r = (result.hooks ?? {}) as Record<string, unknown>
+    for (const key of Object.keys(d)) {
+      const defArr = d[key]
+      const resArr = r[key]
+      if (Array.isArray(defArr)) {
+        for (const h of defArr) {
+          assert.ok(Array.isArray(resArr) && resArr.includes(h), `default ${key} hook must be preserved`)
+        }
+      }
+    }
   })
 
   test(`${name}: preserves default access (spread)`, () => {

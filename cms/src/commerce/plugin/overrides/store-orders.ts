@@ -10,10 +10,17 @@
 // (tenant_id, checkout_key) WHERE checkout_key IS NOT NULL are enforced by the Wave C migration
 // (C1); here we only mark the lookup fields as indexed.
 
-import type { CollectionSlug, Field } from 'payload'
+import type { CollectionBeforeChangeHook, CollectionSlug, Field } from 'payload'
+import { APIError } from 'payload'
 import type { CollectionOverride } from '@payloadcms/plugin-ecommerce/types'
 
 import { STORE_COLLECTION_SLUGS } from '../slugs'
+import {
+  transition as orderTransition,
+  transitionFulfillment,
+  type FulfillmentState,
+  type OrderState,
+} from '../../orders/state'
 
 const fulfillmentStateOptions = [
   { value: 'unfulfilled', label: { en: 'Unfulfilled', ar: 'غير منفّذة' } },
@@ -177,8 +184,68 @@ export const orderExtensionFields: Field[] = [
   },
 ]
 
+// Runbook §7 item 2 — collection-level guard against illegal order/fulfillment transitions on UPDATE.
+// Mirrors the retired legacy Orders.ts beforeChange hook for the dimensions whose value spaces match
+// their state machines: `status` (orders/state.ts) and `fulfillmentState` (orders/state.ts) are real
+// admin-edit surfaces, so each UPDATE is validated against its machine. CREATE is skipped
+// (processCheckout sets the initial states).
+//
+// `paymentState` is intentionally NOT guarded here. It is a singly-written denormalized projection of
+// the authoritative payment-events ledger: only `setStoreOrderPaymentState` (payments/job.ts) updates
+// it, deriving the value from the folded ledger state via `mapPaymentStateForOrder`. Its value space
+// (plugin order-doc values: includes 'cancelled', omits 'voided'/'disputed'/'partially_*') does NOT
+// match the payments state machine in payments/state.ts, so validating that field against that machine
+// is a category error that would reject legitimate ledger-driven updates (e.g. voided → 'cancelled').
+// ponytail: if a second writer or direct admin editing of paymentState ever becomes a real risk,
+// introduce a purpose-built order-paymentState transition table here — do NOT reuse payments/state.ts.
+const validateStoreOrderTransitions: CollectionBeforeChangeHook = ({ data, originalDoc, operation }) => {
+  if (operation !== 'update') return data
+  const prev = originalDoc as
+    | { status?: string; fulfillmentState?: string }
+    | undefined
+  const next = data as { status?: string; fulfillmentState?: string }
+
+  if (next.status && prev?.status && next.status !== prev.status) {
+    const t = orderTransition(prev.status as OrderState, next.status as OrderState)
+    if (!t.ok) {
+      throw new APIError(
+        `Illegal order status transition: ${prev.status} → ${next.status}`,
+        400,
+        null,
+        true,
+      )
+    }
+  }
+  if (
+    next.fulfillmentState &&
+    prev?.fulfillmentState &&
+    next.fulfillmentState !== prev.fulfillmentState
+  ) {
+    const t = transitionFulfillment(
+      prev.fulfillmentState as FulfillmentState,
+      next.fulfillmentState as FulfillmentState,
+    )
+    if (!t.ok) {
+      throw new APIError(
+        `Illegal fulfillment transition: ${prev.fulfillmentState} → ${next.fulfillmentState}`,
+        400,
+        null,
+        true,
+      )
+    }
+  }
+  return data
+}
+
 export const overrideStoreOrders: CollectionOverride = ({ defaultCollection }) => ({
   ...defaultCollection,
   slug: STORE_COLLECTION_SLUGS.orders as CollectionSlug,
   fields: [...(defaultCollection.fields ?? []), ...orderExtensionFields],
+  hooks: {
+    ...defaultCollection.hooks,
+    beforeChange: [
+      ...((defaultCollection.hooks?.beforeChange as CollectionBeforeChangeHook[] | undefined) ?? []),
+      validateStoreOrderTransitions,
+    ],
+  },
 })
