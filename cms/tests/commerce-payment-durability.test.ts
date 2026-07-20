@@ -31,7 +31,8 @@ await payload.db.migrate()
 
 const { sql } = await import('@payloadcms/db-sqlite')
 const { insertPaymentEvent, processPaymentEvent, reconcilePaymentEvents, NO_OP_SIDE_EFFECTS } = await import('../src/commerce/payments/events')
-import type { PaymentSideEffects, CheckpointName } from '../src/commerce/payments/events'
+const { buildProductionSideEffects } = await import('../src/commerce/payments/job')
+import type { PaymentSideEffects, PaymentSideEffectContext, CheckpointName } from '../src/commerce/payments/events'
 
 let tenantId: number | string
 
@@ -273,6 +274,92 @@ test('NO_OP default side-effects complete the fold path without performing real 
   // processed advanced because every (no-op) checkpoint succeeded.
   const row = await readEvent(ins.id as number)
   assert.equal(row.processed, 1)
+})
+
+// Wave F2 Lane B — the production side-effect bundle (buildProductionSideEffects in job.ts) MUST
+// write the plugin store-orders / store-transactions collections and NEVER the legacy orders /
+// transactions collections. The handlers are invoked directly with a constructed context so the
+// write targets are asserted without depending on the jobs/notification runtime.
+test('production side-effect bundle writes store-orders / store-transactions, never legacy', async () => {
+  const orderNumber = 'DUR-PROD-1'
+  await payload.create({
+    collection: 'store-orders', overrideAccess: true,
+    data: {
+      tenant: tenantId, orderNumber,
+      status: 'processing', paymentState: 'pending',
+      subtotal: 5000, totalDiscount: 0, shippingPrice: 0, totalTax: 0, giftCardApplied: 0,
+      amountDue: 5000, currency: 'EGP', placedAt: new Date().toISOString(),
+      items: [], quoteSnapshot: { currency: 'EGP' }, quoteHash: 'h-dur-prod',
+    } as any,
+  })
+
+  const fx = buildProductionSideEffects(payload)
+  const ctx: PaymentSideEffectContext = {
+    payload, tenantId, orderNumber,
+    eventId: 1, providerEventId: 'prod-evt-1', gateway: 'paymob',
+    foldedState: 'captured', targetState: 'captured', amount: 5000,
+  }
+
+  const legacyOrdersBefore = (await payload.count({ collection: 'orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  const legacyTxnsBefore = (await payload.count({ collection: 'transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  const storeTxnsBefore = (await payload.count({ collection: 'store-transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+
+  // order checkpoint — syncs store-orders.paymentState from the folded state.
+  const orderR = await fx.order(ctx)
+  assert.equal(orderR.ok, true)
+  const orderDoc = (await payload.find({ collection: 'store-orders', where: { and: [{ tenant: { equals: tenantId } }, { orderNumber: { equals: orderNumber } }] }, overrideAccess: true, limit: 1 })).docs[0] as any
+  assert.equal(orderDoc.paymentState, 'captured', 'store-orders.paymentState advanced to captured')
+
+  // transaction checkpoint — creates a store-transactions doc carrying the §3.9 fields.
+  const txR = await fx.transaction(ctx)
+  assert.equal(txR.ok, true)
+  assert.equal((txR as { effect?: string }).effect, 'created')
+  const txDoc = (await payload.find({ collection: 'store-transactions', where: { and: [{ tenant: { equals: tenantId } }, { order: { equals: orderDoc.id } }, { paymentMethod: { equals: 'paymob' } }] }, overrideAccess: true, limit: 1 })).docs[0] as any
+  assert.ok(txDoc, 'store-transactions row created')
+  assert.equal(txDoc.lastProviderStatus, 'captured')
+  assert.equal(txDoc.status, 'succeeded')
+  assert.equal(txDoc.capturedAmount, 5000)
+  assert.equal(txDoc.reconciliationStatus, 'matched')
+
+  // Idempotent re-invocation updates the same row (no duplicate).
+  const txR2 = await fx.transaction(ctx)
+  assert.equal((txR2 as { effect?: string }).effect, 'updated')
+  const storeTxnsAfter = (await payload.count({ collection: 'store-transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  assert.equal(storeTxnsAfter, storeTxnsBefore + 1, 'exactly one store-transactions row — no duplicate on re-run')
+
+  // No legacy collection was written by the bundle.
+  const legacyOrdersAfter = (await payload.count({ collection: 'orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  const legacyTxnsAfter = (await payload.count({ collection: 'transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  assert.equal(legacyOrdersAfter, legacyOrdersBefore, 'no legacy orders written by the D3 bundle')
+  assert.equal(legacyTxnsAfter, legacyTxnsBefore, 'no legacy transactions written by the D3 bundle')
+})
+
+test('production order checkpoint maps voided→cancelled and treats disputed as a permissive no-op', async () => {
+  const orderNumber = 'DUR-PROD-2'
+  await payload.create({
+    collection: 'store-orders', overrideAccess: true,
+    data: {
+      tenant: tenantId, orderNumber,
+      status: 'processing', paymentState: 'authorized',
+      subtotal: 3000, totalDiscount: 0, shippingPrice: 0, totalTax: 0, giftCardApplied: 0,
+      amountDue: 3000, currency: 'EGP', placedAt: new Date().toISOString(),
+      items: [], quoteSnapshot: { currency: 'EGP' }, quoteHash: 'h-dur-prod2',
+    } as any,
+  })
+  const fx = buildProductionSideEffects(payload)
+
+  // voided → store-orders paymentState 'cancelled' (the plugin select lacks 'voided').
+  const voidR = await fx.order({ payload, tenantId, orderNumber, eventId: 2, providerEventId: 'prod-evt-2', gateway: 'paymob', foldedState: 'voided' })
+  assert.equal(voidR.ok, true)
+  const voidDoc = (await payload.find({ collection: 'store-orders', where: { and: [{ tenant: { equals: tenantId } }, { orderNumber: { equals: orderNumber } }] }, overrideAccess: true, limit: 1 })).docs[0] as any
+  assert.equal(voidDoc.paymentState, 'cancelled', 'voided maps to the plugin cancelled paymentState')
+
+  // disputed → permissive no-op; the ledger + transaction carry the authoritative state.
+  const dispR = await fx.order({ payload, tenantId, orderNumber, eventId: 3, providerEventId: 'prod-evt-3', gateway: 'paymob', foldedState: 'disputed' })
+  assert.equal(dispR.ok, true)
+  assert.equal((dispR as any).effect, 'noop_state_unmapped')
+  const dispDoc = (await payload.find({ collection: 'store-orders', where: { and: [{ tenant: { equals: tenantId } }, { orderNumber: { equals: orderNumber } }] }, overrideAccess: true, limit: 1 })).docs[0] as any
+  assert.equal(dispDoc.paymentState, 'cancelled', 'disputed does not regress the order paymentState')
 })
 
 // Reference the export so type-stripping keeps it in the module graph even if a future test
