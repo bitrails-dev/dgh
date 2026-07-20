@@ -25,6 +25,9 @@ const taxClassOptions = [
 /**
  * Extension fields appended to the plugin's default products fields. Exported for tests.
  *
+ * - `name`: display name shown in the storefront catalog (parity with the legacy `products.name`;
+ *   single string, bilingual admin label — the legacy commerce model stored one name, not a
+ *   localized group; localizing product names is a later enhancement, out of Wave F2 scope).
  * - `slug`: required, indexed — storefront catalog handle.
  * - `description`: free-form textarea (the plugin has no default description; this is the
  *   "existing supported content field" form of §3.5, deferred from rich text for v1).
@@ -38,6 +41,14 @@ const taxClassOptions = [
  *   old product row ID for migration traceability.
  */
 export const productExtensionFields: Field[] = [
+  {
+    name: 'name',
+    type: 'text',
+    label: { en: 'Name', ar: 'الاسم' },
+    admin: {
+      description: 'Shown in the storefront catalog and order line items.',
+    },
+  },
   {
     name: 'slug',
     type: 'text',
