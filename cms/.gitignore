@@ -4,5 +4,6 @@ node_modules
 cms.db
 cms.db-*
 *.db
+*.db-*
 payload-types.ts
 .DS_Store
