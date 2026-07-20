@@ -62,6 +62,10 @@ const checkoutHandler = async (req: PayloadRequest): Promise<Response> => {
     req.payload,
     verification.context,
     { ...obj, idempotencyKey: idempotencyKey || undefined } as ProcessCheckoutInput,
+    // ponytail: test-only adapter injection seam — production req.context is empty so buildAdapter is
+    // undefined and processCheckout falls back to the real buildPaymentAdapter. Ceiling: if a non-test
+    // caller ever needs to override the adapter, promote to a real config option.
+    { buildAdapter: (req as any).context?.commerceBuildAdapter },
   )
   return Response.json(resp, { status })
 }

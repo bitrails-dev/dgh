@@ -10,15 +10,23 @@
 //   - idempotency: same checkoutKey+fingerprint replays, same key+different body → 409;
 //   - no legacy product/cart/order/transaction write occurs on the plugin path.
 import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import type { Payload } from 'payload'
+import type { Payload, PayloadRequest } from 'payload'
 
 const TEMP_DB = join(tmpdir(), `commerce-store-checkout-plugin-itest-${process.pid}-${Date.now()}.db`)
 process.env.DATABASE_URI = `file:${TEMP_DB}`
 process.env.PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || 'commerce-store-checkout-plugin-itest-secret'
+
+// Test gateway key pair (32 random bytes, base64) — resolved by withVerifiedCommerceGateway via
+// resolveKeysFromEnv() at request time. Needed by the signed-handler regression test at the bottom.
+const KEY_ID = 'test-current'
+const SECRET_B64 = randomBytes(32).toString('base64')
+process.env.COMMERCE_GATEWAY_KEY_ID = KEY_ID
+process.env.COMMERCE_GATEWAY_SECRET = SECRET_B64
 
 const { default: config } = await import('../src/payload.config')
 const { getPayload } = await import('payload')
@@ -28,6 +36,8 @@ await payload.db.migrate()
 
 const { processCheckout } = await import('../src/commerce/checkout/process')
 const { getLevel } = await import('../src/commerce/inventory')
+const { sign, decodeGatewaySecret } = await import('../src/commerce/gateway')
+const { checkoutEndpoints } = await import('../src/commerce/store/checkout')
 import type { PaymentAdapter } from '../src/commerce/payments/types'
 import type { AdapterBuilder } from '../src/commerce/payments/adapters/registry'
 
@@ -282,4 +292,69 @@ test('idempotency: same checkoutKey replays the same store-order; a different bo
     limit: 10,
   })
   assert.equal(docs.length, 1, 'exactly one store-order for the checkout key')
+})
+
+test('regression: signed checkout handler accepts a STRING cartId (live cookie/JSON contract) — guards the F1–F4 production bug class', async () => {
+  // Regression: processCheckout wrote store-transactions with `cart: input.cartId`, but input.cartId
+  // arrives as a STRING on the live path (the signed handler reads it from JSON; the Astro proxy
+  // forwards store_cart_v2 = String(cart.id); pluginAddItem returns the same string shape).
+  // store-carts uses numeric ids, and Payload's relationship validator (isValidID type 'number')
+  // rejects a string → ValidationError "invalid relationships" at process.ts:304. The fix is
+  // `cart: Number(input.cartId)`. The online leg above missed this because seedCart returns a numeric
+  // id; this test drives the REAL signed handler end-to-end with a STRING cartId so the class recurs
+  // loudly if the coercion is ever removed.
+  await seedLevel(payload, tenantId, locationId, 'SKU-D4-STR', 10)
+  const pid = await seedProduct('SKU-D4-STR', 5000)
+  const numericCartId = await seedCart(pid, 1)
+  const cartId = String(numericCartId) // mirror pluginAddItem.body.cartId = String(cart.id)
+
+  const tenant = (await payload.findByID({
+    collection: 'tenants', id: tenantId, overrideAccess: true,
+  })) as { slug: string }
+
+  const body = JSON.stringify({
+    cartId,
+    paymentMethod: 'paymob',
+    shippingAddress: { country: 'EG' },
+    customerEmail: 'str-regression@dgh.test',
+    returnUrl: 'https://shop/return',
+  })
+  const path = `/api/commerce/store/${tenant.slug}/checkout`
+  const signed = sign({
+    method: 'POST',
+    path,
+    query: null,
+    tenantSlug: tenant.slug,
+    body: Buffer.from(body, 'utf8'),
+    now: Date.now(),
+    keyId: KEY_ID,
+    secret: decodeGatewaySecret(SECRET_B64),
+  })
+
+  const idempotencyKey = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  // Headers must satisfy BOTH the gateway verifier (Object.entries → plain object) and the handler's
+  // req.headers.get(...) call. A plain object with an added .get() is the simplest bridge.
+  const headers: Record<string, string> & { get: (k: string) => string | null } = {
+    'content-type': 'application/json',
+    'idempotency-key': idempotencyKey,
+    ...signed.headers,
+  } as never
+  headers.get = (k: string) => (headers as Record<string, string>)[k.toLowerCase()] ?? null
+
+  const handler = checkoutEndpoints.find((e) => e.path.endsWith('/checkout'))!.handler as (req: PayloadRequest) => Promise<Response>
+  const res = await handler({
+    payload,
+    method: 'POST',
+    path,
+    routeParams: { tenantSlug: tenant.slug },
+    headers,
+    text: async () => body,
+    context: { commerceBuildAdapter: fakeBuilder },
+  } as unknown as PayloadRequest)
+
+  assert.equal(res.status, 200, `expected 200, got ${res.status}`)
+  const out = (await res.json()) as { orderNumber?: string; transactionId?: number | string; checkoutUrl?: string }
+  assert.ok(typeof out.orderNumber === 'string' && (out.orderNumber as string).length > 0, 'orderNumber returned')
+  assert.ok(out.transactionId !== undefined, 'transactionId returned — store-transactions create at process.ts:304 succeeded (string cartId accepted)')
+  assert.equal(out.checkoutUrl, 'https://paymob.example/iframes/1?payment_token=t')
 })
