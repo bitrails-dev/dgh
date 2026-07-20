@@ -230,7 +230,7 @@ export function createKashierAdapter(opts: KashierOptions): PaymentAdapter {
         payment: `${merchantId}.${orderId}.${amountStr}.${input.amount.currency}`,
         signature,
         mode: (input.sandbox ?? sandbox) ? 'test' : 'live',
-        allowedMethods: 'card,wallet,bank_installments',
+        allowedMethods: 'card,wallet', // direct payment only — bank_installments (interest/riba) excluded per Sharia
       })
       if (input.billingUrl) params.set('redirect', input.billingUrl)
       return { checkoutUrl: `${checkoutBase}/?${params.toString()}`, providerSessionId: orderId }
