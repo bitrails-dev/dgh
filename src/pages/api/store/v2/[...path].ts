@@ -127,7 +127,7 @@ export const ALL: APIRoute = async (ctx) => {
       try {
         const o = JSON.parse(text) as Record<string, unknown>;
         const tok = (o.sessionToken ?? o.token) as string | undefined;
-        if (typeof tok === "string" && tok && (mapped.cmsPath === "/auth/login" || mapped.cmsPath === "/auth/register")) {
+        if (typeof tok === "string" && tok && (mapped.cmsPath === "/auth/login" || mapped.cmsPath === "/auth/register" || mapped.cmsPath === "/auth/reset-password")) {
           setSessionTokenV2(cookies, tok);
           const { sessionToken: _a, token: _b, ...rest } = o;
           return json(rest, status);
