@@ -291,3 +291,40 @@ test('release flow · browse → cart → COD checkout → admin confirm → onl
   // FINAL: no legacy commerce collection was ever written by any step of the flow.
   await assertNoLegacy()
 })
+
+// Regression: the live signed-checkout path receives `cartId` as a STRING (the Astro proxy reads the
+// store_cart_v2 cookie, which holds String(cart.id), and forwards it in the JSON body — same shape
+// pluginAddItem returns). The online (store-transactions) leg must accept that string id: the `cart`
+// relationship points at store-carts (numeric ids), and Payload's relationship validator rejects a
+// string id for a number-id collection. The main flow's online leg above uses seedCart() (a numeric
+// id), so it never exercised this — the bug only surfaces against the real storefront cartId shape.
+test('online checkout accepts a STRING cartId (storefront cookie/JSON shape)', async () => {
+  const SKU = 'REG-STRCART'
+  await seedLevel(payload, tenantId, locationId, SKU, 8)
+  await seedSimpleProduct(tenantId, SKU, 4000, 'Regression String-Cart Mug')
+
+  const add = (await pluginAddItem(payload, tenantId, { sku: SKU, quantity: 1 })) as {
+    status: number
+    body: { cartId: string }
+  }
+  assert.equal(add.status, 200, `add: ${JSON.stringify(add.body)}`)
+  const stringCartId = add.body.cartId
+  assert.equal(typeof stringCartId, 'string', 'storefront cartId is a string (cookie/JSON shape)')
+  assert.ok(stringCartId.length > 0, 'cartId is non-empty')
+
+  const online = await processCheckout(
+    payload,
+    { tenantId },
+    {
+      cartId: stringCartId,
+      paymentMethod: 'paymob',
+      shippingAddress: { country: 'EG' },
+      customerEmail: 'reg@dgh.test',
+      returnUrl: 'https://shop/return',
+    },
+    { buildAdapter: fakeBuilder },
+  )
+  assert.equal(online.status, 200, `online checkout with string cartId: ${JSON.stringify(online.body)}`)
+  assert.equal(online.body.paymentMethod, 'paymob')
+  assert.ok(online.body.transactionId !== undefined, 'store-transactions row created (cart rel accepted the string→number id)')
+})

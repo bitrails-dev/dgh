@@ -308,7 +308,13 @@ export async function processCheckout(
         tenant: tenantId,
         amount: quote.amountDue,
         currency,
-        cart: input.cartId,
+        // ponytail: store-carts uses numeric ids (sqlite defaultIDType); input.cartId arrives as a
+        // STRING on the live path (pluginAddItem.body.cartId = String(cart.id), and the signed
+        // checkout handler receives it from JSON). Payload's relationship validator (isValidID with
+        // type 'number') rejects a string id → "invalid relationships: <id> 0". Coerce to the native
+        // number. If a future adapter uses text/uuid cart ids, resolve the type from
+        // payload.collections[carts].customIDType instead of assuming number.
+        cart: Number(input.cartId),
         items: orderItems,
         paymentMethod: provider,
         status: 'pending',
