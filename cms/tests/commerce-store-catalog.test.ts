@@ -1,7 +1,12 @@
-// Catalog orchestration tests. listProducts / getProduct are called directly with payload + tenantId
-// (no HTTP), matching the webhook-endpoint test pattern: temp DB, getPayload, payload.db.migrate(),
-// seedTenant. Asserts active-only filtering, tenant isolation, variant pass-through, id/slug lookup,
-// draft exclusion, and server-side image URL resolution (the storefront never trusts client prices).
+// Catalog orchestration tests (Wave F2 Lane A — plugin-first). listProducts / getProduct are called
+// directly with payload + tenantId (no HTTP), matching the webhook-endpoint test pattern: temp DB,
+// getPayload, payload.db.migrate(), seedTenant. The catalog now reads the ecommerce plugin's
+// `store-products` / `store-variants` collections (not legacy `products`): published filter is
+// `_status: 'published'` (was legacy `status: 'active'`), price comes from `priceInEGP`, the
+// single-string `name` round-trips + drives the q search, and variant-bearing products surface their
+// `store-variants` children. Asserts published-only filtering, tenant isolation, variant surfacing,
+// id/slug lookup, draft exclusion, and server-side image URL resolution (storefront never trusts
+// client prices).
 import assert from 'node:assert/strict'
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -50,8 +55,12 @@ test.before(async () => {
   } as any)
   mediaId = media.id
 
+  // Simple published product (own SKU + price). The plugin products collection has drafts on; the
+  // `_status` select defaults to 'draft', so a published row is seeded by setting `_status:'published'`
+  // in the create data (the same column the plugin's adminOrPublishedStatus access + this catalog
+  // filter on). payload.create only force-sets _status='draft' when draft:true is passed.
   const simple = await payload.create({
-    collection: 'products',
+    collection: 'store-products',
     overrideAccess: true,
     data: {
       tenant: commerceTenantId,
@@ -59,60 +68,105 @@ test.before(async () => {
       slug: 'classic-t-shirt',
       sku: 'TSHIRT-001',
       description: 'A plain cotton tee.',
-      price: 5000,
-      compareAtPrice: 6000,
-      productKind: 'physical',
+      priceInEGPEnabled: true,
+      priceInEGP: 5000,
+      taxClass: 'standard',
       trackInventory: true,
-      status: 'active',
       images: [mediaId],
+      _status: 'published',
     } as any,
   })
   simpleId = simple.id
 
+  // Variant-bearing parent (null product SKU; sellable children live in store-variants). Built with a
+  // variant-type + two options so the plugin's variant validation accepts the two priced variants.
+  const vtype = await payload.create({
+    collection: 'store-variant-types',
+    overrideAccess: true,
+    data: { tenant: commerceTenantId, label: 'Size', name: 'size' } as any,
+  })
+  const optS = await payload.create({
+    collection: 'store-variant-options',
+    overrideAccess: true,
+    data: { tenant: commerceTenantId, variantType: vtype.id, label: 'Small', value: 'S' } as any,
+  })
+  const optL = await payload.create({
+    collection: 'store-variant-options',
+    overrideAccess: true,
+    data: { tenant: commerceTenantId, variantType: vtype.id, label: 'Large', value: 'L' } as any,
+  })
   const variant = await payload.create({
-    collection: 'products',
+    collection: 'store-products',
     overrideAccess: true,
     data: {
       tenant: commerceTenantId,
       name: 'Sneakers',
       slug: 'sneakers',
-      sku: 'SHOE-001',
-      price: 12000,
-      productKind: 'physical',
+      sku: null,
+      enableVariants: true,
+      variantTypes: [vtype.id],
+      taxClass: 'standard',
       trackInventory: true,
-      status: 'active',
-      variants: [
-        { sku: 'SHOE-001-S', name: 'Small', price: 12000, compareAtPrice: 14000 },
-        { sku: 'SHOE-001-L', name: 'Large', price: 12500, taxBps: 1400 },
-      ],
+      _status: 'published',
     } as any,
   })
   variantId = variant.id
+  await payload.create({
+    collection: 'store-variants',
+    overrideAccess: true,
+    data: {
+      tenant: commerceTenantId,
+      product: variant.id,
+      options: [optS.id],
+      sku: 'SHOE-001-S',
+      priceInEGPEnabled: true,
+      priceInEGP: 12000,
+    } as any,
+  })
+  await payload.create({
+    collection: 'store-variants',
+    overrideAccess: true,
+    data: {
+      tenant: commerceTenantId,
+      product: variant.id,
+      options: [optL.id],
+      sku: 'SHOE-001-L',
+      priceInEGPEnabled: true,
+      priceInEGP: 12500,
+    } as any,
+  })
 
+  // Draft product — must be excluded from the public catalog.
   const draft = await payload.create({
-    collection: 'products',
+    collection: 'store-products',
     overrideAccess: true,
     data: {
       tenant: commerceTenantId,
       name: 'Draft Hoodie',
       slug: 'draft-hoodie',
       sku: 'HOODIE-001',
-      price: 8000,
-      status: 'draft',
+      priceInEGPEnabled: true,
+      priceInEGP: 8000,
+      taxClass: 'standard',
+      trackInventory: true,
+      _status: 'draft',
     } as any,
   })
   draftId = draft.id
 
   const other = await payload.create({
-    collection: 'products',
+    collection: 'store-products',
     overrideAccess: true,
     data: {
       tenant: otherTenantId,
       name: 'Other Tenant Mug',
       slug: 'other-mug',
       sku: 'MUG-999',
-      price: 3000,
-      status: 'active',
+      priceInEGPEnabled: true,
+      priceInEGP: 3000,
+      taxClass: 'standard',
+      trackInventory: true,
+      _status: 'published',
     } as any,
   })
   otherTenantProductId = other.id
@@ -122,11 +176,11 @@ test.after(async () => {
   try { try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* libsql native teardown fix (commit 1630a03) */ } await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
-test('listProducts returns only active products for the tenant (drafts excluded)', async () => {
+test('listProducts returns only published products for the tenant (drafts excluded)', async () => {
   const { products, total } = await listProducts(payload, commerceTenantId)
   const ids = products.map((p) => String(p.id))
-  assert.ok(ids.includes(String(simpleId)), 'includes the active simple product')
-  assert.ok(ids.includes(String(variantId)), 'includes the active variant product')
+  assert.ok(ids.includes(String(simpleId)), 'includes the published simple product')
+  assert.ok(ids.includes(String(variantId)), 'includes the published variant-bearing product')
   assert.ok(!ids.includes(String(draftId)), 'excludes the draft product')
   assert.equal(total, 2)
 })
@@ -139,14 +193,25 @@ test('listProducts is tenant-isolated', async () => {
   assert.equal(theirs.total, 1)
 })
 
-test('listProducts passes the raw variants array through unchanged', async () => {
+test('listProducts surfaces variant children on a variant-bearing product', async () => {
   const { products } = await listProducts(payload, commerceTenantId)
   const v = products.find((p) => String(p.id) === String(variantId))
-  assert.ok(v, 'variant product present')
+  assert.ok(v, 'variant-bearing product present')
   assert.equal(Array.isArray(v!.variants), true)
   assert.equal((v!.variants as any[]).length, 2)
-  assert.equal((v!.variants as any[])[0].sku, 'SHOE-001-S')
-  assert.equal((v!.variants as any[])[1].taxBps, 1400)
+  const skus = (v!.variants as any[]).map((x) => x.sku).sort()
+  assert.deepEqual(skus, ['SHOE-001-L', 'SHOE-001-S'])
+  const large = (v!.variants as any[]).find((x) => x.sku === 'SHOE-001-L')
+  assert.equal(large!.price, 12500, 'variant child price comes from store-variants.priceInEGP')
+})
+
+test('listProducts maps priceInEGP to the storefront price and name round-trips', async () => {
+  const { products } = await listProducts(payload, commerceTenantId)
+  const s = products.find((p) => String(p.id) === String(simpleId))
+  assert.ok(s, 'simple product present')
+  assert.equal(s!.name, 'Classic T-Shirt')
+  assert.equal(s!.price, 5000)
+  assert.equal(s!.sku, 'TSHIRT-001')
 })
 
 test('listProducts q filters the name case-insensitively', async () => {
@@ -174,24 +239,37 @@ test('listProducts resolves media images to absolute URLs', async () => {
   assert.match(s!.images[0].url, /^http:\/\/localhost:3001\//, `url is absolute, got ${s!.images[0].url}`)
 })
 
-test('listProjects skips a dead/missing image id', async () => {
+test('listProducts drops an image whose media doc was deleted', async () => {
+  // Plugin `images` is a real relationship, so a non-existent id is rejected at create time by
+  // referential validation. The dangling-ref case is therefore seeded by attaching a real media doc
+  // and then deleting it — the product keeps the dead ref, which loadMediaMap must drop silently.
+  const ghostMedia = await payload.create({
+    collection: 'media',
+    overrideAccess: true,
+    data: { tenant: commerceTenantId, alt: 'gone' },
+    file: { data: PNG, mimetype: 'image/png', name: 'ghost.png', size: PNG.length },
+  } as any)
   await payload.create({
-    collection: 'products',
+    collection: 'store-products',
     overrideAccess: true,
     data: {
       tenant: commerceTenantId,
       name: 'Ghost Image Tee',
       slug: 'ghost-tee',
       sku: 'GHOST-001',
-      price: 1000,
-      status: 'active',
-      images: [99999999],
+      priceInEGPEnabled: true,
+      priceInEGP: 1000,
+      taxClass: 'standard',
+      trackInventory: true,
+      images: [ghostMedia.id],
+      _status: 'published',
     } as any,
   })
+  await payload.delete({ collection: 'media', id: ghostMedia.id, overrideAccess: true } as any)
   const { products } = await listProducts(payload, commerceTenantId)
   const g = products.find((p) => p.sku === 'GHOST-001')
   assert.ok(g, 'ghost product present')
-  assert.equal(g!.images.length, 0, 'dead image id dropped')
+  assert.equal(g!.images.length, 0, 'dangling media ref dropped')
 })
 
 test('getProduct by id returns the projected product', async () => {
@@ -199,7 +277,7 @@ test('getProduct by id returns the projected product', async () => {
   assert.ok(p)
   assert.equal(p!.sku, 'TSHIRT-001')
   assert.equal(p!.price, 5000)
-  assert.equal(p!.compareAtPrice, 6000)
+  assert.equal(p!.name, 'Classic T-Shirt')
 })
 
 test('getProduct by slug returns the projected product', async () => {
