@@ -43,13 +43,29 @@ test('customer username is server-derived; duplicate email per tenant is rejecte
   assert.ok(c2.id !== c1.id, 'a different tenant may have the same email')
 })
 
-test('cart token is unique per tenant; items are stored as JSON', async () => {
-  const cart: any = await payload.create({ collection: 'carts', overrideAccess: true, data: { tenant: tenantA, cartToken: 'cart-1', customerEmail: 'a@b.test', currency: 'EGP', items: [{ sku: 'X', quantity: 2 }] } as any })
-  assert.deepEqual(cart.items, [{ sku: 'X', quantity: 2 }])
-  await assert.rejects(
-    () => payload.create({ collection: 'carts', overrideAccess: true, data: { tenant: tenantA, cartToken: 'cart-1' } as any }),
-  )
-  // same token, different tenant -> allowed
-  const cartB: any = await payload.create({ collection: 'carts', overrideAccess: true, data: { tenant: tenantB, cartToken: 'cart-1' } as any })
-  assert.ok(cartB.id !== cart.id)
+test('store-carts are tenant-scoped; items stored as {product, variant?, quantity}', async () => {
+  // store-carts (plugin-first, Wave E3) has no cartToken — it's keyed by numeric id + a guest secret.
+  // Items are tenant-scoped relationship rows to store-products (variant optional).
+  const productA: any = await payload.create({
+    collection: 'store-products', overrideAccess: true,
+    data: { tenant: tenantA, slug: 'sku-cart-probe-a', sku: 'SKU-CART-PROBE-A', priceInEGPEnabled: true, priceInEGP: 5000, taxClass: 'standard', trackInventory: true } as any,
+  })
+  const cart: any = await payload.create({
+    collection: 'store-carts', overrideAccess: true,
+    data: { tenant: tenantA, currency: 'EGP', items: [{ product: productA.id, quantity: 2 }] } as any,
+  })
+  assert.equal(String(cart.tenant?.id ?? cart.tenant), String(tenantA), 'cart is tenant-scoped')
+  assert.ok(Array.isArray(cart.items) && cart.items.length === 1, 'item row stored')
+  const line = cart.items[0]
+  assert.equal(String(line.product?.id ?? line.product), String(productA.id), 'item stores the product ref')
+  assert.equal(line.quantity, 2, 'item stores quantity')
+  assert.equal(line.variant, null, 'variant omitted for a simple product')
+
+  // A cart in tenantB is a distinct, tenant-scoped doc (no global cartToken namespace).
+  const cartB: any = await payload.create({
+    collection: 'store-carts', overrideAccess: true,
+    data: { tenant: tenantB, currency: 'EGP' } as any,
+  })
+  assert.notEqual(String(cartB.id), String(cart.id), 'different cart docs')
+  assert.equal(String(cartB.tenant?.id ?? cartB.tenant), String(tenantB), 'cartB belongs to tenantB')
 })
