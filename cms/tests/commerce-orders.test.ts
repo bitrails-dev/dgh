@@ -1,13 +1,14 @@
-// Order model + creation: a server-computed QuoteSnapshot becomes an immutable order with a
-// per-tenant, atomically-allocated order number. Tamper-evident quote verification, sequential
-// numbering, concurrent no-duplicate numbering, and the not-initialized guard.
+// Order numbering (retained + live): per-tenant, atomically-allocated order numbers with
+// concurrent no-duplicate allocation and the not-initialized guard. processCheckout allocates the
+// order number via allocateOrderNumber before reserving stock, so numbering stays; the legacy
+// createOrder helper (and its snapshot/tamper tests) was retired in Wave F2 because processCheckout
+// creates the store-orders document inline with the immutable quote snapshot.
 import assert from 'node:assert/strict'
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import type { Payload } from 'payload'
-import type { QuoteSnapshot } from '../src/commerce/pricing'
 
 const TEMP_DB = join(tmpdir(), `commerce-orders-itest-${process.pid}-${Date.now()}.db`)
 process.env.DATABASE_URI = `file:${TEMP_DB}`
@@ -19,16 +20,10 @@ const { seedTenant } = await import('./helpers/commerce')
 const payload = (await getPayload({ config })) as unknown as Payload
 await payload.db.migrate()
 
-const { money } = await import('../src/commerce/money')
-const { quote, verifySnapshot } = await import('../src/commerce/pricing')
-const { createOrder } = await import('../src/commerce/orders/create')
 const { allocateOrderNumber } = await import('../src/commerce/orders/numbering')
 
 let tenantId: number | string
 let tenantBId: number | string
-
-const sampleQuote = (): QuoteSnapshot =>
-  quote({ currency: 'EGP', taxMode: 'exclusive', lines: [{ key: 'a', sku: 'A', quantity: 2, unitPrice: money(1050, 'EGP'), taxBps: 1400 }] })
 
 test.before(async () => {
   ;({ tenantId } = await seedTenant(payload))
@@ -46,37 +41,9 @@ test.after(async () => {
   try { try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* libsql native teardown fix (commit 1630a03) */ } await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
-test('createOrder persists an immutable snapshot carrying the preallocated order number', async () => {
-  const q = sampleQuote()
-  const n1 = await allocateOrderNumber(payload, tenantId)
-  const o1: any = await createOrder({ payload, tenantId, orderNumber: n1, quote: q, items: [{ sku: 'A', qty: 2 }], customerEmail: 'a@b.test' })
-  assert.equal(o1.orderNumber, n1)
-  assert.equal(o1.status, 'pending')
-  assert.equal(o1.paymentState, 'pending')
-  assert.equal(o1.fulfillmentState, 'unfulfilled')
-  assert.equal(o1.currency, 'EGP')
-  assert.equal(o1.grandTotal, q.grandTotal)
-  assert.equal(o1.amountDue, q.amountDue)
-  assert.equal(o1.totalTax, q.totalTax)
-  assert.equal(o1.quoteHash, q.hash)
-  assert.deepEqual(o1.quoteSnapshot.hash, q.hash)
-
-  const n2 = await allocateOrderNumber(payload, tenantId)
-  const o2: any = await createOrder({ payload, tenantId, orderNumber: n2, quote: sampleQuote(), items: [] })
-  assert.equal(o2.orderNumber, n2, 'order carries the number allocated before it')
-})
-
-test('a tampered quote snapshot is rejected before an order is created', async () => {
-  const tampered = { ...sampleQuote(), grandTotal: sampleQuote().grandTotal + 1 }
-  assert.equal(verifySnapshot(tampered), false)
-  await assert.rejects(() => createOrder({ payload, tenantId, orderNumber: 'ORD-TAMPER', quote: tampered as QuoteSnapshot, items: [] }), /tamper/)
-})
-
 test('20 concurrent allocations produce 20 distinct order numbers (no duplicates)', async () => {
-  // createOrder no longer allocates; checkout allocates before reserving. The concurrency invariant is
-  // numbering atomicity: concurrent allocateOrderNumber calls never produce a duplicate. (It retries
-  // on SQLITE_BUSY; Payload's createOperation does not retry BEGIN, and production runs one
-  // createOrder per checkout request anyway, so order-creation concurrency is not stressed here.)
+  // Numbering atomicity: concurrent allocateOrderNumber calls never produce a duplicate (it retries
+  // on SQLITE_BUSY; Payload's createOperation does not retry BEGIN).
   const numbers = await Promise.all(Array.from({ length: 20 }, () => allocateOrderNumber(payload, tenantId)))
   assert.equal(new Set(numbers).size, 20, 'concurrent allocation never produces a duplicate number')
 })

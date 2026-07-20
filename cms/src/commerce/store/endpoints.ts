@@ -10,10 +10,9 @@ import { authEndpoints } from './auth'
 import { checkoutEndpoints } from './checkout'
 import { orderEndpoints } from './orders'
 
-// The plugin-first cart endpoints (cart-v2.ts) supersede the legacy cart.ts HTTP surface on the
-// shared /cart path (Express first-match wins → only one /cart GET can be live). The legacy cart.ts
-// orchestration (upsertCart/readCart) is retained on disk, read-only, and still directly tested by
-// commerce-store-cart.test.ts until Wave F2 retires the legacy runtime model.
+// Wave F2 retired the legacy cart runtime: cart.ts (upsertCart/readCart) and its HTTP surface were
+// removed, and only the plugin-first cart-v2.ts endpoints are registered on the shared /cart path.
+// Every endpoint registered here is plugin-first (writes store-*; no legacy collection is touched).
 export const commerceStoreEndpoints: Endpoint[] = [
   ...catalogEndpoints,
   ...quoteEndpoints,

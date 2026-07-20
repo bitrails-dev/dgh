@@ -1,6 +1,9 @@
-// Checkout orchestration end-to-end: cart → server-resolved prices → inventory reservation →
-// quote → order. Verifies order totals match the server quote, stock is reserved, and the failure
-// paths (unknown product, insufficient stock with full reservation release) behave correctly.
+// Plugin-first checkout orchestration end-to-end (Wave F2 rewrite): a verified gateway context +
+// plugin `store-carts` cart → processCheckout → store-orders + Phase-1 reservation. Verifies the
+// server-resolved amountDue matches the authoritative quote, stock is reserved by normalized SKU, the
+// order is written to store-orders (never a legacy collection), and the failure paths (insufficient
+// stock with full reservation release; an unresolvable cart line rejected before any reservation)
+// behave correctly. Replaces the legacy checkout()-based suite (cart → products → orders).
 import assert from 'node:assert/strict'
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,14 +21,14 @@ const { seedTenant, seedLocation, seedLevel } = await import('./helpers/commerce
 const payload = (await getPayload({ config })) as unknown as Payload
 await payload.db.migrate()
 
-const { checkout } = await import('../src/commerce/checkout')
+const { processCheckout } = await import('../src/commerce/checkout/process')
 const { getLevel } = await import('../src/commerce/inventory')
 
 let tenantId: number | string
 let locationId: number | string
 
 test.before(async () => {
-  ;({ tenantId } = await seedTenant(payload))
+  ;({ tenantId } = await seedTenant(payload, { features: ['commerce'] }))
   await payload.create({ collection: 'commerce-settings', overrideAccess: true, data: { tenant: tenantId, status: 'live', currency: 'EGP', taxMode: 'exclusive', sandbox: false } as any })
   locationId = await seedLocation(payload, tenantId)
 })
@@ -33,58 +36,92 @@ test.after(async () => {
   try { try { await (payload.db as any).drizzle?.session?.client?.close?.() } catch { /* libsql native teardown fix (commit 1630a03) */ } await payload.destroy() } finally { try { rmSync(TEMP_DB, { force: true }) } catch { /* */ } }
 })
 
-async function seedProduct(sku: string, price: number, taxBps = 0) {
-  return payload.create({ collection: 'products', overrideAccess: true, data: { tenant: tenantId, name: sku, sku, price, taxBps, status: 'active', productKind: 'physical', trackInventory: true } as any })
+// Plugin store-product seed (the only catalog processCheckout prices from). priceInEGP is integer
+// EGP minor units; 'standard' tax class with no tax policy seeded → 0% tax.
+async function seedStoreProduct(sku: string, priceInEGP: number): Promise<number | string> {
+  const p = await payload.create({
+    collection: 'store-products', overrideAccess: true,
+    data: { tenant: tenantId, slug: `slug-${sku.toLowerCase()}`, sku, priceInEGPEnabled: true, priceInEGP, taxClass: 'standard', trackInventory: true } as any,
+  })
+  return p.id
 }
 
-test('checkout places an order with server-resolved totals and reserves stock', async () => {
-  const level = await seedLevel(payload, tenantId, locationId, 'CHECKOUT-A', 5) // 5 on hand
-  await seedProduct('CHECKOUT-A', 1050, 1400) // 10.50, 14%
-
-  const result = await checkout({
-    payload, tenantId, cartToken: 'cart-ok', locationId, currency: 'EGP', taxMode: 'exclusive',
-    lines: [{ sku: 'CHECKOUT-A', quantity: 2 }], customerEmail: 'shopper@test',
+// Plugin store-carts cart with one line. processCheckout re-reads it (tenant-scoped) inside the
+// quoteCart loader.
+async function seedCart(productId: number | string, quantity: number): Promise<number | string> {
+  const c = await payload.create({
+    collection: 'store-carts', overrideAccess: true,
+    data: { tenant: tenantId, currency: 'EGP', items: [{ product: productId, quantity }] } as any,
   })
-  assert.equal(result.ok, true)
-  if (!result.ok) throw new Error('expected ok')
-  const order: any = result.order
-  assert.equal(order.orderNumber, 'ORD-1')
-  assert.equal(order.cartToken, 'cart-ok')
-  // 2 × 10.50 = 21.00; 14% tax = 2.94; grand total 23.94 (computed server-side; client never priced).
-  assert.equal(order.grandTotal, 2394)
-  assert.equal(order.totalTax, 294)
-  assert.equal(order.amountDue, 2394)
-  assert.equal(order.status, 'pending')
+  return c.id
+}
+
+// Count legacy commerce docs for the tenant — the no-legacy probe.
+async function countLegacy(slug: string): Promise<number> {
+  const { totalDocs } = await payload.count({ collection: slug as never, where: { tenant: { equals: tenantId } }, overrideAccess: true })
+  return totalDocs
+}
+
+test('processCheckout places a store-order with the server-resolved amountDue and reserves stock', async () => {
+  await seedLevel(payload, tenantId, locationId, 'CHECKOUT-A', 5) // 5 on hand
+  const pid = await seedStoreProduct('CHECKOUT-A', 5000) // 50.00 EGP, no tax
+  const cartId = await seedCart(pid, 2)
+
+  const beforeOrders = await countLegacy('orders')
+  const beforeTxns = await countLegacy('transactions')
+
+  const result = await processCheckout(payload, { tenantId }, {
+    cartId, paymentMethod: 'cod', shippingAddress: { country: 'EG' }, customerEmail: 'shopper@dgh.test',
+  })
+  assert.equal(result.status, 200, `processCheckout: ${JSON.stringify(result.body)}`)
+  // 2 × 5000 = 10000 minor, resolved server-side (no tax policy → 0 tax); the browser never priced.
+  assert.equal(result.body.amountDue, 10000)
+  assert.equal(result.body.currency, 'EGP')
+  assert.equal(result.body.paymentMethod, 'cod')
+  assert.equal(result.body.paymentState, 'pending')
+  assert.ok(typeof result.body.orderNumber === 'string' && result.body.orderNumber.length > 0)
 
   const lvl = await getLevel({ payload, tenantId, locationId, sku: 'CHECKOUT-A' })
-  assert.equal(lvl?.reserved, 2, '2 units reserved until payment capture')
+  assert.equal(lvl?.reserved, 2, '2 units reserved until capture / admin confirm')
   assert.equal(lvl?.onHand, 5, 'on-hand unchanged by reservation')
+
+  // The store-order exists; no legacy order/transaction was written.
+  const { totalDocs: storeOrders } = await payload.count({ collection: 'store-orders', where: { and: [{ tenant: { equals: tenantId } }, { orderNumber: { equals: result.body.orderNumber } }] }, overrideAccess: true })
+  assert.equal(storeOrders, 1, 'store-order persisted')
+  assert.equal(await countLegacy('orders'), beforeOrders, 'no legacy order written')
+  assert.equal(await countLegacy('transactions'), beforeTxns, 'no legacy transaction written')
 })
 
-test('checkout rejects an unknown product before reserving anything', async () => {
-  await seedLevel(payload, tenantId, locationId, 'CHECKOUT-B', 5)
-  const result = await checkout({
-    payload, tenantId, cartToken: 'cart-missing', locationId, currency: 'EGP', taxMode: 'exclusive',
-    lines: [{ sku: 'DOES-NOT-EXIST', quantity: 1 }],
-  })
-  assert.equal(result.ok, false)
-  if (result.ok) throw new Error('expected failure')
-  assert.equal(result.code, 'PRODUCT_NOT_FOUND')
-})
-
-test('checkout with insufficient stock releases the whole reservation and creates no order', async () => {
+test('processCheckout with insufficient stock releases the whole reservation and creates no order', async () => {
   await seedLevel(payload, tenantId, locationId, 'CHECKOUT-C', 1) // only 1 on hand
-  await seedProduct('CHECKOUT-C', 1000, 0)
+  const pid = await seedStoreProduct('CHECKOUT-C', 1000)
+  const cartId = await seedCart(pid, 2) // wants 2
 
-  const result = await checkout({
-    payload, tenantId, cartToken: 'cart-short', locationId, currency: 'EGP', taxMode: 'exclusive',
-    lines: [{ sku: 'CHECKOUT-C', quantity: 2 }], // wants 2
+  const storeOrdersBefore = (await payload.count({ collection: 'store-orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  const result = await processCheckout(payload, { tenantId }, {
+    cartId, paymentMethod: 'cod', shippingAddress: { country: 'EG' }, customerEmail: 'short@dgh.test',
   })
-  assert.equal(result.ok, false)
-  if (result.ok) throw new Error('expected failure')
-  assert.equal(result.code, 'INSUFFICIENT_STOCK')
+  assert.equal(result.status, 409, `shortage: ${JSON.stringify(result.body)}`)
+  assert.equal(result.body.error, 'INSUFFICIENT_STOCK')
+
+  const storeOrdersAfter = (await payload.count({ collection: 'store-orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  assert.equal(storeOrdersAfter, storeOrdersBefore, 'no store-order created on shortage')
 
   const lvl = await getLevel({ payload, tenantId, locationId, sku: 'CHECKOUT-C' })
   assert.equal(lvl?.reserved, 0, 'no partial reservation leaked')
   assert.equal(lvl?.onHand, 1)
+})
+
+test('processCheckout rejects an unknown cart before reserving anything', async () => {
+  // A cartId that does not exist — quoteCart's loader returns no lines, so processCheckout rejects
+  // (422) at the quote step, before the reservation step runs. (The plugin's carts beforeChange hook
+  // validates product relationships at cart-create time, so an unknown product cannot even be seeded
+  // into a cart; an unknown cartId is the faithful plugin equivalent of "reject before reserving".)
+  const storeOrdersBefore = (await payload.count({ collection: 'store-orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  const result = await processCheckout(payload, { tenantId }, {
+    cartId: 999999, paymentMethod: 'cod', shippingAddress: { country: 'EG' }, customerEmail: 'missing@dgh.test',
+  })
+  assert.ok(result.status >= 400, `expected a non-200 rejection, got ${result.status}: ${JSON.stringify(result.body)}`)
+  const storeOrdersAfter = (await payload.count({ collection: 'store-orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
+  assert.equal(storeOrdersAfter, storeOrdersBefore, 'no store-order created from an unknown cart')
 })

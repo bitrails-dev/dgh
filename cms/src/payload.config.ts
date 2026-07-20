@@ -134,8 +134,13 @@ export default buildConfig({
     // Tenant-global commerce settings (one per tenant) + idempotent payment-event ledger.
     CommerceSettings,
     PaymentEvents,
-    // Order/transaction model (own collections — the ecommerce plugin does not compose with
-    // multi-tenant; see docs/superpowers/plans/2026-07-17-commerce-implementation.md).
+    // Legacy order/transaction/product/cart collections. NOTE (Wave F2): the runtime orchestration
+    // that WROTE these is retired — no live path writes them (grep-verified across cms/src/commerce).
+    // The registrations are RETAINED because @payloadcms/plugin-multi-tenant's tenant-scoping list and
+    // a plugin relationship field still reference these legacy slugs (removing the collections throws
+    // InvalidFieldRelationship at sanitize). Fully unregistering them is a follow-up that must first
+    // repoint those references to the store-* collections. Historical DB tables remain on disk
+    // regardless (cutover rollback).
     Orders,
     Transactions,
     Products,
