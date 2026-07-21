@@ -63,11 +63,25 @@ const loadSelectedTenant = async (
 ): Promise<SelectedTenant | null> => {
   const assignedTenantIDs = getUserTenantIDs(req.user)
   const cookieTenantID = getTenantFromCookie(req.headers, req.payload.db.defaultIDType)
-  const selectedTenantID = cookieTenantID ?? (assignedTenantIDs.length === 1 ? assignedTenantIDs[0] : null)
 
-  if (selectedTenantID === null || !assignedTenantIDs.includes(String(selectedTenantID))) {
-    return null
+  // Super-admin carries no tenant-assignment row, so the membership check below can never pass for
+  // them — but the whole point of the sidebar filter is that a super-admin picks an arbitrary tenant
+  // to scope the UI to. Trust the cookie for super-admins; a stale/deleted ID still fails closed via
+  // the findByID try/catch below. Non-super users keep the membership + single-assignment fallback.
+  let selectedTenantID: string | number | null
+  if (isSuperAdmin(req.user)) {
+    selectedTenantID = cookieTenantID
+  } else {
+    selectedTenantID = cookieTenantID ?? (assignedTenantIDs.length === 1 ? assignedTenantIDs[0] : null)
+    if (selectedTenantID === null || !assignedTenantIDs.includes(String(selectedTenantID))) {
+      return null
+    }
   }
+
+  // No cookie means "no tenant selected". For super-admin this preserves the cross-tenant aggregate
+  // view (the caller treats null as "do not apply the feature gate"); for everyone else it was
+  // already handled above.
+  if (selectedTenantID === null) return null
 
   try {
     const tenant = await req.payload.findByID({
@@ -124,12 +138,23 @@ const withTenantFeatureAccess = (
   const baseAccess = access ?? (({ req }: AccessArgs) => Boolean(req.user))
   const accessResult = await baseAccess(args)
 
-  if (!accessResult || !args.req.user || isSuperAdmin(args.req.user)) return accessResult
+  if (!accessResult || !args.req.user) return accessResult
 
+  const superAdmin = isSuperAdmin(args.req.user)
   const selectedTenant = await getSelectedTenant(args.req)
-  if (!selectedTenant) return false
 
+  // No tenant selected: a super-admin keeps cross-tenant access (the sidebar shows every collection);
+  // any other user is blocked until they pick one.
+  if (!selectedTenant) return superAdmin ? accessResult : false
+
+  // The feature gate applies to everyone, including super-admin, keyed on the SELECTED tenant's
+  // capabilities. This is what hides commerce (and other capability collections) from the sidebar
+  // when the super-admin filters to a tenant that didn't buy that capability.
   if (!tenantEnablesPolicy(selectedTenant, policy)) return false
+
+  // Super-admin is never row-scope-constrained: the sidebar filter governs WHICH collections are
+  // visible, not whose rows. Aggregate cross-tenant lists must keep working.
+  if (superAdmin) return accessResult
 
   if (!policy.tenantScoped || operation === 'create') return accessResult
   return constrainToSelectedTenant(accessResult, selectedTenant.id)
@@ -150,12 +175,26 @@ const enforceSelectedTenant = (policy: FeaturePolicy): CollectionBeforeChangeHoo
   originalDoc,
   req,
 }) => {
-  if (!req.user || isSuperAdmin(req.user)) return data
+  if (!req.user) return data
 
+  const superAdmin = isSuperAdmin(req.user)
   const selectedTenant = await getSelectedTenant(req)
-  if (!selectedTenant || !tenantEnablesPolicy(selectedTenant, policy)) {
+
+  // No tenant selected: a super-admin may still write (cross-tenant tooling/migrations); any other
+  // user must pick one first.
+  if (!selectedTenant) {
+    if (superAdmin) return data
+    throw new APIError('Select a tenant before managing this collection.', 403, null, true)
+  }
+
+  // Feature gate on writes too — symmetric with the access layer. Stops a super-admin (or anyone)
+  // from creating commerce docs for a tenant that didn't enable the capability.
+  if (!tenantEnablesPolicy(selectedTenant, policy)) {
     throw new APIError('The selected tenant does not enable this collection.', 403, null, true)
   }
+
+  // Super-admin is never row-scope-constrained.
+  if (superAdmin) return data
 
   if (!policy.tenantScoped) return data
 

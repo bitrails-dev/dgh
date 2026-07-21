@@ -168,9 +168,69 @@ test('direct creates cannot assign an enabled document to a different tenant', a
   )
 })
 
-test('public reads and super-admin access are unchanged', async () => {
+test('public reads remain open; super-admin with no tenant selected retains cross-tenant access', async () => {
+  // Public reads (e.g. the storefront) are never gated by tenant features.
   assert.equal(await accessCollection({ features: [], slug: 'departments', user: null }), true)
-  assert.equal(await accessCollection({ features: [], slug: 'departments', user: superAdmin }), true)
+
+  // A super-admin who has NOT picked a tenant in the sidebar filter sees every collection — the
+  // cross-tenant aggregate view is preserved. No cookie, no gating.
+  assert.equal(await accessCollection({
+    cookie: '',
+    features: [],
+    slug: 'departments',
+    user: superAdmin,
+  }), true)
+})
+
+test('a super-admin filtered to a tenant sees only that tenant\'s enabled capabilities', async () => {
+  // Tenant 7 enables `departments`: collection is visible to the super-admin…
+  assert.equal(await accessCollection({
+    features: ['departments'],
+    slug: 'departments',
+    user: superAdmin,
+  }), true)
+
+  // …and is NOT row-scope-constrained (super-admin aggregate lists keep working).
+  const commerceAdminOnCommerceTenant = await accessCollection({
+    features: ['departments'],
+    slug: 'departments',
+    user: superAdmin,
+  })
+  assert.equal(commerceAdminOnCommerceTenant, true)
+
+  // Tenant 7 does NOT enable `departments`: collection disappears from the super-admin's sidebar
+  // and the API blocks the read.
+  assert.equal(await accessCollection({
+    features: [],
+    slug: 'departments',
+    user: superAdmin,
+  }), false)
+})
+
+test('a super-admin filtered to a non-commerce tenant cannot read or write commerce collections', async () => {
+  // Read: hidden from the sidebar (read access returns false).
+  assert.equal(await accessCollection({
+    features: [],
+    slug: 'commerce-settings',
+    user: superAdmin,
+  }), false)
+
+  // Writes (create/update/delete): also blocked, symmetric with the read path.
+  for (const operation of ['create', 'update', 'delete'] as const) {
+    assert.equal(await accessCollection({
+      features: [],
+      operation,
+      slug: 'commerce-settings',
+      user: superAdmin,
+    }), false)
+  }
+
+  // And the inverse: a commerce-enabled tenant exposes the collection to the super-admin.
+  assert.equal(await accessCollection({
+    features: ['commerce'],
+    slug: 'commerce-settings',
+    user: superAdmin,
+  }), true)
 })
 
 test('a multi-tenant admin must select a tenant before capability collections are exposed', async () => {
