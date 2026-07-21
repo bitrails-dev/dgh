@@ -22,6 +22,7 @@ import * as migration_20260719_300000_commerce_plugin_additive from './20260719_
 import * as migration_20260719_400000_commerce_store_cart_shipping_method from './20260719_400000_commerce_store_cart_shipping_method';
 import * as migration_20260720_100000_store_products_name from './20260720_100000_store_products_name';
 import * as migration_20260720_200000_preferences_customers_rels from './20260720_200000_preferences_customers_rels';
+import * as migration_20260721_140149_commerce_permissions_field from './20260721_140149_commerce_permissions_field';
 
 export const migrations = [
   {
@@ -143,5 +144,10 @@ export const migrations = [
     up: migration_20260720_200000_preferences_customers_rels.up,
     down: migration_20260720_200000_preferences_customers_rels.down,
     name: '20260720_200000_preferences_customers_rels',
+  },
+  {
+    up: migration_20260721_140149_commerce_permissions_field.up,
+    down: migration_20260721_140149_commerce_permissions_field.down,
+    name: '20260721_140149_commerce_permissions_field'
   },
 ];

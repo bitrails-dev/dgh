@@ -42,6 +42,7 @@ import {
   authenticatedFieldAccess,
   manageUserScopeFieldAccess,
 } from './access/userAccess'
+import { COMMERCE_PERMISSIONS } from './commerce/permissions'
 import { tenantFeatureAccessPlugin } from './plugins/tenantFeatureAccess'
 import { socialEndpoints } from './social/oauth/endpoints'
 import { socialPublishTask } from './social/jobs'
@@ -292,6 +293,30 @@ export default buildConfig({
           create: manageUserScopeFieldAccess,
           update: manageUserScopeFieldAccess,
         },
+        // Per-assignment commerce permission matrix. The reader (cms/src/commerce/permissions.ts)
+        // and the commerce access functions (cms/src/commerce/plugin/access.ts) already consume this
+        // field; declaring it here as a rowField makes it a real schema field with a UI control and
+        // persisted storage (join table `users_tenants_commerce_permissions`). Role-based defaults
+        // (admin → all, editor → catalog.manage) are stamped by `enforceUserScope` on create/update
+        // when unset, and existing users are backfilled by migration
+        // 20260721_140149_commerce_permissions_field (which MUST be paired with its .json snapshot —
+        // see the comment at the top of that migration file).
+        rowFields: [
+          {
+            name: 'commercePermissions',
+            type: 'select',
+            hasMany: true,
+            label: { ar: 'صلاحيات التجارة', en: 'Commerce permissions' },
+            // `COMMERCE_PERMISSIONS` is exported `as const` (readonly); Payload's `options` expects a
+            // mutable Option[], so spread into a plain array. The source of truth stays the const.
+            options: [...COMMERCE_PERMISSIONS],
+            access: {
+              read: authenticatedFieldAccess,
+              create: manageUserScopeFieldAccess,
+              update: manageUserScopeFieldAccess,
+            },
+          },
+        ],
       },
     }),
     // Capability access runs after tenant scoping so disabled collections disappear from
