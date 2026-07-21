@@ -105,6 +105,31 @@ export default buildConfig({
       providers: [
         { path: '/src/admin/InlineCreateDismissalProvider#default' },
       ],
+      // Bitrails rebrand: replace the default Payload logo (login page + dashboard header) and the
+      // sidebar/nav icon with the Bitrails mark (terracotta "B" + cyan dot). See
+      // cms/src/admin/BitrailsLogo.tsx + BitrailsIcon.tsx.
+      graphics: {
+        Logo: '/src/admin/BitrailsLogo#default',
+        Icon: '/src/admin/BitrailsIcon#default',
+      },
+    },
+    // Bitrails rebrand: every admin <title> renders "... - Bitrails" instead of "... - Payload",
+    // and share/OG previews say "Bitrails" (admin pages are noindex, but the metadata is still
+    // emitted). Defaults come from payload/dist/config/defaults.js (titleSuffix: '- Payload').
+    meta: {
+      titleSuffix: '- Bitrails',
+      title: 'Bitrails',
+      description: 'Bitrails admin',
+      openGraph: {
+        title: 'Bitrails',
+        siteName: 'Bitrails',
+        description: 'Bitrails admin',
+      },
+      // Override the bundled Payload favicon PNGs with the Bitrails mark SVG. The static file at
+      // cms/src/app/(payload)/icon.svg is also served by Next.js' file convention; setting it
+      // explicitly here guarantees it wins over @payloadcms/next's default icon emission
+      // (meta.js falls back to payload-favicon-*.png when `icons` is unset).
+      icons: [{ rel: 'icon', type: 'image/svg+xml', url: '/icon.svg' }],
     },
   },
   collections: [

@@ -32,6 +32,8 @@ import { VariantOptionsSelector as VariantOptionsSelector_b91672ccd6e8b071c11142
 import { PriceCell as PriceCell_e27bf7b8cc50640dcdd584767b8eac3c } from '@payloadcms/plugin-ecommerce/client'
 import { PriceInput as PriceInput_b91672ccd6e8b071c11142ab941fedfb } from '@payloadcms/plugin-ecommerce/rsc'
 import { default as default_7d8303051d68365404c3a3ef3adc496b } from '../../../../src/admin/LogoutNavLink'
+import { default as default_efaea7663e7439e0e5631f7c313a6db0 } from '../../../../src/admin/BitrailsIcon'
+import { default as default_eaaa06110d67e94b11812e344977323b } from '../../../../src/admin/BitrailsLogo'
 import { TenantSelector as TenantSelector_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
 import { default as default_1615d210c2544c5b192ded1d1e07144f } from '../../../../src/admin/InlineCreateDismissalProvider'
 import { TenantSelectionProvider as TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
@@ -73,6 +75,8 @@ export const importMap = {
   "@payloadcms/plugin-ecommerce/client#PriceCell": PriceCell_e27bf7b8cc50640dcdd584767b8eac3c,
   "@payloadcms/plugin-ecommerce/rsc#PriceInput": PriceInput_b91672ccd6e8b071c11142ab941fedfb,
   "/src/admin/LogoutNavLink#default": default_7d8303051d68365404c3a3ef3adc496b,
+  "/src/admin/BitrailsIcon#default": default_efaea7663e7439e0e5631f7c313a6db0,
+  "/src/admin/BitrailsLogo#default": default_eaaa06110d67e94b11812e344977323b,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelector": TenantSelector_d6d5f193a167989e2ee7d14202901e62,
   "/src/admin/InlineCreateDismissalProvider#default": default_1615d210c2544c5b192ded1d1e07144f,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelectionProvider": TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62,
