@@ -1,4 +1,8 @@
-# Commerce remediation and delivery plan
+# SUPERSEDED — Commerce remediation and delivery plan
+
+Do not implement this plan. It was superseded by
+`docs/superpowers/plans/2026-07-18-commerce-plugin-first-delivery-plan.md`, which adopts
+`@payloadcms/plugin-ecommerce` and preserves only the validated custom extensions.
 
 **Date:** 2026-07-18  
 **Repository:** `C:\Users\mrt\Desktop\dgh`  

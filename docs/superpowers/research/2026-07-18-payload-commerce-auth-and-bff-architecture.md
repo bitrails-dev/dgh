@@ -1,4 +1,9 @@
-# Payload commerce authentication and BFF architecture research
+# SUPERSEDED ARCHITECTURE DECISION — Payload commerce authentication and BFF research
+
+The “do not use the ecommerce plugin” conclusion in this note is superseded. The controlling
+architecture is now
+`docs/superpowers/plans/2026-07-18-commerce-plugin-first-delivery-plan.md`. Retain this file only as
+historical research on Payload authentication and the gateway boundary.
 
 **Date:** 2026-07-18  
 **Scope:** Payload CMS 3.85.1, the existing Astro storefront/Payload deployment boundary, customer authentication, tenant isolation, browser cookies, CSRF/CORS, rate limiting, and the official ecommerce plugin.

@@ -1,4 +1,8 @@
-# Commerce implementation orchestrator prompt
+# SUPERSEDED — Commerce implementation orchestrator prompt
+
+Do not use this prompt. Use
+`docs/superpowers/prompts/2026-07-18-commerce-plugin-first-orchestrator-prompt.md`, which follows the
+plugin-first controlling plan.
 
 Use this prompt verbatim with the implementation agent.
 
