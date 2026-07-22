@@ -538,7 +538,11 @@ export async function runBackfill(input: BackfillInput): Promise<BackfillResult>
             images: asIntArray(parseJson<unknown[]>(lp.images)),
             legacyProductId: lp.id,
             // Plugin price field for EGP. The plugin stores price as `priceInEGP` (column
-            // price_in_e_g_p). camelCase key maps via the slug-derived currency code.
+            // price_in_e_g_p). camelCase key maps via the slug-derived currency code. The
+            // `priceInEGPEnabled` checkbox MUST be set alongside the amount — otherwise the
+            // plugin's `admin.condition` hides the price input in the admin UI and the validator's
+            // truthiness check on the amount alone passes but the field renders unticked/hidden.
+            priceInEGPEnabled: lp.price != null,
             priceInEGP: lp.price,
             // Publish state — the plugin uses `_status`. Draft publishes when status='active'.
             _status: status,
@@ -589,6 +593,10 @@ export async function runBackfill(input: BackfillInput): Promise<BackfillResult>
               sku: variantSku,
               legacyVariantKey,
               title: optionValue,
+              // See the product block above: priceInEGPEnabled MUST accompany priceInEGP or the
+              // admin UI hides the field and the row looks unpriced.
+              priceInEGPEnabled:
+                (typeof lv.price === 'number' ? lv.price : lp.price) != null,
               priceInEGP: typeof lv.price === 'number' ? lv.price : lp.price,
               options: optionId ? [optionId] : [],
               _status: status,

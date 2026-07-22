@@ -35,7 +35,7 @@ import {
   publicAccess,
 } from '../src/commerce/plugin/access'
 import { validateStoreSellable } from '../src/commerce/plugin/validate-sellable'
-import { overrideStoreProducts, productExtensionFields } from '../src/commerce/plugin/overrides/store-products'
+import { overrideStoreProducts, productExtensionFields, defaultPriceEnabledTrue } from '../src/commerce/plugin/overrides/store-products'
 import { overrideStoreVariants, variantExtensionFields } from '../src/commerce/plugin/overrides/store-variants'
 import { overrideStoreVariantTypes } from '../src/commerce/plugin/overrides/store-variant-types'
 import { overrideStoreVariantOptions } from '../src/commerce/plugin/overrides/store-variant-options'
@@ -336,9 +336,12 @@ test('isAuthenticated: anonymous → false; any user → true', () => {
   assert.equal(isAuthenticated({ req: superAdminReq } as never), true)
 })
 
-test('isCustomer: anonymous → false; staff User → false; customer (no roles) → true', () => {
+test('isCustomer: anonymous → false; staff User → false; customer (collection=customers) → true', () => {
+  // After NM20, isCustomer checks user.collection === 'customers' (not the absence-of-roles
+  // heuristic, which misclassified staff Users with empty roles as customers). The customer fixture
+  // MUST carry collection: 'customers' to be recognized.
   const customerReq = {
-    user: { id: 42, email: 'c@example.com' },
+    user: { id: 42, email: 'c@example.com', collection: 'customers' },
   } as unknown as Parameters<typeof isCustomer>[0]['req']
   assert.equal(isCustomer({ req: anonReq } as never), false)
   assert.equal(isCustomer({ req: superAdminReq } as never), false)
@@ -490,6 +493,10 @@ test('store-products extension includes slug(required,indexed), sku(indexed), tr
     if ('name' in f && typeof f.name === 'string') byName.set(f.name, f)
   }
 
+  // priceInEGPEnabled is NOT in productExtensionFields — it is mutated onto the plugin's fields
+  // by defaultPriceEnabledTrue() at override time (re-declaring collides with the plugin's copy).
+  // The regression guard for the "can't add price" bug lives in the dedicated test below.
+
   const slug = byName.get('slug') as Field & { required?: boolean; index?: boolean }
   assert.ok(slug, 'slug field exists')
   assert.equal(slug.required, true)
@@ -544,6 +551,9 @@ test('store-variants extension includes sku(required,indexed), legacyVariantKey(
   for (const f of variantExtensionFields) {
     if ('name' in f && typeof f.name === 'string') byName.set(f.name, f)
   }
+
+  // priceInEGPEnabled is NOT in variantExtensionFields — mutated onto plugin fields by
+  // defaultPriceEnabledTrue() at override time (same as products). Guard lives below.
 
   const sku = byName.get('sku') as Field & { required?: boolean; index?: boolean }
   assert.ok(sku)
@@ -621,4 +631,67 @@ test('store-transactions extension includes every §3.9 field exactly once', () 
     'refundedAmount',
   ]
   assert.deepEqual(names, expected)
+})
+
+// ──────────────────────────────────────────────────────────────────────────────────────────────
+// 7. Price-visibility regression: defaultPriceEnabledTrue mutates the plugin's price-enable
+//    checkboxes to defaultValue: true so the priceInEGP input is visible by default (the bug:
+//    "I can't add prices to products"). Re-declaring the field collides at sanitize, so the
+//    fix mutates the plugin's existing field in place.
+// ──────────────────────────────────────────────────────────────────────────────────────────────
+
+test('defaultPriceEnabledTrue sets defaultValue:true on a top-level priceInEGPEnabled checkbox', () => {
+  const fields: Field[] = [
+    { name: 'name', type: 'text' },
+    { name: 'priceInEGPEnabled', type: 'checkbox' } as Field,
+  ]
+  defaultPriceEnabledTrue(fields)
+  const enable = fields[1] as { defaultValue?: boolean }
+  assert.equal(enable.defaultValue, true, 'priceInEGPEnabled.defaultValue === true')
+})
+
+test('defaultPriceEnabledTrue reaches priceInEGPEnabled nested inside an unnamed group/row (plugin shape)', () => {
+  // Mirror the plugin's pricesField output: unnamed group → row → [checkbox, amount].
+  const fields: Field[] = [
+    {
+      type: 'group',
+      fields: [
+        {
+          type: 'row',
+          fields: [
+            { name: 'priceInEGPEnabled', type: 'checkbox' } as Field,
+            { name: 'priceInEGP', type: 'number' } as Field,
+          ],
+        },
+      ],
+    } as Field,
+  ]
+  defaultPriceEnabledTrue(fields)
+  const nested = (fields[0] as { fields: Array<{ fields: Array<Field> }> }).fields[0].fields[0] as {
+    defaultValue?: boolean
+  }
+  assert.equal(
+    nested.defaultValue,
+    true,
+    'nested priceInEGPEnabled.defaultValue === true (plugin group/row recursion)',
+  )
+})
+
+test('defaultPriceEnabledTrue does not touch non-price fields or non-checkbox price fields', () => {
+  const fields: Field[] = [
+    { name: 'name', type: 'text' },
+    { name: 'priceInEGP', type: 'number' } as Field, // amount, not the enable checkbox
+    { name: 'priceInUSD', type: 'number' } as Field,
+  ]
+  defaultPriceEnabledTrue(fields)
+  assert.equal(
+    (fields[1] as { defaultValue?: boolean }).defaultValue,
+    undefined,
+    'priceInEGP amount field untouched',
+  )
+  assert.equal(
+    (fields[2] as { defaultValue?: boolean }).defaultValue,
+    undefined,
+    'priceInUSD field untouched',
+  )
 })

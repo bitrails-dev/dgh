@@ -39,6 +39,27 @@ const taxClassOptions = [
  * - `images`: relationship array to `media`.
  * - `legacyProductId`: nullable indexed integer, hidden and read-only in the admin — preserves the
  *   old product row ID for migration traceability.
+ *
+ * PRICE FIELDS (from the plugin — NOT re-declared here):
+ * The plugin's `pricesField({ currenciesConfig })` adds an unnamed `group` per supported currency.
+ * For EGP that group contains two sibling fields — `priceInEGPEnabled` (checkbox) and `priceInEGP`
+ * (number, minor units). The amount input is conditionally hidden via
+ * `admin.condition: (_, sibling) => Boolean(sibling?.priceInEGPEnabled)` until the checkbox is
+ * ticked. WITHOUT intervention, the checkbox defaults to false, so the price input is invisible on
+ * every new product and operators report "I can't add a price."
+ *
+ * Because the plugin wraps the checkbox inside an unnamed group whose fields flatten to the
+ * top level, re-declaring `priceInEGPEnabled` in this array would produce a DuplicateFieldName
+ * error at sanitize. Instead, `defaultPriceEnabledTrue()` below walks `defaultCollection.fields`
+ * and mutates the plugin's existing `priceInEGPEnabled` field in place, setting `defaultValue: true`
+ * so the price row is visible by default. The plugin's `admin.condition` on `priceInEGP` is
+ * preserved (the row still hides when the checkbox is unticked).
+ *
+ * For variant parents the product-level price is intentionally absent (the variant price is
+ * authoritative; see `quote-loader.ts` variant-first precedence).
+ *
+ * Tiered/volume pricing is NOT a feature of this codebase; the plugin does not provide it and no
+ * stub exists. `priceInEGP` is a flat per-unit minor-unit amount.
  */
 export const productExtensionFields: Field[] = [
   {
@@ -115,8 +136,46 @@ export const productExtensionFields: Field[] = [
   },
 ]
 
+/**
+ * Walk the plugin's default product fields and set `defaultValue: true` on the
+ * `priceInEGPEnabled` checkbox (and any other `priceIn<CODE>Enabled` checkbox the plugin emits for
+ * a supported currency). The plugin wraps each currency's enable checkbox inside an unnamed
+ * `group` whose `fields` flatten to the top level at sanitize, so we recurse through nested
+ * `row`/`group` containers to find them. Mutates in place; returns the same array for chaining.
+ *
+ * Rationale: without `defaultValue: true`, the checkbox defaults to false and the plugin's
+ * `admin.condition` on the sibling `priceInEGP` amount field hides the price input on every new
+ * product — operators see no visible "Price" field. Re-declaring the field by name in
+ * `productExtensionFields` collides (DuplicateFieldName) because the plugin's copy already exists,
+ * so in-place mutation is the only merge path that preserves the plugin's `admin.condition`.
+ */
+export function defaultPriceEnabledTrue(fields: Field[]): Field[] {
+  for (const f of fields) {
+    if (
+      f &&
+      typeof f === 'object' &&
+      'name' in f &&
+      typeof (f as { name?: unknown }).name === 'string' &&
+      // Match the plugin's enable-checkbox pattern: `priceIn<CURRENCY_CODE>Enabled` where
+      // <CURRENCY_CODE> is 2+ uppercase letters (e.g. EGP, USD, SAR). The trailing `Enabled`
+      // is mixed-case, so we anchor it literally rather than as part of the [A-Z]+ class.
+      /^priceIn[A-Z]{2,}Enabled$/.test((f as { name: string }).name) &&
+      (f as { type?: string }).type === 'checkbox'
+    ) {
+      ;(f as { defaultValue?: unknown }).defaultValue = true
+    }
+    // Recurse into containers (unnamed group, named group, row, tabs, collapsible).
+    const nested = (f as { fields?: unknown[] }).fields
+    if (Array.isArray(nested)) defaultPriceEnabledTrue(nested as Field[])
+  }
+  return fields
+}
+
 export const overrideStoreProducts: CollectionOverride = ({ defaultCollection }) => ({
   ...defaultCollection,
   slug: STORE_COLLECTION_SLUGS.products as CollectionSlug,
-  fields: [...(defaultCollection.fields ?? []), ...productExtensionFields],
+  fields: [
+    ...defaultPriceEnabledTrue([...(defaultCollection.fields ?? [])]),
+    ...productExtensionFields,
+  ],
 })
