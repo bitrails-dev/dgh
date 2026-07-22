@@ -22,8 +22,42 @@ const KEY_VERSION = 1
 const KEY_LEN = 32 // AES-256
 const IV_LEN = 12 // GCM nonce
 const TAG_LEN = 16
+const MIN_SECRET_BYTES = 32
 
-const secretKey = (): string => process.env.PAYLOAD_SECRET || ''
+/**
+ * Fail-closed guard for HKDF input. The HKDF `ikm` MUST come from a strong, sufficiently long
+ * PAYLOAD_SECRET — an empty/short secret silently produces a weak/derivable key. Throws a clear
+ * Error at call time if the env var is missing OR decodes to fewer than 32 bytes. We treat the
+ * value as a UTF-8 string for the length check because that is how `deriveKey` and the commerce
+ * `sessionKey` consume it (`hkdfSync('sha256', process.env.PAYLOAD_SECRET || '', ...)`).
+ *
+ * In non-production (test/dev) we do NOT throw — instead we pad a short/missing secret up to the
+ * 32-byte minimum with a fixed, non-secret suffix. This keeps the security invariant (production
+ * fails closed) without forcing every integration test fixture to carry a 32+ byte secret. The
+ * padded form is still deterministic per-process so encryption round-trips within a test; it is
+ * never used in production because the production check throws first.
+ */
+export function requirePayloadSecret(): string {
+  const raw = process.env.PAYLOAD_SECRET
+  const isProd = process.env.NODE_ENV === 'production'
+  if (typeof raw !== 'string' || raw.length === 0) {
+    if (isProd) {
+      throw new Error('PAYLOAD_SECRET must be set and be >= 32 bytes for commerce crypto')
+    }
+    // Non-production with no secret: use a fixed test-only key (NOT secret, NOT for prod use).
+    return 'test-only-payload-secret-padding-do-not-use-in-prod'
+  }
+  if (Buffer.byteLength(raw, 'utf8') < MIN_SECRET_BYTES) {
+    if (isProd) {
+      throw new Error('PAYLOAD_SECRET must be set and be >= 32 bytes for commerce crypto')
+    }
+    // Non-production with a short secret: pad it so HKDF gets 32 bytes. Deterministic per-value.
+    return raw.padEnd(MIN_SECRET_BYTES, '0')
+  }
+  return raw
+}
+
+const secretKey = (): string => requirePayloadSecret()
 
 // HKDF `info`/salt couples key derivation to a purpose. The default `payload-social` isolates social
 // OAuth tokens; commerce reuses the same primitives under `payload-commerce` (see commerce/crypto.ts)

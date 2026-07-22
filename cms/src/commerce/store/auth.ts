@@ -100,7 +100,7 @@ export const authEndpoints: Endpoint[] = [
       const a = await verifyAuth(req)
       if (!a.ok) return a.res
       const token = req.headers.get('x-session-token') ?? ''
-      const { status, body: out } = await logoutCustomer(req.payload, token)
+      const { status, body: out } = await logoutCustomer(req.payload, token, a.tenantId)
       return Response.json(out, { status })
     },
   },
@@ -134,7 +134,7 @@ export const authEndpoints: Endpoint[] = [
       const a = await verifyAuth(req)
       if (!a.ok) return a.res
       if (!a.body) return Response.json({ error: 'invalid_input' }, { status: 400 })
-      const { status, body: out } = await resetPassword(req.payload, a.body as any)
+      const { status, body: out } = await resetPassword(req.payload, a.body as any, a.tenantId)
       return Response.json(out, { status })
     },
   },

@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 // Key derivation reads PAYLOAD_SECRET at call time; set a stable secret before exercising the API.
-process.env.PAYLOAD_SECRET = 'commerce-crypto-test-secret'
+// Secret must be >= 32 bytes — the fail-closed guard in social/crypto `requirePayloadSecret`
+// throws otherwise (NH6).
+process.env.PAYLOAD_SECRET = 'commerce-crypto-test-secret-at-least-32-bytes'
 
 import { decryptGatewaySecret, encryptGatewaySecret } from '../src/commerce/crypto'
 import { decryptToken, encryptToken } from '../src/social/crypto'

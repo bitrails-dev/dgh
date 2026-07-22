@@ -111,13 +111,16 @@ export const isAuthenticated: Access = ({ req }) => Boolean(req?.user)
 
 /**
  * The acting user is a customer (authenticated via the `customers` collection), not a staff User.
- * Staff Users always carry a `roles` array (default 'editor'); a customer document does not, so the
- * absence of `roles` identifies a customer session.
+ * Uses the standard Payload convention `user.collection === 'customers'` rather than the absence of
+ * `roles` — the previous heuristic (no `roles` array ⇒ customer) could misclassify a staff user
+ * with an empty `roles` array, and conversely would be tricked by a customer doc that happened to
+ * carry a `roles` key. The super-admin short-circuit is preserved above (in `isCommerceAdmin`).
  */
 export const isCustomer: FieldAccess = ({ req }) => {
-  const user = req?.user as UserLike | null
+  const user = req?.user as ({ collection?: string } & UserLike) | null
   if (!user) return false
-  return !user.roles || user.roles.length === 0
+  if (isSuperAdmin(user)) return false
+  return user.collection === 'customers'
 }
 
 /**

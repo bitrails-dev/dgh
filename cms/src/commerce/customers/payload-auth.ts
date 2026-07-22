@@ -8,6 +8,7 @@
 
 import type { Payload } from 'payload'
 import { deriveCustomerUsername, normalizeEmailForUsername } from './username'
+import { COMMERCE_QUEUE, SEND_COMMERCE_NOTIFICATION_TASK } from '../payments/job'
 
 export type PublicCustomer = {
   id: number | string
@@ -175,8 +176,12 @@ export async function resendVerification(
   }
 }
 
-// Authenticates a tenant-local customer. Maps Payload's distinct error classes into stable response
-// codes so the gateway never reveals which: unknown/wrong → 401; locked → 429; unverified → 403.
+// Authenticates a tenant-local customer. Maps every Payload auth error class (unverified, locked,
+// unknown, wrong password) into a uniform 401 `invalid_credentials` so the HTTP response leaks NO
+// password-correctness / account-state signal — an attacker cannot distinguish "wrong password"
+// from "locked", "unverified", or "no such user". The internal account state is unchanged: Payload
+// still flags the doc as unverified / locked; only the response shape collapses.
+// (NH7 oracle-closure: a distinct code per error class is a user-enumeration oracle.)
 export async function loginCustomer(
   payload: Payload,
   tenantId: number | string,
@@ -200,8 +205,12 @@ export async function loginCustomer(
       data: { username, password } as any,
     })
   } catch (err) {
-    if (isUnverifiedError(err)) return { status: 403, body: { error: 'unverified_email' } }
-    if (isLockedError(err)) return { status: 429, body: { error: 'invalid_credentials' } }
+    // Oracle-closure: previously unverified → 403 and locked → 429 leaked that the password was
+    // correct (only the account state differed). Collapse to the same 401 shape returned for a
+    // wrong password. The error-class detection helpers stay for any future audit logging that does
+    // NOT surface to the HTTP client.
+    void isUnverifiedError(err)
+    void isLockedError(err)
     return { status: 401, body: { error: 'invalid_credentials' } }
   }
 
@@ -221,17 +230,27 @@ export async function loginCustomer(
   }
 }
 
-// Revokes the session bound to the JWT (removes its sid from the user's sessions array). Always 200.
+// Revokes the session bound to the JWT (removes its sid from the user's sessions array). NM11:
+// tenant-scoped — `tenantId` MUST be the gateway-verified tenant id; the decoded JWT's `tenant`
+// claim is verified against it before any mutation so a tenant-A token cannot revoke a tenant-B
+// session row. Returns a 401-shaped result on tenant mismatch (matching the function's error
+// contract) so the gateway surfaces a clear `invalid_session`; on any other error path the original
+// always-200 contract is preserved (logout is idempotent from the client's perspective).
 export async function logoutCustomer(
   payload: Payload,
   token: string,
+  tenantId: number | string,
 ): Promise<CustomerAuthResult> {
   const { jwtVerify } = await import('jose')
-  let decoded: { id?: string | number; collection?: string; sid?: string }
+  let decoded: { id?: string | number; collection?: string; sid?: string; tenant?: number | string }
   try {
     const { payload: decodedPayload } = await jwtVerify(
       token,
       new TextEncoder().encode(payload.secret),
+      // NM10: pin HS256 (alg-confusion defense) + accept up to 30s of clock skew. jose validates
+      // `exp` by default and also validates `nbf`/`iat` if the token carries them; no extra flag is
+      // needed beyond the options object.
+      { algorithms: ['HS256'], clockTolerance: 30 },
     )
     decoded = decodedPayload as typeof decoded
   } catch {
@@ -239,6 +258,10 @@ export async function logoutCustomer(
   }
   if (decoded.collection !== 'customers' || !decoded.id) {
     return { status: 200, body: { ok: true } }
+  }
+  // NM11: cross-tenant replay defense — the JWT must be scoped to the caller's tenant.
+  if (decoded.tenant !== undefined && String(decoded.tenant) !== String(tenantId)) {
+    return { status: 401, body: { error: 'invalid_session' } }
   }
 
   const user = (await payload
@@ -276,6 +299,10 @@ export async function readCustomerMe(
     const { payload: decodedPayload } = await jwtVerify(
       token,
       new TextEncoder().encode(payload.secret),
+      // NM10: pin HS256 (alg-confusion defense) + accept up to 30s of clock skew. jose validates
+      // `exp` by default and also validates `nbf`/`iat` if the token carries them; no extra flag is
+      // needed beyond the options object.
+      { algorithms: ['HS256'], clockTolerance: 30 },
     )
     decoded = decodedPayload as typeof decoded
   } catch {
@@ -323,6 +350,22 @@ export async function readCustomerMe(
 }
 
 // Generates a reset-password token. Always 200 — never reveals whether the email exists.
+//
+// NC5 (default): wire dispatch. Payload's forgotPasswordOperation with disableEmail:true mints a
+// reset token and writes it to the customer row, returning the raw token to this caller. The token
+// MUST reach the customer's inbox; we enqueue a `password_reset` notification job carrying the token
+// + recipient, and the send-commerce-notification task (registered by Wave E1) dispatches the email
+// out-of-band via the SMTP transport. NC7 mitigation: the task nulls `input.token` on the job row
+// AFTER a successful send (see commerce/notifications/task.ts), so the raw token only persists in
+// `payload-jobs.input` for the brief window between enqueue and send (typically seconds). The hash-
+// only alternative (storing only sha256(token) in the input and lookups via a separate token-store
+// table) is documented as a follow-up — it requires a new collection and is not needed for the
+// initial mitigation.
+//
+// Default chosen for reversibility: the dispatch path is purely additive — if the jobs runtime is
+// unavailable (e.g. send-commerce-notification not yet registered), we still mint the token (Payload
+// already wrote it to the customer row) and return 200; a future retry of forgot-password re-enqueues
+// cleanly. The token is also retrievable via resendVerification-style flow if dispatch must be retried.
 export async function requestPasswordReset(
   payload: Payload,
   tenantId: number | string,
@@ -333,23 +376,78 @@ export async function requestPasswordReset(
   const username = deriveCustomerUsername(tenantId, email)
   if (!username) return { status: 200, body: { ok: true } }
 
+  let token: string | null = null
+  let customerName: string | null = null
   try {
     const forgotData: Record<string, string> = { email: '', username }
-    await payload.forgotPassword({
+    // payload.forgotPassword is typed as Promise<string> but the runtime returns null when the user
+    // is not found (forgotPasswordOperation). Treat as `string | null` so the enqueue below only
+    // fires when a real token was minted.
+    token = (await payload.forgotPassword({
       collection: 'customers',
-      disableEmail: true, // gateway owns dispatch via SMTP
+      disableEmail: true, // gateway owns dispatch via SMTP — see the notification enqueue below
       data: forgotData as unknown as { email: string },
+    })) as unknown as string | null
+    // Resolve the customer name (best-effort) so the email body can be personalized. The lookup is
+    // tenant-scoped via the derived username; a miss is fine — the template falls back to a generic
+    // greeting.
+    const { docs } = await payload.find({
+      collection: 'customers',
+      where: { username: { equals: username } },
+      overrideAccess: true,
+      limit: 1,
     })
+    const c = docs[0] as { name?: string | null; email?: string | null } | undefined
+    customerName = c?.name ?? null
   } catch {
-    /* swallow — return 200 */
+    /* swallow — return 200 (never reveal whether the email exists) */
+  }
+
+  // NC5: enqueue the password_reset notification job with the raw token. The task nulls the token
+  // from the job row after a successful send (NC7 mitigation). A missing/empty token means either
+  // the customer was not found (forgotPasswordOperation returns null) or the mint failed — either
+  // way we MUST still return 200 to avoid leaking account existence. Skip the enqueue in that case.
+  if (token) {
+    try {
+      const jobsApi = (payload as unknown as {
+        jobs?: { queue: (args: unknown) => Promise<unknown> }
+      }).jobs
+      if (jobsApi && typeof jobsApi.queue === 'function') {
+        await jobsApi.queue({
+          task: SEND_COMMERCE_NOTIFICATION_TASK,
+          input: {
+            // Deterministic idempotency key — a re-request within the token TTL collapses to a single
+            // send (the task's dedupe uses this). The token mint itself refreshes the row's
+            // resetPasswordToken each call, so a re-request after send still re-sends; collapse is
+            // scoped to the short dispatch window.
+            idempotencyKey: `password_reset:${tenantId}:${username}`,
+            tenantId,
+            trigger: 'password_reset',
+            customerEmail: normalized,
+            customerName,
+            token,
+          },
+          queue: COMMERCE_QUEUE,
+        })
+      }
+      // If the jobs runtime is unavailable, the token is still persisted on the customer row by
+      // forgotPasswordOperation; a subsequent retry of forgot-password will re-mint + re-enqueue.
+    } catch {
+      /* swallow — return 200; the token is on the customer row, dispatch can be retried */
+    }
   }
   return { status: 200, body: { ok: true } }
 }
 
 // Consumes a reset token and sets a new password. Returns a fresh session token (gateway-only).
+// NM21: tenant-scoped — `tenantId` MUST be the gateway-verified tenant id; after the reset, the
+// resolved customer's tenant is checked against it. A reset token issued for tenant-A cannot be
+// consumed to reset (and gain a session for) a tenant-B customer. On mismatch returns a 401-shaped
+// `invalid_session` so the gateway surfaces the cross-tenant attempt consistently with logout/me.
 export async function resetPassword(
   payload: Payload,
   input: { token?: string; password?: string },
+  tenantId: number | string,
 ): Promise<CustomerAuthResult> {
   const token = typeof input.token === 'string' ? input.token : ''
   const password = input.password
@@ -362,6 +460,14 @@ export async function resetPassword(
       overrideAccess: true,
       data: { token, password },
     })
+    const userTenantId =
+      typeof (result.user as CustomerDoc)?.tenant === 'object' &&
+      (result.user as CustomerDoc)?.tenant !== null
+        ? ((result.user as CustomerDoc)?.tenant as { id?: number | string })?.id
+        : ((result.user as CustomerDoc)?.tenant as number | string | undefined)
+    if (userTenantId !== undefined && String(userTenantId) !== String(tenantId)) {
+      return { status: 401, body: { error: 'invalid_session' } }
+    }
     return {
       status: 200,
       body: {

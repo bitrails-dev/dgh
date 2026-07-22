@@ -12,7 +12,7 @@ import type { Payload } from 'payload'
 
 const TEMP_DB = join(tmpdir(), `commerce-cust-auth-itest-${process.pid}-${Date.now()}.db`)
 process.env.DATABASE_URI = `file:${TEMP_DB}`
-process.env.PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || 'commerce-cust-auth-itest-secret'
+process.env.PAYLOAD_SECRET = process.env.PAYLOAD_SECRET || 'commerce-cust-auth-itest-secret-32bytes'
 
 const { default: config } = await import('../src/payload.config')
 const { getPayload } = await import('payload')
@@ -110,7 +110,7 @@ test('logout revokes the session; a subsequent me is 401', async () => {
   const meBefore = await readCustomerMe(payload, token, tenantA)
   assert.equal(meBefore.status, 200, 'session active before logout')
 
-  await logoutCustomer(payload, token)
+  await logoutCustomer(payload, token, tenantA)
   const meAfter = await readCustomerMe(payload, token, tenantA)
   assert.equal(meAfter.status, 401, 'session revoked after logout')
 })

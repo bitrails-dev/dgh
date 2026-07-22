@@ -216,6 +216,11 @@ export default buildConfig({
     defaultLocale: 'ar',
     fallback: true,
   },
+  // NOTE: Payload config itself keeps the `|| ''` fallback so the config can boot for migration
+  // tooling (`generate:types`, `migrate`) without a live secret. Commerce crypto
+  // (cms/src/commerce/crypto.ts, cms/src/social/crypto.ts) requires PAYLOAD_SECRET to be set at
+  // runtime to >= 32 bytes — `requirePayloadSecret()` throws there. Do not rely on this fallback
+  // for runtime serving.
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: { outputFile: path.resolve(dirname, 'payload-types.ts') },
   plugins: [
