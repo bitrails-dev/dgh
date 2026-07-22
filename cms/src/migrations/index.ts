@@ -23,6 +23,9 @@ import * as migration_20260719_400000_commerce_store_cart_shipping_method from '
 import * as migration_20260720_100000_store_products_name from './20260720_100000_store_products_name';
 import * as migration_20260720_200000_preferences_customers_rels from './20260720_200000_preferences_customers_rels';
 import * as migration_20260721_140149_commerce_permissions_field from './20260721_140149_commerce_permissions_field';
+import * as migration_20260722_100000_order_number_seq_safety from './20260722_100000_order_number_seq_safety';
+import * as migration_20260722_100100_store_prices_enable_backfill from './20260722_100100_store_prices_enable_backfill';
+import * as migration_20260722_100200_store_orders_rels_fk_repoint from './20260722_100200_store_orders_rels_fk_repoint';
 
 export const migrations = [
   {
