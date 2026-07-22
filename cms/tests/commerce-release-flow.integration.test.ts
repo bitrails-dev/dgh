@@ -201,10 +201,11 @@ test('release flow · browse → cart → COD checkout → admin confirm → onl
 
   // 2. SIGNED ADD-TO-CART (simple + variant SKU) → QUOTE. pluginAddItem mints/resolves the cart by
   //    normalized SKU; the simple line + the variant line both carry the server-resolved price.
-  const addSimple = (await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 2 })) as { status: number; body: { cartId: string; items: Array<{ sku: string; quantity: number }>; quote: { grandTotal: number } | null } }
+  const addSimple = (await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 2 })) as { status: number; body: { cartId: string; secret?: string; items: Array<{ sku: string; quantity: number }>; quote: { grandTotal: number } | null } }
   assert.equal(addSimple.status, 200, `add simple: ${JSON.stringify(addSimple.body)}`)
   const cartId = addSimple.body.cartId
-  const addVariant = await pluginAddItem(payload, tenantId, { sku: VARIANT_SKU, quantity: 1, cartId })
+  const cartSecret = addSimple.body.secret // NH15: thread through the cart's plugin secret.
+  const addVariant = await pluginAddItem(payload, tenantId, { sku: VARIANT_SKU, quantity: 1, cartId, secret: cartSecret })
   assert.equal(addVariant.status, 200, `add variant: ${JSON.stringify(addVariant.body)}`)
 
   const quote = await quoteStoreCart(payload, tenantId, cartId)

@@ -9,6 +9,7 @@
 import type { Endpoint, PayloadRequest } from 'payload'
 import { withVerifiedCommerceGateway } from './gateway'
 import { processCheckout, type ProcessCheckoutInput } from '../checkout/process'
+import { resolveCustomer } from './orders'
 
 // RFC 4122 v4 — the only idempotency-key shape accepted. Rejects malformed keys before any work.
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -37,6 +38,24 @@ const checkoutHandler = async (req: PayloadRequest): Promise<Response> => {
   const verification = await withVerifiedCommerceGateway({ req, tenantSlug, bodyBytes })
   if (!verification.ok) return Response.json(verification.body, { status: verification.status })
 
+  // NC2 (default): honor an optional authenticated customer session. The Astro storefront proxy
+  // forwards the Secure HttpOnly `store_session_v2` cookie as the `x-session-token` header (the same
+  // bridge commerce/store/orders.ts uses via resolveCustomer). When present and valid for this
+  // tenant, the resolved customerId is threaded into processCheckout via the context so the placed
+  // store-orders / store-transactions rows are tagged with the customer. When absent or invalid, the
+  // checkout proceeds as a guest (the prior behavior) — login is NEVER required. The gateway verifier
+  // already resolved `req.user` if present; we additionally honor the storefront session bridge for
+  // signed proxy requests that do not carry a Payload session. Default chosen for reversibility: a
+  // single optional code path that falls back to guest; flip the if(false) below to drop the bridge.
+  let customerId = verification.context.customerId
+  if (customerId === undefined) {
+    const resolved = await resolveCustomer(req, verification.context.tenantId)
+    // resolveCustomer returns ok:false on missing/invalid token. For the checkout bridge we MUST NOT
+    // reject — a missing session simply means guest checkout. Only honor the positive resolution.
+    if (resolved.ok) customerId = resolved.customerId
+  }
+  const ctx = customerId !== undefined ? { ...verification.context, customerId } : verification.context
+
   // Signature verified → safe to parse.
   let body: unknown
   try {
@@ -60,7 +79,7 @@ const checkoutHandler = async (req: PayloadRequest): Promise<Response> => {
 
   const { status, body: resp } = await processCheckout(
     req.payload,
-    verification.context,
+    ctx,
     { ...obj, idempotencyKey: idempotencyKey || undefined } as ProcessCheckoutInput,
     // ponytail: test-only adapter injection seam — production req.context is empty so buildAdapter is
     // undefined and processCheckout falls back to the real buildPaymentAdapter. Ceiling: if a non-test

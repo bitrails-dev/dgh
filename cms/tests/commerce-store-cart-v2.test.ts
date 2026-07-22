@@ -33,6 +33,7 @@ type ViewBody = {
   items: Array<{ sku: string; quantity: number; product?: { priceInEGP?: number } }>
   quote: { currency: string; subtotal: number; grandTotal: number } | null
   error?: string
+  secret?: string
 }
 const view = (r: { status: number; body: unknown }): { status: number; body: ViewBody } =>
   r as { status: number; body: ViewBody }
@@ -83,12 +84,16 @@ test('add mints a guest cart, resolves the SKU, and returns server-priced totals
   assert.equal(r.body.quote?.currency, 'EGP')
   assert.equal(r.body.quote?.subtotal, 10000, '2 × 5000 minor, server-priced')
   assert.equal(r.body.quote?.grandTotal, 10000)
+  // NH15: the response carries the cart's plugin secret so the trusted proxy can store it for
+  // subsequent calls. Every later op must pass it back.
+  assert.ok(typeof r.body.secret === 'string' && r.body.secret.length > 0, 'cart secret surfaced on the create response')
 })
 
 test('adding the same SKU again merges (increments) instead of duplicating', async () => {
   const a = view(await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 1 }))
   const cartId = a.body.cartId
-  const b = view(await pluginAddItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 3 }))
+  const secret = a.body.secret
+  const b = view(await pluginAddItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 3, secret }))
   assert.equal(b.body.cartId, cartId, 'same cart reused')
   assert.equal(b.body.items.length, 1)
   assert.equal(b.body.items[0].quantity, 4)
@@ -98,10 +103,11 @@ test('adding the same SKU again merges (increments) instead of duplicating', asy
 test('update changes quantity; qty 0 removes the line', async () => {
   const a = view(await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 2 }))
   const cartId = a.body.cartId
-  const up = view(await pluginUpdateItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 5 }))
+  const secret = a.body.secret
+  const up = view(await pluginUpdateItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 5, secret }))
   assert.equal(up.body.items[0].quantity, 5)
   assert.equal(up.body.quote?.subtotal, 25000)
-  const rm = view(await pluginUpdateItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 0 }))
+  const rm = view(await pluginUpdateItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 0, secret }))
   assert.equal(rm.body.items.length, 0, 'qty 0 removes the line')
   assert.equal(rm.body.quote, null, 'empty cart → null quote')
 })
@@ -109,9 +115,10 @@ test('update changes quantity; qty 0 removes the line', async () => {
 test('remove drops the line; removing an absent line is idempotent', async () => {
   const a = view(await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 1 }))
   const cartId = a.body.cartId
-  const r = view(await pluginRemoveItem(payload, tenantId, { cartId, sku: SIMPLE_SKU }))
+  const secret = a.body.secret
+  const r = view(await pluginRemoveItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, secret }))
   assert.equal(r.body.items.length, 0)
-  const again = view(await pluginRemoveItem(payload, tenantId, { cartId, sku: SIMPLE_SKU }))
+  const again = view(await pluginRemoveItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, secret }))
   assert.equal(again.status, 200)
   assert.equal(again.body.items.length, 0)
 })
@@ -119,7 +126,8 @@ test('remove drops the line; removing an absent line is idempotent', async () =>
 test('clear empties the cart but keeps the cart id', async () => {
   const a = view(await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 2 }))
   const cartId = a.body.cartId
-  const r = view(await pluginClearCart(payload, tenantId, cartId))
+  const secret = a.body.secret
+  const r = view(await pluginClearCart(payload, tenantId, cartId, undefined, secret))
   assert.equal(r.body.cartId, cartId)
   assert.equal(r.body.items.length, 0)
 })
@@ -138,7 +146,28 @@ test('invalid quantity -> 400 invalid_item', async () => {
 
 test('cross-tenant: a cart id from tenant A is invisible to tenant B (empty view)', async () => {
   const a = view(await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 1 }))
-  const r = view(await readPluginCart(payload, otherTenantId, a.body.cartId))
+  const r = view(await readPluginCart(payload, otherTenantId, a.body.cartId, a.body.secret))
   assert.equal(r.body.cartId, '', 'foreign cart is not found → empty view')
   assert.deepEqual(r.body.items, [])
+})
+
+// NH15: a wrong/missing secret on a cart that has a secret MUST be treated as "not your cart"
+// (getCart returns null → empty view for read, 404 for mutations). Defense-in-depth: a stolen cartId
+// alone is not enough to read or mutate another customer's cart.
+test('NH15: a wrong secret on a cart that has one is rejected (cart treated as absent)', async () => {
+  const a = view(await pluginAddItem(payload, tenantId, { sku: SIMPLE_SKU, quantity: 2 }))
+  const cartId = a.body.cartId
+  // Wrong secret → read returns the empty-cart view (cart not authorized).
+  const wrongRead = view(await readPluginCart(payload, tenantId, cartId, 'wrong-secret'))
+  assert.equal(wrongRead.body.cartId, '', 'wrong secret → cart treated as absent')
+  // No secret at all → same behavior.
+  const noSecretRead = view(await readPluginCart(payload, tenantId, cartId))
+  assert.equal(noSecretRead.body.cartId, '', 'missing secret → cart treated as absent')
+  // Correct secret → cart is readable.
+  const ok = view(await readPluginCart(payload, tenantId, cartId, a.body.secret))
+  assert.equal(ok.body.cartId, cartId, 'correct secret → cart authorized')
+  assert.equal(ok.body.items.length, 1)
+  // Wrong secret on a mutation → 404 (cart_not_found).
+  const wrongUpdate = view(await pluginUpdateItem(payload, tenantId, { cartId, sku: SIMPLE_SKU, quantity: 5, secret: 'wrong-secret' }))
+  assert.equal(wrongUpdate.status, 404)
 })

@@ -166,18 +166,19 @@ test.after(async () => {
 test('plugin cart ops · update merges, remove drops, clear empties (line shapes stable)', async () => {
   const sku = 'PAR-C-OPS'
   await seedStoreProduct(tenantId, sku, 1000)
-  const add = (await pluginAddItem(payload, tenantId, { sku, quantity: 1 })) as { status: number; body: { cartId: string; items: Array<{ sku: string; quantity: number }>; quote: { grandTotal: number } | null } }
+  const add = (await pluginAddItem(payload, tenantId, { sku, quantity: 1 })) as { status: number; body: { cartId: string; secret?: string; items: Array<{ sku: string; quantity: number }>; quote: { grandTotal: number } | null } }
   const cartId = add.body.cartId
+  const secret = add.body.secret // NH15: thread the secret through every subsequent op.
   assert.equal(add.body.quote?.grandTotal, 1000)
   type CartView = { items: Array<{ sku: string; quantity: number }>; quote: { grandTotal: number } | null }
-  const up = ((await pluginUpdateItem(payload, tenantId, { cartId, sku, quantity: 4 })).body as CartView)
+  const up = ((await pluginUpdateItem(payload, tenantId, { cartId, sku, quantity: 4, secret })).body as CartView)
   assert.equal(up.items[0].quantity, 4)
   assert.equal(up.quote?.grandTotal, 4000)
-  const rm = ((await pluginRemoveItem(payload, tenantId, { cartId, sku })).body as CartView)
+  const rm = ((await pluginRemoveItem(payload, tenantId, { cartId, sku, secret })).body as CartView)
   assert.equal(rm.items.length, 0)
   // Re-add then clear keeps the cart id.
-  const add2 = await pluginAddItem(payload, tenantId, { cartId, sku, quantity: 2 })
-  const cleared = await pluginClearCart(payload, tenantId, cartId)
+  const add2 = await pluginAddItem(payload, tenantId, { cartId, sku, quantity: 2, secret })
+  const cleared = await pluginClearCart(payload, tenantId, cartId, undefined, secret)
   assert.equal((cleared.body as { items: unknown[] }).items.length, 0)
   assert.ok(add2.status === 200)
 })
@@ -238,11 +239,12 @@ test('negative · pluginAddItem writes store-carts, not legacy carts/products/or
 test('negative · pluginUpdateItem / pluginRemoveItem / pluginClearCart touch no legacy collection', async () => {
   const sku = 'PAR-NEG-MUT'
   await seedStoreProduct(tenantId, sku, 1000)
-  const add = (await pluginAddItem(payload, tenantId, { sku, quantity: 2 })) as { body: { cartId: string } }
+  const add = (await pluginAddItem(payload, tenantId, { sku, quantity: 2 })) as { body: { cartId: string; secret?: string } }
   const cartId = add.body.cartId
-  await assertNoLegacyWrites('pluginUpdateItem', () => pluginUpdateItem(payload, tenantId, { cartId, sku, quantity: 5 }))
-  await assertNoLegacyWrites('pluginRemoveItem', () => pluginRemoveItem(payload, tenantId, { cartId, sku }))
-  await assertNoLegacyWrites('pluginClearCart', () => pluginClearCart(payload, tenantId, cartId))
+  const secret = add.body.secret // NH15
+  await assertNoLegacyWrites('pluginUpdateItem', () => pluginUpdateItem(payload, tenantId, { cartId, sku, quantity: 5, secret }))
+  await assertNoLegacyWrites('pluginRemoveItem', () => pluginRemoveItem(payload, tenantId, { cartId, sku, secret }))
+  await assertNoLegacyWrites('pluginClearCart', () => pluginClearCart(payload, tenantId, cartId, undefined, secret))
 })
 
 test('negative · processCheckout (cod) writes store-orders, not legacy orders/transactions', async () => {

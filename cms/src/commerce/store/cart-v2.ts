@@ -40,6 +40,14 @@ export interface CartResponseBody {
   items: CartViewItem[]
   quote: StorefrontQuote | null
   quoteError?: { code: string }
+  /**
+   * NH15: the cart's plugin secret. Surfaced on the create response so the trusted Astro proxy can
+   * store it in a separate Secure HttpOnly cookie (e.g. `store_cart_v2_secret`) and inject it into
+   * the signed body of subsequent cart ops. The browser NEVER sees this value — the proxy strips it
+   * before forwarding, exactly like the customer session token on login. Empty for legacy carts that
+   * have no secret (admin-created).
+   */
+  secret?: string
 }
 export type CartResponse = { status: number; body: CartResponseBody }
 
@@ -64,13 +72,40 @@ function opReq(req: PayloadRequest | undefined): PayloadRequest {
 
 type CartDoc = { id: number | string; secret?: string; items?: unknown[]; tenant?: unknown }
 
+// NH15 (default): constant-time string compare so a timing-attack-based secret probe cannot shortcut
+// on the first mismatched byte. node:crypto.timingSafeEqual requires equal-length buffers; we hash
+// both inputs to a fixed-length digest first so a length mismatch (a common case for a wrong/absent
+// secret) does not throw and does not leak length either. Returns true on exact match only.
+async function constantTimeEqual(a: string | undefined | null, b: string | undefined | null): Promise<boolean> {
+  if (typeof a !== 'string' || typeof b !== 'string' || a === '' || b === '') return false
+  const { createHash, timingSafeEqual } = await import('node:crypto')
+  const ha = createHash('sha256').update(a).digest()
+  const hb = createHash('sha256').update(b).digest()
+  return timingSafeEqual(ha, hb)
+}
+
 // Fetch the cart (overrideAccess — permitted inside the verified gateway context) tenant-scoped, with
-// its plugin secret. Returns null when the cart is absent or belongs to another tenant (ownership =
-// scoped read, the same invariant the D1/D2 adapters rely on).
+// its plugin secret. Returns null when the cart is absent, belongs to another tenant (ownership =
+// scoped read, the same invariant the D1/D2 adapters rely on), OR fails the NH15 secret check.
+//
+// NH15 (default): the caller MUST pass a `secret` matching `cart.secret` to authorize reading a
+// guest cart's contents. The plugin's cart model mints a per-cart `secret` on create; the storefront
+// stores it client-side (e.g. a separate HttpOnly cookie set by the Astro proxy from the create
+// response) and the gateway-signed body carries it back on every subsequent cart op. A cart with NO
+// secret set bypasses the check (legacy / admin-created carts). This is defense-in-depth — the
+// gateway signature already authenticates the request, but a stolen cartId alone (e.g. via a leaky
+// log) must NOT be enough to read another customer's cart. The constant-time compare prevents
+// timing oracles on the secret itself.
+//
+// Default chosen for reversibility: the secret param is optional and a missing/empty cart secret
+// short-circuits the check, so existing carts without a secret continue to work; tighten by always
+// requiring the secret once every live cart has one. Note: the Astro proxy cookie-injection is a
+// separate concern (NL8 already fixed to cover checkout).
 async function getCart(
   payload: Payload,
   tenantId: number | string,
   cartId: number | string | undefined | null,
+  secret?: string,
 ): Promise<CartDoc | null> {
   if (cartId === undefined || cartId === null || cartId === '') return null
   let doc: CartDoc | null = null
@@ -88,6 +123,12 @@ async function getCart(
   if (!doc) return null
   const tId = relId(doc.tenant)
   if (tId === undefined || String(tId) !== String(tenantId)) return null
+  // NH15: secret enforcement. A cart with no secret set is legacy/admin-owned — bypass the check.
+  // Otherwise the caller-supplied secret MUST match (constant-time).
+  if (doc.secret) {
+    const ok = await constantTimeEqual(secret, doc.secret)
+    if (!ok) return null
+  }
   return doc
 }
 
@@ -105,9 +146,22 @@ async function createGuestCart(
   })) as CartDoc
   // The create response carries the freshly-minted secret; fall back to a re-read if a hook path
   // stripped it. The secret is needed to authorize the subsequent plugin op on this guest cart.
+  // We bypass the NH15 caller-secret check on this re-read (read directly via the Local API) because
+  // WE just created the cart — the caller has not received the secret yet, so the secret check would
+  // incorrectly reject our own just-created row.
   if (!doc.secret) {
-    const reread = await getCart(payload, tenantId, doc.id)
-    if (reread) return reread
+    try {
+      const reread = (await payload.findByID({
+        collection: CARTS,
+        id: doc.id,
+        overrideAccess: true,
+        showHiddenFields: true,
+        depth: 0,
+      })) as CartDoc | null
+      if (reread) return reread
+    } catch {
+      /* fall through to return doc */
+    }
   }
   return doc
 }
@@ -166,21 +220,25 @@ async function resolveCartItems(
 
 // The storefront cart view: items (sku + product summary) + the server-authoritative quote. A missing
 // cart is an empty cart (200, null quote) — never an error. A quote failure keeps the items and
-// reports quoteError so the UI can flag totals.
+// reports quoteError so the UI can flag totals. The `secret` (NH15) is threaded straight through to
+// the getCart authorization check, and the loaded cart's secret is surfaced on the response so the
+// trusted proxy can persist it for the next call.
 async function buildCartView(
   payload: Payload,
   tenantId: number | string,
   cartId: number | string | undefined | null,
+  secret?: string,
 ): Promise<CartResponse> {
-  const cart = await getCart(payload, tenantId, cartId)
+  const cart = await getCart(payload, tenantId, cartId, secret)
   if (!cart) return { status: 200, body: { cartId: '', items: [], quote: null } }
   const rawItems = Array.isArray(cart.items) ? cart.items : []
   const items = await resolveCartItems(payload, tenantId, rawItems)
+  const cartSecret = typeof cart.secret === 'string' && cart.secret.length > 0 ? cart.secret : undefined
   // Empty cart → null quote (matches the legacy cart + the storefront Cart contract).
   if (rawItems.length === 0) {
-    return { status: 200, body: { cartId: String(cart.id), items: [], quote: null } }
+    return { status: 200, body: { cartId: String(cart.id), items: [], quote: null, ...(cartSecret !== undefined ? { secret: cartSecret } : {}) } }
   }
-  const body: CartResponseBody = { cartId: String(cart.id), items, quote: null }
+  const body: CartResponseBody = { cartId: String(cart.id), items, quote: null, ...(cartSecret !== undefined ? { secret: cartSecret } : {}) }
   const quoteRes = await quoteStoreCart(payload, tenantId, cart.id)
   if (quoteRes.ok) body.quote = quoteRes.quote
   else body.quoteError = { code: quoteRes.code }
@@ -219,14 +277,15 @@ export async function readPluginCart(
   payload: Payload,
   tenantId: number | string,
   cartId: number | string | undefined | null,
+  secret?: string,
 ): Promise<CartResponse> {
-  return buildCartView(payload, tenantId, cartId)
+  return buildCartView(payload, tenantId, cartId, secret)
 }
 
 export async function pluginAddItem(
   payload: Payload,
   tenantId: number | string,
-  input: { cartId?: number | string | null; sku: unknown; quantity: unknown },
+  input: { cartId?: number | string | null; sku: unknown; quantity: unknown; secret?: string },
   req?: PayloadRequest,
 ): Promise<CartResponse | { status: number; body: Record<string, unknown> }> {
   const sku = normalizeSku(input.sku)
@@ -237,8 +296,11 @@ export async function pluginAddItem(
   const resolved = await resolveSellableBySku({ payload, tenantId, sku })
   if (!resolved.ok) return { status: 422, body: { error: 'product_not_found', detail: { sku } } }
 
-  // Ensure a cart exists: reuse the cookie cart, else mint a guest cart on first add.
-  let cart = await getCart(payload, tenantId, input.cartId ?? null)
+  // Ensure a cart exists: reuse the cookie cart, else mint a guest cart on first add. NH15: the
+  // caller-supplied `secret` authorizes reading the existing guest cart; a missing/wrong secret
+  // means getCart returns null and a fresh cart is minted (matches the prior "no cart → create"
+  // behavior for an unknown cartId). The minted cart's new secret is what the response then carries.
+  let cart = await getCart(payload, tenantId, input.cartId ?? null, input.secret)
   const settings = await loadCommerceSettings(payload, tenantId)
   if (!settings) return { status: 503, body: { error: 'commerce_not_configured' } }
   if (!cart) cart = await createGuestCart(payload, tenantId, settings.currency)
@@ -255,13 +317,13 @@ export async function pluginAddItem(
     ...(secret ? { secret } : {}),
   } as never)
   if (!res.success) return { status: 404, body: { error: 'cart_not_found' } }
-  return buildCartView(payload, tenantId, cart.id)
+  return buildCartView(payload, tenantId, cart.id, secret)
 }
 
 export async function pluginUpdateItem(
   payload: Payload,
   tenantId: number | string,
-  input: { cartId?: number | string | null; sku: unknown; quantity: unknown },
+  input: { cartId?: number | string | null; sku: unknown; quantity: unknown; secret?: string },
   req?: PayloadRequest,
 ): Promise<CartResponse | { status: number; body: Record<string, unknown> }> {
   const sku = normalizeSku(input.sku)
@@ -269,7 +331,7 @@ export async function pluginUpdateItem(
   if (!sku || !Number.isInteger(quantity) || quantity < 0) {
     return { status: 400, body: { error: 'invalid_item', detail: { sku: input.sku, quantity: input.quantity } } }
   }
-  const cart = await getCart(payload, tenantId, input.cartId ?? null)
+  const cart = await getCart(payload, tenantId, input.cartId ?? null, input.secret)
   if (!cart) return { status: 404, body: { error: 'cart_not_found' } }
   const itemID = await findItemRowIdBySku(payload, tenantId, cart, sku)
   if (itemID === undefined) return { status: 404, body: { error: 'item_not_found', detail: { sku } } }
@@ -281,26 +343,26 @@ export async function pluginUpdateItem(
     const res = await updateItem({ payload, cartsSlug: CARTS, cartID: cart.id, itemID, quantity, ...op } as never)
     if (!res.success) return { status: 404, body: { error: 'item_not_found' } }
   }
-  return buildCartView(payload, tenantId, cart.id)
+  return buildCartView(payload, tenantId, cart.id, cart.secret)
 }
 
 export async function pluginRemoveItem(
   payload: Payload,
   tenantId: number | string,
-  input: { cartId?: number | string | null; sku: unknown },
+  input: { cartId?: number | string | null; sku: unknown; secret?: string },
   req?: PayloadRequest,
 ): Promise<CartResponse | { status: number; body: Record<string, unknown> }> {
   const sku = normalizeSku(input.sku)
   if (!sku) return { status: 400, body: { error: 'invalid_item', detail: { sku: input.sku } } }
-  const cart = await getCart(payload, tenantId, input.cartId ?? null)
+  const cart = await getCart(payload, tenantId, input.cartId ?? null, input.secret)
   if (!cart) return { status: 404, body: { error: 'cart_not_found' } }
   const itemID = await findItemRowIdBySku(payload, tenantId, cart, sku)
   if (itemID === undefined) {
     // Idempotent remove of an absent line → return the cart view unchanged.
-    return buildCartView(payload, tenantId, cart.id)
+    return buildCartView(payload, tenantId, cart.id, cart.secret)
   }
   await removeItem({ payload, cartsSlug: CARTS, cartID: cart.id, itemID, req: opReq(req), ...(cart.secret ? { secret: cart.secret } : {}) } as never)
-  return buildCartView(payload, tenantId, cart.id)
+  return buildCartView(payload, tenantId, cart.id, cart.secret)
 }
 
 export async function pluginClearCart(
@@ -308,11 +370,12 @@ export async function pluginClearCart(
   tenantId: number | string,
   cartId: number | string | undefined | null,
   req?: PayloadRequest,
+  secret?: string,
 ): Promise<CartResponse> {
-  const cart = await getCart(payload, tenantId, cartId)
+  const cart = await getCart(payload, tenantId, cartId, secret)
   if (!cart) return ok({ cartId: '', items: [], quote: null })
   await clearCart({ payload, cartsSlug: CARTS, cartID: cart.id, req: opReq(req), ...(cart.secret ? { secret: cart.secret } : {}) } as never)
-  return buildCartView(payload, tenantId, cart.id)
+  return buildCartView(payload, tenantId, cart.id, cart.secret)
 }
 
 // ── Thin signed HTTP handlers ─────────────────────────────────────────────────────────────────
@@ -322,6 +385,20 @@ function cartIdFromQuery(req: PayloadRequest): string | undefined {
   if (!raw) return undefined
   try {
     return new URL(raw, 'http://localhost').searchParams.get('cartId') ?? undefined
+  } catch {
+    return undefined
+  }
+}
+
+// NH15: the cart secret arrives in the gateway-signed body (POST/PATCH) or query (GET/DELETE no
+// body). The Astro proxy stores it in a separate HttpOnly cookie (set from the create response) and
+// injects it into the signed request alongside cartId. Treat it as opaque here — getCart does the
+// constant-time compare against cart.secret.
+function secretFromQuery(req: PayloadRequest): string | undefined {
+  const raw = (req as PayloadRequest & { url?: string }).url
+  if (!raw) return undefined
+  try {
+    return new URL(raw, 'http://localhost').searchParams.get('secret') ?? undefined
   } catch {
     return undefined
   }
@@ -355,7 +432,7 @@ export const pluginCartEndpoints: Endpoint[] = [
       const tenantSlug = req.routeParams?.tenantSlug as string | undefined
       const v = await verify(req, tenantSlug)
       if (!v.ok) return v.res
-      const r = await readPluginCart(req.payload, v.ctx.tenantId, cartIdFromQuery(req))
+      const r = await readPluginCart(req.payload, v.ctx.tenantId, cartIdFromQuery(req), secretFromQuery(req))
       return Response.json(r.body, { status: r.status })
     },
   },
@@ -366,8 +443,8 @@ export const pluginCartEndpoints: Endpoint[] = [
       const tenantSlug = req.routeParams?.tenantSlug as string | undefined
       const v = await verify(req, tenantSlug)
       if (!v.ok) return v.res
-      const b = (v.body as { cartId?: unknown; sku?: unknown; quantity?: unknown } | null) ?? {}
-      const r = await pluginAddItem(req.payload, v.ctx.tenantId, { cartId: b.cartId as never, sku: b.sku, quantity: b.quantity }, req)
+      const b = (v.body as { cartId?: unknown; sku?: unknown; quantity?: unknown; secret?: unknown } | null) ?? {}
+      const r = await pluginAddItem(req.payload, v.ctx.tenantId, { cartId: b.cartId as never, sku: b.sku, quantity: b.quantity, secret: b.secret as string | undefined }, req)
       return Response.json(r.body, { status: r.status })
     },
   },
@@ -379,8 +456,8 @@ export const pluginCartEndpoints: Endpoint[] = [
       const sku = req.routeParams?.sku as string | undefined
       const v = await verify(req, tenantSlug)
       if (!v.ok) return v.res
-      const b = (v.body as { cartId?: unknown; quantity?: unknown } | null) ?? {}
-      const r = await pluginUpdateItem(req.payload, v.ctx.tenantId, { cartId: b.cartId as never, sku, quantity: b.quantity }, req)
+      const b = (v.body as { cartId?: unknown; quantity?: unknown; secret?: unknown } | null) ?? {}
+      const r = await pluginUpdateItem(req.payload, v.ctx.tenantId, { cartId: b.cartId as never, sku, quantity: b.quantity, secret: b.secret as string | undefined }, req)
       return Response.json(r.body, { status: r.status })
     },
   },
@@ -392,9 +469,9 @@ export const pluginCartEndpoints: Endpoint[] = [
       const sku = req.routeParams?.sku as string | undefined
       const v = await verify(req, tenantSlug)
       if (!v.ok) return v.res
-      const b = (v.body as { cartId?: unknown } | null) ?? {}
-      // DELETE may carry the cartId in the query (no body) for this clear-one path too.
-      const r = await pluginRemoveItem(req.payload, v.ctx.tenantId, { cartId: (b.cartId as never) ?? cartIdFromQuery(req), sku }, req)
+      const b = (v.body as { cartId?: unknown; secret?: unknown } | null) ?? {}
+      // DELETE may carry the cartId/secret in the query (no body) for this clear-one path too.
+      const r = await pluginRemoveItem(req.payload, v.ctx.tenantId, { cartId: (b.cartId as never) ?? cartIdFromQuery(req), sku, secret: (b.secret as string | undefined) ?? secretFromQuery(req) }, req)
       return Response.json(r.body, { status: r.status })
     },
   },
@@ -405,8 +482,8 @@ export const pluginCartEndpoints: Endpoint[] = [
       const tenantSlug = req.routeParams?.tenantSlug as string | undefined
       const v = await verify(req, tenantSlug)
       if (!v.ok) return v.res
-      const b = (v.body as { cartId?: unknown } | null) ?? {}
-      const r = await pluginClearCart(req.payload, v.ctx.tenantId, (b.cartId as never) ?? cartIdFromQuery(req), req)
+      const b = (v.body as { cartId?: unknown; secret?: unknown } | null) ?? {}
+      const r = await pluginClearCart(req.payload, v.ctx.tenantId, (b.cartId as never) ?? cartIdFromQuery(req), req, (b.secret as string | undefined) ?? secretFromQuery(req))
       return Response.json(r.body, { status: r.status })
     },
   },
