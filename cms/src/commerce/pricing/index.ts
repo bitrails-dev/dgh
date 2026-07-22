@@ -95,20 +95,42 @@ function computeTax(taxable: number, taxBps: number, mode: TaxMode): { tax: numb
   return { tax: taxable - net, total: taxable }
 }
 
-// Allocate `discount` across `bases` pro-rata, half-up per line, with the rounding residual placed on
-// the largest base so the allocations sum to exactly `discount` (no lost/gained cents). Each line's
-// allocation never exceeds its base when discount <= total bases.
+// Allocate `discount` across `bases` pro-rata, half-up per line, with the rounding residual
+// distributed across the lines so the allocations sum to exactly `discount` (no lost/gained cents)
+// AND no line's allocation ever goes negative. Residual (positive or negative) is applied to lines
+// from largest base to smallest, each line absorbing at most its current allocation in magnitude, so
+// a large |diff| can never drive a single line below zero. If residual remains after every line the
+// cap exceeded the total bases (shouldn't happen since cap = min(discount, total)) — leave it rather
+// than fabricate negative allocations.
 export function allocateProRata(bases: number[], discount: number): number[] {
   const total = bases.reduce((acc, b) => acc + b, 0)
   if (total <= 0 || discount <= 0) return bases.map(() => 0)
   const cap = Math.min(discount, total)
   const allocated = bases.map((b) => divRoundHalfUp(b * cap, total))
-  let sum = allocated.reduce((acc, a) => acc + a, 0)
+  const sum = allocated.reduce((acc, a) => acc + a, 0)
   let diff = cap - sum
   if (diff !== 0) {
-    let maxIdx = 0
-    for (let i = 1; i < bases.length; i++) if (bases[i] > bases[maxIdx]) maxIdx = i
-    allocated[maxIdx] += diff
+    // Lines largest-base first; ties broken by original index for determinism.
+    const order = bases
+      .map((b, i) => ({ b, i }))
+      .sort((x, y) => (y.b - x.b) || (x.i - y.i))
+    for (const { i } of order) {
+      if (diff === 0) break
+      if (diff > 0) {
+        // Under-allocation: bump this line up by as much of the residual as possible.
+        const bump = diff
+        allocated[i] += bump
+        diff = 0
+      } else {
+        // Over-allocation: claw back from this line, clamped so the line never goes negative.
+        const want = Math.min(-diff, allocated[i])
+        allocated[i] -= want
+        diff += want
+        if (diff === 0) break
+      }
+    }
+    // If diff !== 0 here, cap exceeded total bases (theoretically impossible given cap above).
+    // We leave the residual un-applied rather than risk driving any line negative.
   }
   return allocated
 }
@@ -202,13 +224,23 @@ export function quote(input: QuoteInput): QuoteSnapshot {
 }
 
 // SHA-256 over a canonical, key-ordered projection of the snapshot (hash field excluded). Any
-// tampering with an amount changes the hash; verifySnapshot catches it.
+// tampering with an amount changes the hash; verifySnapshot catches it. Lines are sorted by a stable
+// key (the line's SKU-based `key`, falling back to `sku:quantity`) before serialization, so the hash
+// is order-independent: callers that submit the same lines in a different order produce the same
+// hash, and any single-line mutation still changes it.
 export function hashSnapshot(s: Omit<QuoteSnapshot, 'hash'>): string {
+  const lineKey = (x: QuoteLineSnapshot): string =>
+    typeof x.key === 'string' && x.key.length > 0 ? x.key : `${x.sku}:${x.quantity}`
+  const sortedLines = [...s.lines].sort((a, b) => {
+    const ka = lineKey(a)
+    const kb = lineKey(b)
+    return ka < kb ? -1 : ka > kb ? 1 : 0
+  })
   const canonical = {
     v: s.version,
     c: s.currency,
     m: s.taxMode,
-    l: s.lines.map((x) => [
+    l: sortedLines.map((x) => [
       x.key, x.sku, x.quantity, x.unitPrice.amount, x.lineAmount, x.orderAlloc, x.taxable, x.tax, x.total,
     ]),
     ms: s.merchandiseSubtotal,

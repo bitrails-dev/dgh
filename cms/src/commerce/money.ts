@@ -39,12 +39,20 @@ function requireSameCurrency(a: Money, b: Money): void {
 
 export function add(a: Money, b: Money): Money {
   requireSameCurrency(a, b)
-  return { amount: a.amount + b.amount, currency: a.currency }
+  const amount = a.amount + b.amount
+  if (!Number.isSafeInteger(amount)) {
+    throw new Error(`add overflow: ${a.amount} + ${b.amount}`)
+  }
+  return { amount, currency: a.currency }
 }
 
 export function subtract(a: Money, b: Money): Money {
   requireSameCurrency(a, b)
-  return { amount: a.amount - b.amount, currency: a.currency }
+  const amount = a.amount - b.amount
+  if (!Number.isSafeInteger(amount)) {
+    throw new Error(`subtract overflow: ${a.amount} - ${b.amount}`)
+  }
+  return { amount, currency: a.currency }
 }
 
 // Multiply a unit price by an integer quantity (line total). Fractional quantities are not money.
@@ -52,7 +60,11 @@ export function scale(m: Money, factor: number): Money {
   if (!Number.isSafeInteger(factor) || factor < 0) {
     throw new Error(`scale factor must be a non-negative integer, got ${factor}`)
   }
-  return { amount: m.amount * factor, currency: m.currency }
+  const amount = m.amount * factor
+  if (!Number.isSafeInteger(amount)) {
+    throw new Error(`scale overflow: ${m.amount} * ${factor}`)
+  }
+  return { amount, currency: m.currency }
 }
 
 export function sum(parts: Money[], currency: string): Money {
@@ -62,6 +74,9 @@ export function sum(parts: Money[], currency: string): Money {
   for (const part of parts) {
     requireSameCurrency(head, part)
     total += part.amount
+  }
+  if (!Number.isSafeInteger(total)) {
+    throw new Error(`sum overflow: ${total}`)
   }
   return { amount: total, currency }
 }
