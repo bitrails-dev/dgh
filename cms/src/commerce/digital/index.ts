@@ -74,11 +74,23 @@ export function verifyDownloadUrl(input: {
 // Server-side id→path lookup, run only after verifyDownloadUrl succeeds. Returns null for unknown
 // ids; a client-supplied path is never consulted, so the URL cannot be coerced into reading an
 // arbitrary file.
+//
+// Defense-in-depth: even though the mapping is server-controlled, validate the resolved path against
+// traversal (`..` segments) and absolute paths (`/…`). A future admin script or migration could
+// write a traversal entry into the mapping; this guard ensures such an entry is treated as not-found
+// rather than read from disk.
 export function resolveStoragePath(input: {
   fileId: string
   mapping: Record<string, string>
 }): string | null {
-  return input.mapping[input.fileId] ?? null
+  const path = input.mapping[input.fileId]
+  if (typeof path !== 'string' || path.length === 0) return null
+  // Reject absolute paths and any path whose normalized segments contain `..` (traversal). Split on
+  // both `/` and `\` so Windows-style separators cannot bypass the check.
+  if (path.startsWith('/') || path.startsWith('\\')) return null
+  const segments = path.split(/[/\\]/)
+  if (segments.some((seg) => seg === '..')) return null
+  return path
 }
 
 // --- File id generation --------------------------------------------------------------------

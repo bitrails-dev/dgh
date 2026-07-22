@@ -89,13 +89,17 @@ export function createSmtpTransport(
       }
       try {
         const transporter = await getSmtpTransporter(config)
+        // The subject + plaintext body carry per-locale strings. Pick the recipient's preferred locale
+        // when the message carries one; default to 'en' if absent. The HTML body is left bilingual
+        // (ar block + en block) per existing convention.
+        const loc = ((message as NotificationMessage & { locale?: 'ar' | 'en' }).locale === 'ar') ? 'ar' : 'en'
         const info = await (transporter as {
           sendMail: (m: unknown) => Promise<{ messageId?: string } | { messageID?: string }>
         }).sendMail({
           from: config.from,
           to: message.to,
-          subject: message.subject.en,
-          text: message.body.en,
+          subject: message.subject[loc] ?? message.subject.en,
+          text: message.body[loc] ?? message.body.en,
           // Bilingual: ar in the HTML body (default locale), en appended below.
           html: `<div dir="rtl" lang="ar"><p>${escapeHtml(message.body.ar)}</p></div><hr/><div lang="en"><p>${escapeHtml(message.body.en)}</p></div>`,
         })
@@ -121,9 +125,13 @@ function redact(email: string): string {
   return `${head}${'*'.repeat(Math.max(1, local.length - 2))}@${domain}`
 }
 
+// Escapes & < > " '. Safe for both text-content AND attribute contexts (e.g. a future link href /
+// data-* attribute built from a meta value would need quote-escaping to avoid an attribute breakout).
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }

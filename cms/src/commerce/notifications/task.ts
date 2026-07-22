@@ -21,12 +21,47 @@ import type { NotificationTaskInput } from './types'
 const sharedTransport = createSmtpTransport()
 
 /**
+ * NC7: scrub the raw `token` field from a `payload-jobs` row's JSON input after a successful send.
+ * Re-reads the input (defensive against any concurrent mutation), deletes the `token` key, and
+ * writes the scrubbed envelope back via the Local API. Idempotent: a second scrub on an already-
+ * scrubbed row is a no-op. The `taskSlug` guard ensures we never touch a row that has been
+ * repurposed to a different task between the read and the write.
+ */
+async function scrubTokenFromJobInput(
+  payload: Payload,
+  jobId: number | string,
+  expectedTaskSlug: string,
+): Promise<void> {
+  const doc = (await payload.findByID({
+    collection: 'payload-jobs',
+    id: jobId,
+    overrideAccess: true,
+    showHiddenFields: true,
+  })) as { taskSlug?: string; input?: Record<string, unknown> | null } | null
+  if (!doc) return
+  if (doc.taskSlug !== expectedTaskSlug) return
+  if (!doc.input || typeof doc.input !== 'object') return
+  if (!('token' in doc.input) || doc.input.token === undefined || doc.input.token === null) return
+  const scrubbed: Record<string, unknown> = { ...doc.input }
+  delete scrubbed.token
+  await payload.update({
+    collection: 'payload-jobs',
+    id: jobId,
+    overrideAccess: true,
+    data: { input: scrubbed } as never,
+  })
+}
+
+/**
  * Dedupe against the durable `payload-jobs` store. A prior SUCCEEDED `send-commerce-notification`
  * job for the same idempotencyKey means a re-delivered/duplicate enqueue is a structured no-op.
  *
- * `payload-jobs` is a system collection (NOT tenant-scoped by the multi-tenant plugin), so tenant
- * isolation is enforced in JS by matching `input.tenantId`. A job counts as "succeeded" when it has
- * `hasError: false` AND a `completedAt` (i.e. it finished without exhausting retries).
+ * `payload-jobs` is a system collection (NOT tenant-scoped by the multi-tenant plugin), so the
+ * idempotencyKey itself carries the tenant-scoped prefix (see `deriveIdempotencyKey` and the
+ * payment enqueue key `payment:<tenantId>:<eventId>:<state>`). Querying the JSON `input` field by
+ * the idempotencyKey directly is O(1) on the indexed path vs. the old O(n) scan that loaded up to
+ * 100 rows and JS-filtered them; it also removes the silent 100-row cap that could miss a prior
+ * success past the limit and double-send.
  */
 function createPayloadJobsDedupe(payload: Payload): NotificationDeps['hasAlreadySucceeded'] {
   return async (idempotencyKey) => {
@@ -36,22 +71,16 @@ function createPayloadJobsDedupe(payload: Payload): NotificationDeps['hasAlready
         and: [
           { taskSlug: { equals: SEND_COMMERCE_NOTIFICATION_TASK } },
           { hasError: { equals: false } },
+          { 'input.idempotencyKey': { equals: idempotencyKey } },
         ],
       },
       overrideAccess: true,
-      limit: 100,
+      limit: 1,
       pagination: false,
     })
-    return docs.some((doc) => {
-      const d = doc as {
-        completedAt?: string | null
-        input?: { idempotencyKey?: unknown; tenantId?: unknown } | null
-      }
-      // Finished without error (completedAt set, not still processing).
-      if (!d.completedAt) return false
-      const input = (d.input ?? {}) as { idempotencyKey?: unknown; tenantId?: unknown }
-      return input.idempotencyKey === idempotencyKey
-    })
+    const d = docs[0] as { completedAt?: string | null } | undefined
+    // Finished without error (completedAt set, not still processing).
+    return Boolean(d?.completedAt)
   }
 }
 
@@ -59,11 +88,27 @@ function createPayloadJobsDedupe(payload: Payload): NotificationDeps['hasAlready
  * Resolve the recipient email. Non-payment triggers carry `customerEmail` in the input; the payment
  * path carries only `orderNumber` + `tenantId`, so the customer email is re-read from the
  * tenant-scoped `store-orders` row (the source of truth — never trusted from the job input alone).
+ *
+ * The resolved address is validated against a simple RFC-ish shape. Without this check, any enqueue
+ * path (or a future admin script) could send mail to arbitrary/invalid addresses — the validator is
+ * a soft failure: the task SUCCEEDS with `no_recipient` rather than transmitting.
  */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 function createRecipientResolver(payload: Payload): NotificationDeps['resolveRecipient'] {
   return async (input) => {
     const direct = (input.customerEmail ?? '').trim()
-    if (direct) return direct
+    if (direct) {
+      // Unvalidated email would let any enqueue path send mail to arbitrary addresses — validate the
+      // shape before returning; on mismatch, log + skip the send (treated as no_recipient).
+      if (!EMAIL_RE.test(direct)) {
+        console.warn(
+          `[commerce-notify] customerEmail failed validation (trigger ${input.trigger}, tenant ${input.tenantId}); skipping send`,
+        )
+        return null
+      }
+      return direct
+    }
     if (!input.orderNumber) return null
     const { docs } = await payload.find({
       collection: 'store-orders',
@@ -77,7 +122,14 @@ function createRecipientResolver(payload: Payload): NotificationDeps['resolveRec
       limit: 1,
     })
     const order = docs[0] as { customerEmail?: string | null } | undefined
-    return (order?.customerEmail ?? '').trim() || null
+    const fromOrder = (order?.customerEmail ?? '').trim()
+    if (fromOrder && !EMAIL_RE.test(fromOrder)) {
+      console.warn(
+        `[commerce-notify] store-orders.customerEmail failed validation (order ${input.orderNumber}, tenant ${input.tenantId}); skipping send`,
+      )
+      return null
+    }
+    return fromOrder || null
   }
 }
 
@@ -114,7 +166,7 @@ export const sendCommerceNotificationTask: TaskConfig<any> = {
     // only — never persisted or logged outside this short-lived job input.
     { name: 'token', type: 'text' },
   ],
-  handler: async ({ input, req }) => {
+  handler: async ({ input, req, job }) => {
     const taskInput = (input ?? {}) as NotificationTaskInput
     const deps: NotificationDeps = {
       transport: sharedTransport,
@@ -122,6 +174,29 @@ export const sendCommerceNotificationTask: TaskConfig<any> = {
       resolveRecipient: createRecipientResolver(req.payload),
     }
     const output = await executeSendCommerceNotification(taskInput, deps)
+
+    // NC7 (default): after a successful send, scrub the raw token from the durable job row. The
+    // task input is the only place the raw reset/verification token persists outside the customer
+    // row; nulling it on send means the token is only present in `payload-jobs.input` for the brief
+    // window between enqueue and dispatch (typically seconds). Admins reading the job row after send
+    // see no token. This is the cleanest mitigation without a separate token-store table (a hash-
+    // only approach would require a new collection — documented as a follow-up in
+    // commerce/customers/payload-auth.ts requestPasswordReset). Best-effort: a scrub failure MUST NOT
+    // fail the task — the email already went out, and the next reconciliation would re-scrub.
+    if (output.sent && taskInput.token) {
+      try {
+        await scrubTokenFromJobInput(req.payload, job.id, SEND_COMMERCE_NOTIFICATION_TASK)
+      } catch (err) {
+        // Log + swallow: the send succeeded, the customer got their email, and the residual token
+        // in the job row expires (per the token's own TTL) anyway. Surfacing this as a task failure
+        // would burn retries on a send that already succeeded.
+        console.warn(
+          `[commerce-notify] failed to scrub token from job ${String(job.id)} after successful send: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        )
+      }
+    }
     // Always returns a structured output. The task SUCCEEDS on dedupe / skip / sent — only the
     // engine's thrown transient-failure path triggers Payload's bounded retry.
     return { output }

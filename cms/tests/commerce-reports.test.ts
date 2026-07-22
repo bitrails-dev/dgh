@@ -31,6 +31,10 @@ const {
 } = await import('../src/commerce/reports')
 const { SEND_COMMERCE_NOTIFICATION_TASK } = await import('../src/commerce/payments/job')
 
+// NC6: every report now requires a `caller` access-control context. The tests run with superAdmin
+// scope so they can read any tenant — production callers construct this from a verified session.
+const superAdminCaller = { isSuperAdmin: true, tenantIds: [] as Array<string | number> }
+
 let tenantA: number | string
 let tenantB: number | string
 let locationA: number | string
@@ -175,7 +179,7 @@ test('salesTotals sums store-orders integer totals and groups by day/status/paym
   // Tenant B row must NOT leak into tenant A's report.
   await seedOrder(tenantB, { subtotal: 999999, totalDiscount: 0, shippingPrice: 0, totalTax: 0, giftCardApplied: 0, amountDue: 999999, paymentState: 'captured', status: 'completed' })
 
-  const r = await salesTotals({ payload, tenantId: tenantA })
+  const r = await salesTotals({ payload, tenantId: tenantA, caller: superAdminCaller })
   assert.equal(r.currency, 'EGP')
   assert.equal(r.totals.count, 2, 'tenant B order excluded by tenant scoping')
   // grandTotal = subtotal + shipping + tax − discount. amountDue is the authoritative charged total.
@@ -196,12 +200,12 @@ test('salesTotals sums store-orders integer totals and groups by day/status/paym
 
 test('salesTotals honors status + date filters', async () => {
   await seedOrder(tenantA, { subtotal: 3000, amountDue: 3000, paymentState: 'captured', status: 'completed', placedAt: '2026-07-01T00:00:00.000Z' })
-  const byStatus = await salesTotals({ payload, tenantId: tenantA }, { status: 'completed' })
+  const byStatus = await salesTotals({ payload, tenantId: tenantA, caller: superAdminCaller }, { status: 'completed' })
   // Includes the completed order from THIS test plus the completed order from the prior test.
   assert.ok(byStatus.buckets.every((b) => b.status === 'completed'))
   assert.ok(byStatus.totals.count >= 1)
 
-  const inRange = await salesTotals({ payload, tenantId: tenantA }, { from: '2026-06-01', to: '2026-06-30' })
+  const inRange = await salesTotals({ payload, tenantId: tenantA, caller: superAdminCaller }, { from: '2026-06-01', to: '2026-06-30' })
   assert.equal(inRange.totals.count, 0, 'no orders placed in June')
 })
 
@@ -215,7 +219,7 @@ test('reconciliationExceptions returns only transactions whose status ≠ matche
   await seedTransaction(tenantA, { reconciliationStatus: 'pending', amount: 3000 })
   await seedTransaction(tenantB, { reconciliationStatus: 'exception', amount: 999999 })
 
-  const r = await reconciliationExceptions({ payload, tenantId: tenantA })
+  const r = await reconciliationExceptions({ payload, tenantId: tenantA, caller: superAdminCaller })
   assert.equal(r.exceptionCount, 2, 'matched + tenant-B exception excluded')
   const amounts = r.exceptions.map((e) => e.amount).sort((a, b) => a - b)
   assert.deepEqual(amounts, [2000, 3000])
@@ -237,7 +241,7 @@ test('unpaidOrExpiredOrders labels unpaid and expired orders; excludes paid+curr
   await seedOrder(uoe, { amountDue: 3000, paymentState: 'captured', expiresAt: future }) // paid + not expired → excluded
   await seedOrder(uoe, { amountDue: 4000, paymentState: 'authorized', expiresAt: past }) // expired (and unpaid)
 
-  const r = await unpaidOrExpiredOrders({ payload, tenantId: uoe }, { now: new Date('2026-07-19T12:00:00Z') })
+  const r = await unpaidOrExpiredOrders({ payload, tenantId: uoe, caller: superAdminCaller }, { now: new Date('2026-07-19T12:00:00Z') })
   assert.equal(r.count, 2)
   const dues = r.orders.map((o) => o.amountDue).sort((a, b) => a - b)
   assert.deepEqual(dues, [2000, 4000])
@@ -267,14 +271,14 @@ test('lowStock returns levels where onHand − reserved <= threshold', async () 
     data: { tenant: tenantB, location: locationB, sku: 'SKU-OTHER-TENANT', onHand: 1, reserved: 0, lowStockThreshold: 0 } as any,
   })
 
-  const r = await lowStock({ payload, tenantId: tenantA })
+  const r = await lowStock({ payload, tenantId: tenantA, caller: superAdminCaller })
   assert.equal(r.count, 1, 'only the low + cross-tenant-excluded level')
   assert.equal(r.items[0].sku, 'SKU-LOW')
   assert.equal(r.items[0].available, 2, 'onHand 5 − reserved 3')
   assert.equal(r.items[0].threshold, 5)
 
   // threshold override widens the net.
-  const wide = await lowStock({ payload, tenantId: tenantA }, { thresholdOverride: 100 })
+  const wide = await lowStock({ payload, tenantId: tenantA, caller: superAdminCaller }, { thresholdOverride: 100 })
   assert.ok(wide.count >= 2, 'override threshold catches both tenant-A levels')
 })
 
@@ -295,7 +299,7 @@ test('promotionUsage aggregates redemption counts + total discount per promotion
     data: { tenant: tenantA, promotion: promoA, order: o2, customerIdentityHash: 'h2', discountAmount: 2500, redeemedAt: DAY } as any,
   })
 
-  const r = await promotionUsage({ payload, tenantId: tenantA })
+  const r = await promotionUsage({ payload, tenantId: tenantA, caller: superAdminCaller })
   assert.equal(r.totalRedemptions, 2)
   assert.equal(r.promotionCount, 1)
   assert.equal(r.promotions[0].code, 'SAVE10')
@@ -324,7 +328,7 @@ test('giftCardLiabilities reconstructs active balances from the append-only ledg
     data: { tenant: tenantA, codeHash: 'inactive', lastFour: '9999', currency: 'EGP', initialBalance: 99999, balance: 99999, status: 'revoked' } as any,
   })
 
-  const r = await giftCardLiabilities({ payload, tenantId: tenantA })
+  const r = await giftCardLiabilities({ payload, tenantId: tenantA, caller: superAdminCaller })
   assert.equal(r.activeCardCount, 2)
   assert.equal(r.totalLiability, 3500, '3500 + 0; revoked card excluded')
 })
@@ -344,11 +348,29 @@ test('failedNotificationJobs surfaces exhausted-retry send-commerce-notification
       ${JSON.stringify({ idempotencyKey: 'wrong-queue', tenantId: Number(tenantA), trigger: 'payment_event' })},
       ${DAY}, ${0})`)
 
-  const r = await failedNotificationJobs({ payload, tenantId: tenantA })
+  const r = await failedNotificationJobs({ payload, tenantId: tenantA, caller: superAdminCaller })
   assert.equal(r.count, 1, 'only tenant-A commerce-queue failed job')
   const job = r.jobs[0]
   assert.ok(job.input, 'failed job carries its input envelope')
   assert.equal(job.input!.idempotencyKey, 'payment:A:evt:failed')
   assert.equal(job.totalTried, 6)
   assert.equal(job.queue, 'commerce')
+})
+
+// ----------------------------------------------------------------------------
+// 8. NC6 — caller access control
+// ----------------------------------------------------------------------------
+
+test('NC6: reports throw unauthorized when the caller has no grant for the tenant', async () => {
+  // A caller scoped to tenantB only — must NOT be able to read tenantA's reports.
+  const tenantBOnlyCaller = { isSuperAdmin: false, tenantIds: [tenantB] as Array<string | number> }
+  await assert.rejects(
+    salesTotals({ payload, tenantId: tenantA, caller: tenantBOnlyCaller }),
+    /unauthorized: caller may not read reports for this tenant/,
+  )
+  // A caller scoped to the SAME tenant succeeds (no throw).
+  const tenantAOnlyCaller = { isSuperAdmin: false, tenantIds: [tenantA] as Array<string | number> }
+  await salesTotals({ payload, tenantId: tenantA, caller: tenantAOnlyCaller })
+  // A super-admin bypasses the allow-list for any tenant.
+  await reconciliationExceptions({ payload, tenantId: tenantB, caller: superAdminCaller })
 })

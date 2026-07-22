@@ -24,6 +24,41 @@ type Row = Record<string, unknown>
 export interface ReportInput {
   payload: Payload
   tenantId: number | string
+  /**
+   * NC6 (default): mandatory access-control context. Every report is tenant-scoped operator read-
+   * only data; without an explicit caller check, any code path (or future admin script) could read
+   * another tenant's commercial aggregates. The caller MUST be constructed from a verified session
+   * upstream — HTTP route handlers derive it from req.user (Payload's auth strategy) and CLI scripts
+   * construct it from the operator's authenticated context. `isSuperAdmin` short-circuits the tenant
+   * allow-list (platform operators can read any tenant); otherwise the caller's `tenantIds` MUST
+   * include `tenantId`. Each report function asserts this at the top so the check is impossible to
+   * forget. Default chosen for reversibility: a single guard at each entry point; to relax, narrow
+   * the allow-list (e.g. remove superAdmin) — the assertion site is the single source of truth.
+   */
+  caller: ReportCaller
+}
+
+export interface ReportCaller {
+  /** True for platform-level operators (e.g. the super-admin role); bypasses the tenant allow-list. */
+  isSuperAdmin: boolean
+  /** Tenant ids the caller is authorized to read. Empty for callers with no tenant grants. */
+  tenantIds: ReadonlyArray<string | number>
+}
+
+// NC6: the mandatory guard. Throws a uniform `unauthorized` error when the caller has no grant for
+// the requested tenant. Each report calls this as its very first statement so the query never runs
+// against a tenant the caller may not read. The error message is intentionally generic — it does
+// not distinguish "no such tenant" from "caller lacks grant" (mirrors the customer-auth oracle
+// closure pattern in commerce/customers/payload-auth.ts).
+export function assertCallerMayReadTenant(
+  input: Pick<ReportInput, 'tenantId' | 'caller'>,
+): void {
+  const { caller, tenantId } = input
+  const allowed =
+    caller.isSuperAdmin || caller.tenantIds.some((id) => String(id) === String(tenantId))
+  if (!allowed) {
+    throw new Error('unauthorized: caller may not read reports for this tenant')
+  }
 }
 
 export interface DateRange {
@@ -92,6 +127,7 @@ export async function salesTotals(
   input: ReportInput,
   opts: SalesTotalsOptions = {},
 ): Promise<SalesTotalsReport> {
+  assertCallerMayReadTenant(input)
   const and: Where[] = [{ tenant: { equals: input.tenantId } }]
   if (opts.status) and.push({ status: { equals: opts.status } })
   if (opts.paymentState) and.push({ paymentState: { equals: opts.paymentState } })
@@ -174,6 +210,7 @@ export interface ReconciliationReport {
  * investigate (provider state diverged from our ledger, or never settled).
  */
 export async function reconciliationExceptions(input: ReportInput): Promise<ReconciliationReport> {
+  assertCallerMayReadTenant(input)
   const { docs } = await input.payload.find({
     collection: 'store-transactions',
     where: {
@@ -244,6 +281,7 @@ export async function unpaidOrExpiredOrders(
   input: ReportInput,
   opts: UnpaidOrExpiredOptions = {},
 ): Promise<UnpaidOrExpiredReport> {
+  assertCallerMayReadTenant(input)
   const nowIso = (opts.now ?? new Date()).toISOString()
   const { docs } = await input.payload.find({
     collection: 'store-orders',
@@ -319,6 +357,7 @@ export async function lowStock(
   input: ReportInput,
   opts: LowStockOptions = {},
 ): Promise<LowStockReport> {
+  assertCallerMayReadTenant(input)
   const { docs } = await input.payload.find({
     collection: 'inventory-levels',
     where: { tenant: { equals: input.tenantId } },
@@ -370,6 +409,7 @@ export interface PromotionUsageReport {
  * promotion code via a follow-up tenant-scoped read of `promotions`.
  */
 export async function promotionUsage(input: ReportInput): Promise<PromotionUsageReport> {
+  assertCallerMayReadTenant(input)
   const { docs } = await input.payload.find({
     collection: 'promotion-redemptions',
     where: { tenant: { equals: input.tenantId } },
@@ -434,6 +474,7 @@ export interface GiftCardLiabilitiesReport {
  * rows yet).
  */
 export async function giftCardLiabilities(input: ReportInput): Promise<GiftCardLiabilitiesReport> {
+  assertCallerMayReadTenant(input)
   const [{ docs: ledger }, { docs: cards }] = await Promise.all([
     input.payload.find({
       collection: 'gift-card-ledger',
@@ -502,6 +543,7 @@ export interface FailedNotificationJobsReport {
 export async function failedNotificationJobs(
   input: ReportInput,
 ): Promise<FailedNotificationJobsReport> {
+  assertCallerMayReadTenant(input)
   const { docs } = await input.payload.find({
     collection: 'payload-jobs',
     where: {

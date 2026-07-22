@@ -153,14 +153,39 @@ test('path with no fileId segment is malformed', () => {
 // --- Storage path resolution ---------------------------------------------------------------
 
 test('resolveStoragePath returns the mapped path for a known id', () => {
-  const mapping = { 'file-abc': '/storage/private/file-abc.pdf' }
-  assert.equal(resolveStoragePath({ fileId: 'file-abc', mapping }), '/storage/private/file-abc.pdf')
+  // After NM12, paths are relative (resolved against a configured storage root by the caller);
+  // absolute paths and `..` traversal are rejected as defense-in-depth.
+  const mapping = { 'file-abc': 'private/file-abc.pdf' }
+  assert.equal(resolveStoragePath({ fileId: 'file-abc', mapping }), 'private/file-abc.pdf')
 })
 
 test('resolveStoragePath returns null for an unknown id (never trusts a client path)', () => {
-  const mapping = { 'file-abc': '/storage/private/file-abc.pdf' }
+  const mapping = { 'file-abc': 'private/file-abc.pdf' }
   assert.equal(resolveStoragePath({ fileId: 'file-xyz', mapping }), null)
   assert.equal(resolveStoragePath({ fileId: 'file-xyz', mapping: {} }), null)
+})
+
+test('resolveStoragePath rejects traversal and absolute paths (NM12 defense-in-depth)', () => {
+  assert.equal(
+    resolveStoragePath({ fileId: 'a', mapping: { a: '/etc/passwd' } }),
+    null,
+    'leading-slash absolute path rejected',
+  )
+  assert.equal(
+    resolveStoragePath({ fileId: 'a', mapping: { a: '../escape.pdf' } }),
+    null,
+    'parent-dir traversal rejected',
+  )
+  assert.equal(
+    resolveStoragePath({ fileId: 'a', mapping: { a: 'safe/../../escape.pdf' } }),
+    null,
+    'mid-path traversal rejected',
+  )
+  assert.equal(
+    resolveStoragePath({ fileId: 'a', mapping: { a: 'safe/file.pdf' } }),
+    'safe/file.pdf',
+    'normal relative path passes',
+  )
 })
 
 // --- File id generation --------------------------------------------------------------------
