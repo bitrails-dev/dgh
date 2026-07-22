@@ -17,7 +17,7 @@ import {
   type SideEffectResult,
 } from './events'
 import type { PaymentState } from './state'
-import { commitOrder, releaseOrder } from '../inventory'
+import { commitOrder, releaseOrder, restoreOrder } from '../inventory'
 import { STORE_COLLECTION_SLUGS } from '../plugin/slugs'
 
 export const COMMERCE_QUEUE = 'commerce'
@@ -150,16 +150,26 @@ export function buildProductionSideEffects(payload: Payload): PaymentSideEffects
       const orderNumber = ctx.orderNumber
       if (!orderNumber) return { ok: true, effect: 'noop_no_reference' }
       try {
-        // Phase 1 reservation layer: commit on capture, release on terminal-failure states. Both
-        // commitOrder and releaseOrder are idempotent — they no-op rows already in the target
-        // status, so a re-run after a partial crash completes rather than double-decrements.
+        // Phase 1 reservation layer: commit on capture, release on terminal-failure states, restore
+        // on full refund. commitOrder / releaseOrder / restoreOrder are all idempotent — they no-op
+        // rows already in the target status, so a re-run after a partial crash completes rather than
+        // double-decrements/increments.
         if (ctx.foldedState === 'captured') {
           const r = await commitOrder({ payload, tenantId: ctx.tenantId, orderNumber })
           return { ok: true, effect: `commit:${r.committed}` }
         }
-        if (ctx.foldedState === 'failed' || ctx.foldedState === 'voided' || ctx.foldedState === 'refunded') {
+        if (ctx.foldedState === 'failed' || ctx.foldedState === 'voided') {
           const r = await releaseOrder({ payload, tenantId: ctx.tenantId, orderNumber })
           return { ok: true, effect: `release:${r.released}` }
+        }
+        // NC4 (default): a FULL refund restores all committed stock for the order (the inverse of
+        // capture's commitOrder). partial_refunded is intentionally a no-op: partial restore needs
+        // per-line amount arithmetic the refund event does not yet carry; documented as a follow-up
+        // in inventory/index.ts restoreOrder. voided stays on the release branch above (a void
+        // cancels an unsettled authorization, so reserved — not committed — stock is released).
+        if (ctx.foldedState === 'refunded') {
+          const r = await restoreOrder({ payload, tenantId: ctx.tenantId, orderNumber })
+          return { ok: true, effect: `restore:${r.restored}` }
         }
         // authorized / partially_captured / pending / partially_refunded / disputed: no inventory
         // effect — reservations stay active until capture or terminal failure.

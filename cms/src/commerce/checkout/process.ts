@@ -25,6 +25,7 @@
 // store/checkout.ts is a thin wrapper that verifies the gateway then calls this.
 
 import { createHash } from 'node:crypto'
+import { sql } from '@payloadcms/db-sqlite'
 import type { Payload } from 'payload'
 
 import { money } from '../money'
@@ -94,6 +95,11 @@ function canonicalize(v: unknown): unknown {
 // matching how the quote keys lines), and the addresses. Same key + same body ⇒ same fingerprint ⇒
 // replay; same key + different body ⇒ 409. Gift-card codes are hashed into the customer-identity
 // inside quoteCart, not the fingerprint (a raw code never lives in the order row).
+//
+// NH3: the fingerprint also covers gift-card code, customer email/phone, and reservation TTL. A retry
+// with a different gift card or different contact is now a 409 conflict (idempotency_conflict), not a
+// silent replay that charges the original tender. locationId is derived server-side (defaults to the
+// tenant's first location), so it is intentionally NOT included — it does not change request identity.
 function checkoutFingerprint(input: ProcessCheckoutInput): string {
   const canonical = JSON.stringify({
     c: String(input.cartId),
@@ -102,6 +108,10 @@ function checkoutFingerprint(input: ProcessCheckoutInput): string {
     b: canonicalize(input.billingAddress ?? null),
     pc: [...(input.promotionCodes ?? [])].map((c) => c.trim().toUpperCase()).sort(),
     sm: input.shippingMethodId === undefined || input.shippingMethodId === null ? '' : String(input.shippingMethodId),
+    g: input.giftCardCode ?? '',
+    e: input.customerEmail ?? '',
+    p: input.customerPhone ?? '',
+    rt: input.reservationTtlMs ?? 0,
   })
   return createHash('sha256').update(canonical).digest('hex')
 }
@@ -155,6 +165,24 @@ const failure = (
   code: string,
   detail?: unknown,
 ): ProcessCheckoutResult => ({ status, body: detail === undefined ? { error: code } : { error: code, detail } })
+
+// NC3: repoint the just-created reservations from the placeholder orderRef (used during the reserve
+// phase) onto the real orderNumber (allocated after reservation + initiation succeeded). A single
+// bulk UPDATE scoped to (tenant, placeholder, status='active') so it only touches this checkout's
+// own holds — never another order's. Status guard excludes already-committed/released rows so a
+// concurrent expiry cannot wedge the rewrite. Runs inside the inventory writer's serialized lock.
+async function rewriteReservationOrderRef(
+  payload: Payload,
+  tenantId: number | string,
+  fromOrderRef: string,
+  toOrderRef: string,
+): Promise<void> {
+  const drizzle = (payload.db as unknown as { drizzle: { transaction: <T>(fn: (tx: { run: (stmt: ReturnType<typeof sql>) => Promise<unknown> }) => Promise<T>) => Promise<T> } }).drizzle
+  await drizzle.transaction(async (tx) => {
+    await tx.run(sql`UPDATE \`stock_reservations\` SET \`order_ref\` = ${toOrderRef}
+      WHERE \`tenant_id\` = ${tenantId} AND \`order_ref\` = ${fromOrderRef} AND \`status\` = 'active'`)
+  })
+}
 
 /**
  * Run the 10-step plugin-first checkout. `ctx` is the verified gateway context (tenant + optional
@@ -227,16 +255,25 @@ export async function processCheckout(
     locationId = loc.id
   }
 
-  const orderNumber = await allocateOrderNumber(payload, tenantId)
+  // NC3: order-number allocation is DEFERRED until after every reservation + gateway initiation has
+  // succeeded. The reservations need a stable order-scoped key during the reserve phase (the
+  // (tenant, level, order_ref) unique constraint relies on it), so reserve under a placeholder
+  // orderRef derived from the cart + idempotency key (or a fresh nonce). Once reservation +
+  // initiation both succeed, we allocate the real orderNumber, rewrite the placeholder onto the
+  // reservations via a single bulk UPDATE, and use the orderNumber on the order doc + adapter call.
+  // This way a failed reservation, a missing gateway config, or an initiation failure consumes NO
+  // sequence number — those failure paths just release the placeholder-scoped reservations.
+  const checkoutNonce = checkoutKey ?? createHash('sha256').update(`${tenantId}:${input.cartId}:${Date.now()}:${Math.random()}`).digest('hex').slice(0, 16)
+  const pendingOrderRef = `pending:${input.cartId}:${checkoutNonce}`
   const ttlMs = input.reservationTtlMs ?? DEFAULT_RESERVATION_TTL_MS
 
   // Step 5 — reserve each quote line by immutable normalized SKU (C5 resolver). The plugin doc ids are
   // traceability only; SKU is the allocation key. On any shortage, compensate by releasing this
-  // order's reservations (order-scoped — never another order's holds).
+  // order's reservations (order-scoped via pendingOrderRef — never another order's holds).
   for (const line of quote.snapshot.lines) {
     const resolved = await resolveSellableBySku({ payload, tenantId, sku: line.sku })
     if (!resolved.ok) {
-      await releaseOrder({ payload, tenantId, orderNumber, reason: 'sku_unresolved' })
+      await releaseOrder({ payload, tenantId, orderNumber: pendingOrderRef, reason: 'sku_unresolved' })
       return failure(422, 'PRODUCT_NOT_FOUND', { sku: line.sku })
     }
     const r = await reserve({
@@ -246,11 +283,11 @@ export async function processCheckout(
       sku: resolved.sellable.sku,
       quantity: line.quantity,
       cartToken: String(input.cartId),
-      orderRef: orderNumber,
+      orderRef: pendingOrderRef,
       ttlMs,
     })
     if (!r.ok) {
-      await releaseOrder({ payload, tenantId, orderNumber, reason: 'reserve_insufficient' })
+      await releaseOrder({ payload, tenantId, orderNumber: pendingOrderRef, reason: 'reserve_insufficient' })
       return failure(409, 'INSUFFICIENT_STOCK', { sku: line.sku, reason: r.code })
     }
   }
@@ -276,7 +313,7 @@ export async function processCheckout(
     const provider = input.paymentMethod as GatewayProvider
     const cfg = await loadGatewayConfig(payload, tenantId, provider)
     if (!cfg) {
-      await releaseOrder({ payload, tenantId, orderNumber, reason: 'gateway_not_configured' })
+      await releaseOrder({ payload, tenantId, orderNumber: pendingOrderRef, reason: 'gateway_not_configured' })
       return failure(422, 'gateway_not_configured')
     }
 
@@ -284,22 +321,38 @@ export async function processCheckout(
     let hosted: { checkoutUrl: string; providerSessionId: string }
     try {
       hosted = await adapter.createHostedCheckout({
-        merchantReference: orderNumber,
+        // NC3: the orderNumber is not allocated yet, so initiate under the placeholder orderRef.
+        // The provider only needs a stable, unique merchantReference for this checkout attempt; the
+        // durable link back to the order is providerSessionId (stored as providerOrderReference),
+        // not this merchantReference.
+        merchantReference: pendingOrderRef,
         amount: money(quote.amountDue, currency),
         customerEmail: input.customerEmail,
         billingUrl: input.returnUrl,
         sandbox: settings.sandbox,
       })
     } catch (err) {
-      await releaseOrder({ payload, tenantId, orderNumber, reason: 'initiation_failed' })
+      await releaseOrder({ payload, tenantId, orderNumber: pendingOrderRef, reason: 'initiation_failed' })
       return failure(502, 'gateway_initiate_failed', err instanceof Error ? err.message : String(err))
     }
     checkoutUrl = hosted.checkoutUrl
     providerSessionId = hosted.providerSessionId
+  }
 
+  // NC3: every reservation succeeded AND (for online) gateway initiation succeeded — NOW it is safe
+  // to consume a sequence number. Allocate the real orderNumber, then repoint the just-created
+  // reservations from the placeholder orderRef onto the real one with a single bulk UPDATE. Any
+  // failure past this point releases by the REAL orderNumber (after the rewrite) — but the rewrite
+  // itself is a single statement that cannot partially fail, so we are either fully on the
+  // placeholder or fully on the orderNumber.
+  const orderNumber = await allocateOrderNumber(payload, tenantId)
+  await rewriteReservationOrderRef(payload, tenantId, pendingOrderRef, orderNumber)
+
+  if (isOnline) {
+    const provider = input.paymentMethod as GatewayProvider
     // §3.9 transaction row. rawPayloadHash never persists the raw provider payload — only its hash.
     const rawPayloadHash = createHash('sha256')
-      .update(JSON.stringify({ merchantReference: orderNumber, providerSessionId: hosted.providerSessionId }))
+      .update(JSON.stringify({ merchantReference: orderNumber, providerSessionId }))
       .digest('hex')
     const txnDoc = (await payload.create({
       collection: STORE_COLLECTION_SLUGS.transactions,
@@ -320,7 +373,7 @@ export async function processCheckout(
         status: 'pending',
         customerEmail: input.customerEmail,
         providerTransactionId: '',
-        providerOrderReference: hosted.providerSessionId,
+        providerOrderReference: providerSessionId,
         capturedAmount: 0,
         refundedAmount: 0,
         lastProviderStatus: 'initiated',
@@ -347,7 +400,7 @@ export async function processCheckout(
         merchantReference: orderNumber,
         targetState: 'pending',
         amount: quote.amountDue,
-        rawRedacted: JSON.stringify({ providerOrderReference: hosted.providerSessionId }),
+        rawRedacted: JSON.stringify({ providerOrderReference: providerSessionId }),
       })
     } catch {
       // The transaction + order are already durable; a ledger miss is reconciled by the next sweep.

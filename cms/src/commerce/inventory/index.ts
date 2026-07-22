@@ -154,9 +154,13 @@ export async function commitReservation(input: {
     if (res.status !== 'active') return { ok: false, code: 'INVALID_STATE' } as const
 
     // Consume: stock leaves on-hand and the hold is fulfilled (both counters drop by qty).
+    // NM13: guard on on_hand too — without it, a concurrent admin adjustOnHand (which can drive
+    // on_hand below the reserved qty) would let this commit push on_hand negative. Requiring both
+    // reserved >= qty AND on_hand >= qty makes an impossible concurrent split surface as
+    // INVALID_STATE instead of corrupting the level.
     const upd = await tx.run(sql`UPDATE \`inventory_levels\`
       SET \`on_hand\` = \`on_hand\` - ${qty}, \`reserved\` = \`reserved\` - ${qty}
-      WHERE \`id\` = ${levelId} AND \`reserved\` >= ${qty}`)
+      WHERE \`id\` = ${levelId} AND \`reserved\` >= ${qty} AND \`on_hand\` >= ${qty}`)
     if (upd.rowsAffected === 0) return { ok: false, code: 'INVALID_STATE' } as const
 
     const after = await tx.run(sql`SELECT \`on_hand\` FROM \`inventory_levels\` WHERE \`id\` = ${levelId}`)
@@ -234,24 +238,34 @@ export async function releaseCart(input: {
 // order-scoped reserve. Closing C-01: committing one order consumes only that order's reservations,
 // even when another order shares the cart token. Atomic + idempotent (only `active` rows are selected,
 // so a re-run after commit is a no-op).
+//
+// NM14: a per-reservation commit that hits the conditional UPDATE's rowsAffected === 0 (e.g. a
+// concurrent adjustOnHand drove on_hand below qty) is NO LONGER a silent `continue`. We surface those
+// reservation ids in `skipped` so callers (the D3 payment job, admin confirm) can audit the drift and
+// reconcile. We do NOT throw — the other reservations still committed, and the order's capture is
+// otherwise durable. A subsequent commitOrder re-run will retry the skipped rows idempotently.
 export async function commitOrder(input: {
   payload: Payload
   tenantId: number | string
   orderNumber: string
   actor?: string
-}): Promise<{ committed: number }> {
+}): Promise<{ committed: number; skipped: Array<number | string> }> {
   return runTx(input.payload, async (tx) => {
     const rows = await tx.run(sql`SELECT \`id\`, \`level_id\`, \`quantity\` FROM \`stock_reservations\`
       WHERE \`tenant_id\` = ${input.tenantId} AND \`order_ref\` = ${input.orderNumber} AND \`status\` = 'active'`)
     let committed = 0
+    const skipped: Array<number | string> = []
     for (const row of rows.rows) {
       const reservationId = toId(row.id)
       const levelId = toId(row.level_id)
       const qty = toId(row.quantity)
       const upd = await tx.run(sql`UPDATE \`inventory_levels\`
         SET \`on_hand\` = \`on_hand\` - ${qty}, \`reserved\` = \`reserved\` - ${qty}
-        WHERE \`id\` = ${levelId} AND \`reserved\` >= ${qty}`)
-      if (upd.rowsAffected === 0) continue
+        WHERE \`id\` = ${levelId} AND \`reserved\` >= ${qty} AND \`on_hand\` >= ${qty}`)
+      if (upd.rowsAffected === 0) {
+        skipped.push(reservationId)
+        continue
+      }
       const after = await tx.run(sql`SELECT \`on_hand\` FROM \`inventory_levels\` WHERE \`id\` = ${levelId}`)
       const resultingOnHand = toId((after.rows[0] ?? {}).on_hand ?? 0)
       await tx.run(sql`UPDATE \`stock_reservations\` SET \`status\` = 'committed' WHERE \`id\` = ${reservationId}`)
@@ -260,7 +274,7 @@ export async function commitOrder(input: {
         VALUES (${levelId}, 'commit', ${-qty}, ${resultingOnHand}, ${'commit'}, ${reservationId}, ${input.orderNumber}, ${input.actor ?? null}, ${input.tenantId})`)
       committed += 1
     }
-    return { committed }
+    return { committed, skipped }
   })
 }
 
@@ -287,6 +301,51 @@ export async function releaseOrder(input: {
       if (r.ok && !r.idempotent) released += 1
     }
     return { released }
+  })
+}
+
+// NC4 (default): restore previously-committed stock back to on_hand on a full refund. This is the
+// inverse of commitOrder: for a given order, find every reservation whose status is `committed`,
+// increment on_hand by each qty, flip the reservation to a new `restored` status, and insert a
+// `restore` movement. Idempotent via the status guard — only `committed` rows are touched, so a
+// re-run after a successful restore is a no-op (mirrors commitOrder's contract).
+//
+// Default scope: ONLY full refunds restore stock. Partial refunds (`partially_refunded`) are a
+// documented no-op in the payment job because partial restore requires per-line amount arithmetic
+// (which refund event amount to map to which SKU) that the refund event does not yet carry. Follow-
+// up: when partial refunds need stock restore, extend restoreOrder with an amount/sku allocation
+// input and wire it from a folded-state branch in payments/job.ts.
+export async function restoreOrder(input: {
+  payload: Payload
+  tenantId: number | string
+  orderNumber: string
+  reason?: string
+  actor?: string
+}): Promise<{ restored: number }> {
+  return runTx(input.payload, async (tx) => {
+    const rows = await tx.run(sql`SELECT \`id\`, \`level_id\`, \`quantity\` FROM \`stock_reservations\`
+      WHERE \`tenant_id\` = ${input.tenantId} AND \`order_ref\` = ${input.orderNumber} AND \`status\` = 'committed'`)
+    let restored = 0
+    for (const row of rows.rows) {
+      const reservationId = toId(row.id)
+      const levelId = toId(row.level_id)
+      const qty = toId(row.quantity)
+      // Add the qty back to on_hand. reserved is already 0 for a committed row (commit decremented
+      // both counters), so there is nothing to subtract there. The level is updated unconditionally;
+      // on_hand is a cached counter and the append-only stock_movements row is the audit source of
+      // truth, so even a counter that drifted (e.g. a concurrent adjustOnHand) is corrected back to
+      // the post-restore level the movement ledger reconstructs.
+      await tx.run(sql`UPDATE \`inventory_levels\` SET \`on_hand\` = \`on_hand\` + ${qty}
+        WHERE \`id\` = ${levelId}`)
+      const after = await tx.run(sql`SELECT \`on_hand\` FROM \`inventory_levels\` WHERE \`id\` = ${levelId}`)
+      const resultingOnHand = toId((after.rows[0] ?? {}).on_hand ?? 0)
+      await tx.run(sql`UPDATE \`stock_reservations\` SET \`status\` = 'restored' WHERE \`id\` = ${reservationId}`)
+      await tx.run(sql`INSERT INTO \`stock_movements\`
+        (\`level_id\`, \`type\`, \`quantity\`, \`resulting_on_hand\`, \`reason\`, \`reservation_id\`, \`order_ref\`, \`actor\`, \`tenant_id\`)
+        VALUES (${levelId}, 'restore', ${qty}, ${resultingOnHand}, ${input.reason ?? 'restore'}, ${reservationId}, ${input.orderNumber}, ${input.actor ?? null}, ${input.tenantId})`)
+      restored += 1
+    }
+    return { restored }
   })
 }
 
