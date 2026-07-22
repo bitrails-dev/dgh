@@ -75,7 +75,28 @@ export const ALL: APIRoute = async (ctx) => {
 
   const method = request.method.toUpperCase();
   const hasBody = method !== "GET" && method !== "HEAD";
-  const bodyBytes = hasBody ? await readBodyBytes(request) : Buffer.alloc(0);
+
+  // NH12: bound the inbound body. Reject >1 MiB up front (Content-Length) and require JSON for
+  // mutations. GET/HEAD are exempt from the content-type check (they carry no body to sign).
+  const MAX_BODY_BYTES = 1048576; // 1 MiB
+  const clHeader = request.headers.get("content-length");
+  if (clHeader) {
+    const cl = Number(clHeader);
+    if (Number.isFinite(cl) && cl > MAX_BODY_BYTES) {
+      return json({ error: "body_too_large" }, 413);
+    }
+  }
+  if (hasBody) {
+    const ct = request.headers.get("content-type") ?? "";
+    if (!ct.toLowerCase().startsWith("application/json")) {
+      return json({ error: "unsupported_media_type" }, 415);
+    }
+  }
+
+  let bodyBytes = hasBody ? await readBodyBytes(request) : Buffer.alloc(0);
+  if (bodyBytes.length > MAX_BODY_BYTES) {
+    return json({ error: "body_too_large" }, 413);
+  }
 
   const headers: Record<string, string> = {};
   const session = getSessionTokenV2(cookies);
@@ -86,10 +107,12 @@ export const ALL: APIRoute = async (ctx) => {
   let cmsSub = mapped.cmsPath + (url.search || "");
   let forwardBody: Buffer = bodyBytes;
 
-  // Cart: inject the store_cart_v2 cookie's cartId into the forwarded request (query for GET, body
-  // for writes) so the signed CMS cart handler owns cart identity. The signature covers the modified
-  // bytes. The response cartId plants/clears the cookie (handled below).
-  if (mapped.area === "cart") {
+  // Cart + checkout: inject the store_cart_v2 cookie's cartId into the forwarded request (query for
+  // GET, body for writes) so the signed CMS handler owns cart identity — the browser-supplied body
+  // cartId is never trusted on checkout writes (NL8). The signature covers the modified bytes. The
+  // response cartId plants/clears the cookie (handled below). Note: checkout has no GET branch, so
+  // the query path only fires for cart GETs.
+  if (mapped.area === "cart" || mapped.area === "checkout") {
     const cookieCartId = getCartIdV2(cookies);
     if (method === "GET") {
       if (cookieCartId) cmsSub += `${cmsSub.includes("?") ? "&" : "?"}cartId=${encodeURIComponent(cookieCartId)}`;
@@ -120,6 +143,9 @@ export const ALL: APIRoute = async (ctx) => {
   const ok = status >= 200 && status < 300;
 
   // Auth: move session/verification tokens into HttpOnly cookies; strip them from the browser body.
+  // Session-cookie planting stays scoped to the token-issuing paths (login/register/reset-password),
+  // but the STRIP runs on every auth 2xx response (login, register, reset-password, verify-email,
+  // resend-verification, me, …) so a verificationToken never leaks to the browser (NH2 + NM19).
   if (mapped.area === "auth" && ok) {
     if (mapped.cmsPath === "/auth/logout") {
       clearSessionTokenV2(cookies);
@@ -127,9 +153,15 @@ export const ALL: APIRoute = async (ctx) => {
       try {
         const o = JSON.parse(text) as Record<string, unknown>;
         const tok = (o.sessionToken ?? o.token) as string | undefined;
-        if (typeof tok === "string" && tok && (mapped.cmsPath === "/auth/login" || mapped.cmsPath === "/auth/register" || mapped.cmsPath === "/auth/reset-password")) {
+        if (
+          typeof tok === "string" &&
+          tok &&
+          (mapped.cmsPath === "/auth/login" || mapped.cmsPath === "/auth/register" || mapped.cmsPath === "/auth/reset-password")
+        ) {
           setSessionTokenV2(cookies, tok);
-          const { sessionToken: _a, token: _b, ...rest } = o;
+        }
+        if (o && typeof o === "object" && ("sessionToken" in o || "token" in o || "verificationToken" in o)) {
+          const { sessionToken: _a, token: _b, verificationToken: _c, ...rest } = o;
           return json(rest, status);
         }
       } catch {
@@ -138,11 +170,13 @@ export const ALL: APIRoute = async (ctx) => {
     }
   }
 
-  // Catalog list: map {products,total} → shopApi {items,total,page}.
+  // Catalog list: map {products,total} → shopApi {items,total,page}. The requested page is parsed
+  // from the forwarded query (NL6) so paginated clients see the page they asked for, not a fixed 1.
   if (mapped.area === "catalog-list" && ok) {
     try {
       const o = JSON.parse(text) as { products?: unknown[]; total?: number };
-      return json({ items: o.products ?? [], total: o.total ?? 0, page: 1 }, status);
+      const page = Number(new URLSearchParams(cmsSub.split("?")[1] || "").get("page")) || 1;
+      return json({ items: o.products ?? [], total: o.total ?? 0, page }, status);
     } catch {
       /* fall through to pass-through */
     }

@@ -18,6 +18,18 @@ let onPageLoad: (() => void) | null = null;
 
 const activeImage = ref(0);
 const images = computed<any[]>(() => Array.isArray(product.value?.images) ? product.value.images : []);
+// NL10: only allow http(s) image URLs through to :src. Blocks data:/javascript:/blob: URLs from CMS
+// media fields. Returns "" for non-allowed schemes / unparseable URLs (the <img> then falls back to
+// the empty-state placeholder via its own v-if).
+function safeImg(url?: string): string {
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? url : "";
+  } catch {
+    return "";
+  }
+}
 const displayPrice = computed(() => {
   const p = product.value;
   if (!p) return { value: 0 };
@@ -61,8 +73,8 @@ onUnmounted(() => {
   <div v-else-if="product" class="grid md:grid-cols-2 gap-8">
     <div>
       <img
-        v-if="images[activeImage]?.url"
-        :src="images[activeImage].url"
+        v-if="safeImg(images[activeImage]?.url)"
+        :src="safeImg(images[activeImage]?.url)"
         :alt="product.name"
         class="w-full rounded-2xl bg-ivory-100 object-cover"
       />
@@ -76,7 +88,7 @@ onUnmounted(() => {
           :aria-label="`${s.product.viewProduct} ${i + 1}`"
           :class="['w-16 h-16 rounded-lg overflow-hidden border-2', i === activeImage ? 'border-teal-600' : 'border-transparent']"
         >
-          <img v-if="img?.url" :src="img.url" :alt="''" class="w-full h-full object-cover" />
+          <img v-if="safeImg(img?.url)" :src="safeImg(img?.url)" :alt="''" class="w-full h-full object-cover" />
         </button>
       </div>
     </div>

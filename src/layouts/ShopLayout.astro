@@ -15,6 +15,14 @@ interface Props {
 }
 const { lang, strings, title, description, noindex = true } = Astro.props;
 const s = strings.shop;
+
+// NH16 + NL11: harden shop responses. Frame-ancestors 'none' + X-Frame-Options DENY make the
+// storefront unembeddable (clickjack defense); strict referrer limits leak to cross-origin;
+// no-store keeps personalized cart/account pages out of shared caches / bfcache.
+Astro.response.headers.set("X-Frame-Options", "DENY");
+Astro.response.headers.set("Content-Security-Policy", "frame-ancestors 'none'");
+Astro.response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 <BaseLayout lang={lang} strings={strings} title={title} description={description} noindex={noindex}>
   <header class="bg-navy-900 text-ivory-50 sticky top-0 z-30 shadow-sm">

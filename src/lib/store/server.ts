@@ -153,7 +153,11 @@ function gatewayKey(): { keyId: string; secret: Uint8Array } {
   const keyId = import.meta.env.COMMERCE_GATEWAY_KEY_ID;
   const secretB64 = import.meta.env.COMMERCE_GATEWAY_SECRET;
   if (!keyId || !secretB64) throw new Error("COMMERCE_GATEWAY_KEY_ID/SECRET not configured");
-  return { keyId, secret: new Uint8Array(Buffer.from(secretB64, "base64")) };
+  // NM16: mirror the CMS-side minimum (commerce/gateway/keys.ts). Buffer.from(..., 'base64') never
+  // throws — it just decodes what it can — so an undersized / garbage secret must be rejected here.
+  const buf = Buffer.from(secretB64, "base64");
+  if (buf.length < 32) throw new Error("COMMERCE_GATEWAY_SECRET must decode to >= 32 bytes");
+  return { keyId, secret: new Uint8Array(buf) };
 }
 
 // Sign + forward a request to the CMS signed store endpoint, returning the raw CMS Response. The

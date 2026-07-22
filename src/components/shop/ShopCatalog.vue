@@ -30,6 +30,17 @@ const resultText = computed(() => {
 function link(p: any): string {
   return localePath(`/shop/${p.slug || p.id}`, props.lang);
 }
+// NL10: only allow http(s) image URLs through to :src. Blocks data:/javascript:/blob: URLs that a
+// compromised CMS media field could otherwise inject into the gallery <img>.
+function safeImg(url?: string): string {
+  if (!url) return "";
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? url : "";
+  } catch {
+    return "";
+  }
+}
 function price(p: any): { value: number; from?: boolean } {
   if (typeof p?.price === "number") return { value: p.price };
   if (typeof p?.priceRange?.min === "number") return { value: p.priceRange.min, from: true };
@@ -120,7 +131,7 @@ onUnmounted(() => {
   <div v-if="!loading && items.length" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
     <div v-for="p in items" :key="p.sku || p.id" class="card overflow-hidden flex flex-col">
       <a :href="link(p)" class="block hover:shadow-md transition-shadow">
-        <img v-if="p.images?.[0]?.url" :src="p.images[0].url" :alt="p.name" class="w-full aspect-square object-cover bg-ivory-100" />
+        <img v-if="safeImg(p.images?.[0]?.url)" :src="safeImg(p.images?.[0]?.url)" :alt="p.name" class="w-full aspect-square object-cover bg-ivory-100" />
         <div v-else class="w-full aspect-square bg-ivory-100"></div>
       </a>
       <div class="p-4 flex flex-col flex-1">

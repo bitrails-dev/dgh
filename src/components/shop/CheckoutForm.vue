@@ -13,6 +13,18 @@ import { localePath } from "../../i18n";
 const props = defineProps<{ lang: "ar" | "en"; strings: any }>();
 const s = computed(() => props.strings.shop);
 
+// NH16: gateway-hosted checkout allowlist. Only these hosts may receive a window.location redirect
+// from a checkoutUrl the CMS hands back. Includes the current host (and localhost for dev) so a
+// return-URL to the storefront itself still works. An out-of-allowlist host is logged and refused.
+const ALLOWED_CHECKOUT_HOSTS = [
+  "accept.paymob.com",
+  "egypt.sandbox.kashier.io",
+  "kashier.io",
+  "checkout.kashier.io",
+  typeof location !== "undefined" ? location.hostname : "",
+  "localhost",
+];
+
 const cartId = ref("");
 const items = ref<any[]>([]);
 const amountDue = ref(0);
@@ -59,6 +71,17 @@ function uuidV4(): string {
   b[8] = (b[8] & 0x3f) | 0x80;
   const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+// Returns true iff `u` parses and its hostname is on the checkout allowlist.
+function isAllowedCheckoutUrl(u: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(u);
+  } catch {
+    return false;
+  }
+  return ALLOWED_CHECKOUT_HOSTS.includes(parsed.hostname);
 }
 
 async function load() {
@@ -132,6 +155,13 @@ async function submit() {
     if (!r) throw new Error("empty_checkout_response");
     idempotencyKey = null; // terminal success → next submission mints a fresh key
     if (r.checkoutUrl) {
+      if (!isAllowedCheckoutUrl(r.checkoutUrl)) {
+        // Refuse to navigate to an out-of-allowlist host (e.g. a CMS-injected data:/javascript: or
+        // arbitrary external URL). Treat like a terminal business error so the key stays cleared.
+        console.warn("[checkout] refusing out-of-allowlist checkoutUrl:", r.checkoutUrl);
+        error.value = s.value.checkout.error;
+        return;
+      }
       redirecting.value = true;
       window.location.href = r.checkoutUrl;
       return;
