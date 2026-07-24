@@ -192,7 +192,7 @@ function project(
 export async function listProducts(
   payload: Payload,
   tenantId: number | string,
-  opts?: { q?: string; limit?: number; page?: number },
+  opts?: { q?: string; limit?: number; page?: number; locale?: 'ar' | 'en' },
 ): Promise<{ products: StoreProduct[]; total: number }> {
   const limit = opts?.limit && opts.limit > 0 ? opts.limit : 24
   const page = opts?.page && opts.page > 0 ? opts.page : 1
@@ -209,6 +209,7 @@ export async function listProducts(
     limit,
     page,
     depth: 0,
+    locale: opts?.locale,
   })
   const products = docs as RawProduct[]
   const [media, variants] = await Promise.all([
@@ -223,6 +224,7 @@ export async function getProduct(
   payload: Payload,
   tenantId: number | string,
   idOrSlug: string,
+  locale?: 'ar' | 'en',
 ): Promise<StoreProduct | null> {
   const key = String(idOrSlug ?? '')
   const or: Where[] = [{ slug: { equals: key } }]
@@ -239,6 +241,7 @@ export async function getProduct(
     overrideAccess: true,
     limit: 1,
     depth: 0,
+    locale,
   })
   if (!docs.length) return null
   const p = docs[0] as RawProduct
@@ -249,7 +252,12 @@ export async function getProduct(
   return project(p, media, variants)
 }
 
-// GET /commerce/store/:tenantSlug/products — query: q, limit (1..100, default 24), page (default 1).
+function requestedLocale(url: URL | undefined): 'ar' | 'en' | undefined {
+  const locale = url?.searchParams.get('locale')
+  return locale === 'ar' || locale === 'en' ? locale : undefined
+}
+
+// GET /commerce/store/:tenantSlug/products — query: q, locale, limit (1..100), page.
 const listHandler = async (req: PayloadRequest): Promise<Response> => {
   const tenantSlug = req.routeParams?.tenantSlug as string | undefined
   if (!tenantSlug) return Response.json({ error: 'missing_tenant' }, { status: 400 })
@@ -262,7 +270,12 @@ const listHandler = async (req: PayloadRequest): Promise<Response> => {
   const rawPage = Number(url?.searchParams.get('page') ?? '')
   const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(100, Math.trunc(rawLimit)) : 24
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.trunc(rawPage) : 1
-  const { products, total } = await listProducts(req.payload, tenant.id, { q, limit, page })
+  const { products, total } = await listProducts(req.payload, tenant.id, {
+    q,
+    limit,
+    page,
+    locale: requestedLocale(url),
+  })
   return Response.json({ products, total })
 }
 
@@ -273,7 +286,14 @@ const detailHandler = async (req: PayloadRequest): Promise<Response> => {
   const id = req.routeParams?.id as string | undefined
   const tenant = await resolveStoreTenant(req.payload, tenantSlug)
   if (!tenant) return Response.json({ error: 'not_found' }, { status: 404 })
-  const product = await getProduct(req.payload, tenant.id, String(id ?? ''))
+  const urlBase = process.env.PAYLOAD_PUBLIC_SERVER_URL || 'http://localhost'
+  const url = req.url ? new URL(req.url, urlBase) : undefined
+  const product = await getProduct(
+    req.payload,
+    tenant.id,
+    String(id ?? ''),
+    requestedLocale(url),
+  )
   if (!product) return Response.json({ error: 'not_found' }, { status: 404 })
   return Response.json(product)
 }

@@ -48,7 +48,7 @@ async function load() {
   product.value = null;
   activeImage.value = 0;
   try {
-    product.value = await shopApi.product(props.slug);
+    product.value = await shopApi.product(props.slug, props.lang);
   } catch (e: any) {
     error.value = e?.body?.error || s.value.errors.generic;
   } finally {

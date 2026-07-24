@@ -55,7 +55,12 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    const r = await shopApi.catalog({ q: q.value || undefined, page: page.value, limit });
+    const r = await shopApi.catalog({
+      q: q.value || undefined,
+      page: page.value,
+      limit,
+      locale: props.lang,
+    });
     items.value = r.items ?? [];
     total.value = r.total ?? items.value.length;
     if (page.value > totalPages.value) page.value = totalPages.value;

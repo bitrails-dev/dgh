@@ -207,6 +207,32 @@ assertOverrideContract(
   'store-products',
   productExtensionFields,
 )
+
+test('store-products: customer-facing content is localized', () => {
+  for (const name of ['name', 'description']) {
+    const field = productExtensionFields.find(
+      (candidate) => 'name' in candidate && candidate.name === name,
+    )
+    assert.ok(field, `${name} field must exist`)
+    assert.equal(
+      (field as Field & { localized?: boolean }).localized,
+      true,
+      `${name} must use Payload localization`,
+    )
+  }
+})
+
+test('store-orders: rewires the plugin transaction relationship to store-transactions', () => {
+  const defaults = makeDefaultCollection('orders', {
+    fields: [{ name: 'transactions', type: 'relationship', relationTo: 'transactions' as never }],
+  })
+  const result = runOverride(overrideStoreOrders as OverrideFn, defaults)
+  const field = result.fields?.find(
+    (candidate) => 'name' in candidate && candidate.name === 'transactions',
+  )
+  assert.ok(field && 'relationTo' in field)
+  assert.equal(field.relationTo, STORE_COLLECTION_SLUGS.transactions)
+})
 assertOverrideContract(
   'store-variants',
   overrideStoreVariants as OverrideFn,

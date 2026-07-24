@@ -21,6 +21,7 @@ export interface CatalogParams {
   category?: string;
   page?: number;
   limit?: number;
+  locale?: "ar" | "en";
 }
 
 export interface CatalogResult {
@@ -106,7 +107,7 @@ export interface CustomerResult {
  */
 export interface ShopApi {
   catalog(params?: CatalogParams): Promise<CatalogResult>;
-  product(slug: string): Promise<any>;
+  product(slug: string, locale?: "ar" | "en"): Promise<any>;
   cart(): Promise<Cart>;
   addItem(sku: string, quantity: number): Promise<Cart>;
   /** quantity 0 removes the line. */
@@ -174,10 +175,14 @@ export const shopApi: ShopApi = {
     if (params?.category) q.set("category", params.category);
     if (typeof params?.page === "number") q.set("page", String(params.page));
     if (typeof params?.limit === "number") q.set("limit", String(params.limit));
+    if (params?.locale) q.set("locale", params.locale);
     const qs = q.toString();
     return req<CatalogResult>(`/catalog${qs ? `?${qs}` : ""}`);
   },
-  product: (slug) => req<any>(`/catalog/${encodeURIComponent(slug)}`),
+  product: (slug, locale) => {
+    const query = locale ? `?locale=${encodeURIComponent(locale)}` : "";
+    return req<any>(`/catalog/${encodeURIComponent(slug)}${query}`);
+  },
 
   cart: () => req<Cart>("/cart"),
   addItem: (sku, quantity) =>

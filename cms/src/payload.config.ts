@@ -32,10 +32,6 @@ import {
   InventoryTransfers,
   CommerceSettings,
   PaymentEvents,
-  Orders,
-  Transactions,
-  Products,
-  Carts,
   Customers,
 } from './collections/commerce'
 import {
@@ -160,17 +156,6 @@ export default buildConfig({
     // Tenant-global commerce settings (one per tenant) + idempotent payment-event ledger.
     CommerceSettings,
     PaymentEvents,
-    // Legacy order/transaction/product/cart collections. NOTE (Wave F2): the runtime orchestration
-    // that WROTE these is retired — no live path writes them (grep-verified across cms/src/commerce).
-    // The registrations are RETAINED because @payloadcms/plugin-multi-tenant's tenant-scoping list and
-    // a plugin relationship field still reference these legacy slugs (removing the collections throws
-    // InvalidFieldRelationship at sanitize). Fully unregistering them is a follow-up that must first
-    // repoint those references to the store-* collections. Historical DB tables remain on disk
-    // regardless (cutover rollback).
-    Orders,
-    Transactions,
-    Products,
-    Carts,
     Customers,
     // Plugin-first commerce policy collections (Wave C4): tenant-scoped tax/shipping/promotion/
     // gift-card persistence backing the authoritative quoteCart (plan §3.10).
@@ -282,15 +267,9 @@ export default buildConfig({
         'inventory-transfers': {},
         'commerce-settings': {},
         'payment-events': {},
-        orders: {},
-        transactions: {},
-        products: {},
-        carts: {},
         customers: {},
-        // Plugin-first commerce collections (Wave B4). The ecommerce plugin generates these `store-*`
-        // collections; multiTenantPlugin runs after it (see plugins order below) to attach the tenant
-        // relationship + tenant-scoped access. Legacy products/carts/orders/transactions remain
-        // registered above for read-only side-by-side migration until Wave F2.
+        // Plugin-first commerce collections. The ecommerce plugin is the sole owner of these base
+        // models; multiTenantPlugin runs after it to attach tenant relationships and scoped access.
         'store-products': {},
         'store-variants': {},
         'store-variant-types': {},

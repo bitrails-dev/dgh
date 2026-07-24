@@ -104,3 +104,12 @@ test('the commerce feature actually governs every live commerce collection', asy
     assert.equal(policy!.tenantScoped, true, `${slug} must be tenant-scoped`)
   }
 })
+
+test('plugin-owned commerce models have no legacy duplicate collections', async () => {
+  const config = await configPromise
+  const slugs = new Set<string>((config.collections ?? []).map((collection) => collection.slug))
+
+  for (const slug of ['products', 'carts', 'orders', 'transactions']) {
+    assert.equal(slugs.has(slug), false, `${slug} duplicates its plugin-owned store-* collection`)
+  }
+})

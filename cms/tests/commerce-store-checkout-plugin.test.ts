@@ -158,14 +158,6 @@ test('offline (cod) plugin checkout writes store-orders, reserves stock, and nev
   assert.ok(typeof order?.quoteHash === 'string' && (order.quoteHash as string).length > 0, 'quoteHash written')
   assert.ok(order?.quoteSnapshot, 'immutable quote snapshot written')
 
-  // CRITICAL: no legacy order/transaction was written by the plugin path.
-  const { docs: legacyOrders } = await payload.find({
-    collection: 'orders',
-    where: { tenant: { equals: tenantId } },
-    overrideAccess: true,
-    limit: 10,
-  })
-  assert.equal(legacyOrders.length, 0, 'no legacy orders written on the plugin-first path')
 })
 
 test('online (paymob) plugin checkout writes store-orders + store-transactions, returns a checkout URL, and enqueues a pending payment event', async () => {

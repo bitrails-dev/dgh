@@ -3,10 +3,9 @@
 // getPayload, payload.db.migrate(), seedTenant. The catalog now reads the ecommerce plugin's
 // `store-products` / `store-variants` collections (not legacy `products`): published filter is
 // `_status: 'published'` (was legacy `status: 'active'`), price comes from `priceInEGP`, the
-// single-string `name` round-trips + drives the q search, and variant-bearing products surface their
-// `store-variants` children. Asserts published-only filtering, tenant isolation, variant surfacing,
-// id/slug lookup, draft exclusion, and server-side image URL resolution (storefront never trusts
-// client prices).
+// localized `name` round-trips + drives locale-aware q search, and variant-bearing products surface
+// their `store-variants` children. Asserts published-only filtering, tenant isolation, localized
+// reads, variant surfacing, id/slug lookup, draft exclusion, and server-side image URL resolution.
 import assert from 'node:assert/strict'
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -77,6 +76,26 @@ test.before(async () => {
     } as any,
   })
   simpleId = simple.id
+  await payload.update({
+    collection: 'store-products',
+    id: simple.id,
+    locale: 'en',
+    overrideAccess: true,
+    data: {
+      name: 'Classic T-Shirt',
+      description: 'A plain cotton tee.',
+    },
+  })
+  await payload.update({
+    collection: 'store-products',
+    id: simple.id,
+    locale: 'ar',
+    overrideAccess: true,
+    data: {
+      name: 'قميص كلاسيكي',
+      description: 'قميص قطني بسيط.',
+    },
+  })
 
   // Variant-bearing parent (null product SKU; sellable children live in store-variants). Built with a
   // variant-type + two options so the plugin's variant validation accepts the two priced variants.
@@ -206,7 +225,7 @@ test('listProducts surfaces variant children on a variant-bearing product', asyn
 })
 
 test('listProducts maps priceInEGP to the storefront price and name round-trips', async () => {
-  const { products } = await listProducts(payload, commerceTenantId)
+  const { products } = await listProducts(payload, commerceTenantId, { locale: 'en' })
   const s = products.find((p) => String(p.id) === String(simpleId))
   assert.ok(s, 'simple product present')
   assert.equal(s!.name, 'Classic T-Shirt')
@@ -214,8 +233,22 @@ test('listProducts maps priceInEGP to the storefront price and name round-trips'
   assert.equal(s!.sku, 'TSHIRT-001')
 })
 
+test('listProducts and getProduct return the requested product locale', async () => {
+  const arabic = await listProducts(payload, commerceTenantId, { locale: 'ar', q: 'كلاسيكي' })
+  assert.equal(arabic.total, 1)
+  assert.equal(arabic.products[0].name, 'قميص كلاسيكي')
+  assert.equal(arabic.products[0].description, 'قميص قطني بسيط.')
+
+  const english = await getProduct(payload, commerceTenantId, 'classic-t-shirt', 'en')
+  assert.equal(english?.name, 'Classic T-Shirt')
+  assert.equal(english?.description, 'A plain cotton tee.')
+})
+
 test('listProducts q filters the name case-insensitively', async () => {
-  const { products, total } = await listProducts(payload, commerceTenantId, { q: 'classic' })
+  const { products, total } = await listProducts(payload, commerceTenantId, {
+    q: 'classic',
+    locale: 'en',
+  })
   assert.equal(total, 1)
   assert.equal(products[0].name, 'Classic T-Shirt')
 })
@@ -273,7 +306,7 @@ test('listProducts drops an image whose media doc was deleted', async () => {
 })
 
 test('getProduct by id returns the projected product', async () => {
-  const p = await getProduct(payload, commerceTenantId, String(simpleId))
+  const p = await getProduct(payload, commerceTenantId, String(simpleId), 'en')
   assert.ok(p)
   assert.equal(p!.sku, 'TSHIRT-001')
   assert.equal(p!.price, 5000)

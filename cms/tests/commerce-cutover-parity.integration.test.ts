@@ -8,9 +8,7 @@
 //              checkout, so variant coverage is not lost (the E3 cart suite covers simple products
 //              only). Carries the plugin-totals assertions (subtotal / grandTotal).
 //   - Plugin cart ops: update merges, remove drops, clear empties (line shapes + totals stable).
-//   - Negative: after every plugin op (cart add/update/remove/clear, processCheckout cod+online,
-//              the signed orders list/read), assert NO legacy products/carts/orders/transactions
-//              doc was written — the contract that let F2 remove legacy.
+//   - Canonical writes: cart and checkout operations persist only plugin-owned `store-*` models.
 //
 // All money is integer EGP minor units. Nothing is removed here; this is read-only protection over
 // the plugin-first runtime.
@@ -126,24 +124,6 @@ async function seedCart(productId: number | string, quantity: number, variantId?
   return c.id
 }
 
-// Count legacy commerce docs for the tenant — the negative-assertion probe.
-async function countLegacy(slug: string): Promise<number> {
-  const { totalDocs } = await payload.count({ collection: slug as never, where: { tenant: { equals: tenantId } }, overrideAccess: true })
-  return totalDocs
-}
-
-// Snapshot all four legacy collections, run a plugin op, then assert none gained a doc.
-async function assertNoLegacyWrites<T>(label: string, op: () => Promise<T>): Promise<T> {
-  const before = await Promise.all(['products', 'carts', 'orders', 'transactions'].map((s) => countLegacy(s)))
-  const res = await op()
-  const after = await Promise.all(['products', 'carts', 'orders', 'transactions'].map((s) => countLegacy(s)))
-  const names = ['products', 'carts', 'orders', 'transactions']
-  for (let i = 0; i < names.length; i++) {
-    assert.equal(after[i], before[i], `[${label}] plugin op wrote a legacy ${names[i]} doc (before ${before[i]}, after ${after[i]})`)
-  }
-  return res
-}
-
 test.before(async () => {
   // The primary tenant: exclusive EGP, NO tax policy (0% everywhere). Keeping it tax-free means the
   // plugin (which reads the tenant's tax policy) prices at a clean 0%, so the plugin-totals
@@ -221,61 +201,58 @@ test('variant-in-cart · plugin variant-type + option + variant seeds, prices, a
   void variantId
 })
 
-// ── Section E — negative assertions: plugin ops write NO legacy collection doc ─────────────────
+// ── Section E — canonical plugin-owned write targets ───────────────────────────────────────────
 
-test('negative · pluginAddItem writes store-carts, not legacy carts/products/orders/transactions', async () => {
+test('pluginAddItem writes store-carts', async () => {
   const sku = 'PAR-NEG-ADD'
   await seedStoreProduct(tenantId, sku, 1000)
-  const beforeCarts = await countLegacy('carts')
-  const r = (await assertNoLegacyWrites('pluginAddItem', () => pluginAddItem(payload, tenantId, { sku, quantity: 1 }))) as { status: number; body: { cartId: string } }
+  const r = (await pluginAddItem(payload, tenantId, { sku, quantity: 1 })) as { status: number; body: { cartId: string } }
   assert.equal(r.status, 200)
   assert.ok(r.body.cartId.length > 0, 'a store-carts doc was minted')
-  // And a store-carts doc exists (the plugin write target).
   const { totalDocs: storeCarts } = await payload.count({ collection: 'store-carts', where: { tenant: { equals: tenantId } }, overrideAccess: true })
   assert.ok(storeCarts > 0, 'store-carts doc written')
-  void beforeCarts
 })
 
-test('negative · pluginUpdateItem / pluginRemoveItem / pluginClearCart touch no legacy collection', async () => {
+test('pluginUpdateItem / pluginRemoveItem / pluginClearCart use store-carts', async () => {
   const sku = 'PAR-NEG-MUT'
   await seedStoreProduct(tenantId, sku, 1000)
   const add = (await pluginAddItem(payload, tenantId, { sku, quantity: 2 })) as { body: { cartId: string; secret?: string } }
   const cartId = add.body.cartId
   const secret = add.body.secret // NH15
-  await assertNoLegacyWrites('pluginUpdateItem', () => pluginUpdateItem(payload, tenantId, { cartId, sku, quantity: 5, secret }))
-  await assertNoLegacyWrites('pluginRemoveItem', () => pluginRemoveItem(payload, tenantId, { cartId, sku, secret }))
-  await assertNoLegacyWrites('pluginClearCart', () => pluginClearCart(payload, tenantId, cartId, undefined, secret))
+  await pluginUpdateItem(payload, tenantId, { cartId, sku, quantity: 5, secret })
+  await pluginRemoveItem(payload, tenantId, { cartId, sku, secret })
+  await pluginClearCart(payload, tenantId, cartId, undefined, secret)
 })
 
-test('negative · processCheckout (cod) writes store-orders, not legacy orders/transactions', async () => {
+test('processCheckout (cod) writes store-orders', async () => {
   const sku = 'PAR-NEG-COD'
   await seedStoreProduct(tenantId, sku, 2000)
   await seedLevel(payload, tenantId, locationId, sku, 50)
   const pid = ((await payload.find({ collection: 'store-products', where: { and: [{ tenant: { equals: tenantId } }, { sku: { equals: sku } }] }, overrideAccess: true, limit: 1 })).docs[0] as { id: number | string }).id
   const cartId = await seedCart(pid, 2)
-  await assertNoLegacyWrites('processCheckout(cod)', () => processCheckout(payload, { tenantId }, { cartId, paymentMethod: 'cod', shippingAddress: { country: 'EG' }, customerEmail: 'n@dgh.test' }))
+  await processCheckout(payload, { tenantId }, { cartId, paymentMethod: 'cod', shippingAddress: { country: 'EG' }, customerEmail: 'n@dgh.test' })
   const { totalDocs: storeOrders } = await payload.count({ collection: 'store-orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })
   assert.ok(storeOrders > 0, 'store-orders doc written by the plugin checkout')
 })
 
-test('negative · processCheckout (online) writes store-orders + store-transactions, not legacy', async () => {
+test('processCheckout (online) writes store-orders + store-transactions', async () => {
   const sku = 'PAR-NEG-GW'
   await seedStoreProduct(tenantId, sku, 3000)
   await seedLevel(payload, tenantId, locationId, sku, 50)
   const pid = ((await payload.find({ collection: 'store-products', where: { and: [{ tenant: { equals: tenantId } }, { sku: { equals: sku } }] }, overrideAccess: true, limit: 1 })).docs[0] as { id: number | string }).id
   const cartId = await seedCart(pid, 1)
-  const r = (await assertNoLegacyWrites('processCheckout(paymob)', () => processCheckout(
+  const r = (await processCheckout(
     payload, { tenantId },
     { cartId, paymentMethod: 'paymob', shippingAddress: { country: 'EG' }, customerEmail: 'g@dgh.test', returnUrl: 'https://shop/return' },
     { buildAdapter: fakeBuilder },
-  ))) as { status: number; body: { transactionId?: string } }
+  )) as { status: number; body: { transactionId?: string } }
   assert.equal(r.status, 200)
   assert.ok(r.body.transactionId !== undefined, 'store-transactions row created')
   const { totalDocs: storeTxns } = await payload.count({ collection: 'store-transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })
   assert.ok(storeTxns > 0, 'store-transactions doc written')
 })
 
-test('negative · signed orders endpoint (listOrders/readOrder) writes nothing to legacy', async () => {
+test('signed orders endpoint reads store-orders', async () => {
   // Seed a plugin customer + a store-orders row so list/read have data to return (read-only).
   const { registerCustomer, verifyCustomerEmail, loginCustomer } = await import('../src/commerce/customers/payload-auth')
   const reg = await registerCustomer(payload, tenantId, { email: 'neg-orders@dgh.test', password: 'password123', name: 'Neg Orders' })
@@ -294,9 +271,8 @@ test('negative · signed orders endpoint (listOrders/readOrder) writes nothing t
       items: [], quoteSnapshot: { currency: 'EGP' }, quoteHash: 'h-par-neg',
     } as any,
   })
-  // The orders endpoint is read-only; neither list nor read may mutate any legacy collection.
-  await assertNoLegacyWrites('listOrders', () => listOrders(payload, tenantId, customerId))
-  await assertNoLegacyWrites('readOrder', () => readOrder(payload, tenantId, customerId, 'PAR-NEG-ORD-1'))
+  await listOrders(payload, tenantId, customerId)
+  await readOrder(payload, tenantId, customerId, 'PAR-NEG-ORD-1')
   // And readOrder returns the row (proving the read path works, not just that it's inert).
   const detail = await readOrder(payload, tenantId, customerId, 'PAR-NEG-ORD-1')
   assert.equal(detail.status, 200)

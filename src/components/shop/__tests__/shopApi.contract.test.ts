@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   });
 
   installFetch();
-  await shopApi.catalog({ q: "mask", category: "med", page: 2, limit: 5 });
+  await shopApi.catalog({ q: "mask", category: "med", page: 2, limit: 5, locale: "ar" });
   check("catalog(params) → GET with query string", () => {
     const u = last().url;
     assert(u.startsWith("/api/store/v2/catalog?"), `url was ${u}`);
@@ -63,13 +63,14 @@ async function main(): Promise<void> {
     assert(u.includes("category=med"), "category");
     assert(u.includes("page=2"), "page");
     assert(u.includes("limit=5"), "limit");
+    assert(u.includes("locale=ar"), "locale");
   });
 
   installFetch();
-  await shopApi.product("a b");
-  check("product(slug) → GET /catalog/:slug (encoded)", () => {
+  await shopApi.product("a b", "en");
+  check("product(slug, locale) → GET /catalog/:slug?locale= (encoded)", () => {
     assert(last().method === "GET", "method");
-    assert(last().url === "/api/store/v2/catalog/a%20b", `url was ${last().url}`);
+    assert(last().url === "/api/store/v2/catalog/a%20b?locale=en", `url was ${last().url}`);
   });
 
   installFetch();

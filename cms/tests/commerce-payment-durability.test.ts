@@ -300,8 +300,6 @@ test('production side-effect bundle writes store-orders / store-transactions, ne
     foldedState: 'captured', targetState: 'captured', amount: 5000,
   }
 
-  const legacyOrdersBefore = (await payload.count({ collection: 'orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
-  const legacyTxnsBefore = (await payload.count({ collection: 'transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
   const storeTxnsBefore = (await payload.count({ collection: 'store-transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
 
   // order checkpoint — syncs store-orders.paymentState from the folded state.
@@ -327,11 +325,6 @@ test('production side-effect bundle writes store-orders / store-transactions, ne
   const storeTxnsAfter = (await payload.count({ collection: 'store-transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
   assert.equal(storeTxnsAfter, storeTxnsBefore + 1, 'exactly one store-transactions row — no duplicate on re-run')
 
-  // No legacy collection was written by the bundle.
-  const legacyOrdersAfter = (await payload.count({ collection: 'orders', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
-  const legacyTxnsAfter = (await payload.count({ collection: 'transactions', where: { tenant: { equals: tenantId } }, overrideAccess: true })).totalDocs
-  assert.equal(legacyOrdersAfter, legacyOrdersBefore, 'no legacy orders written by the D3 bundle')
-  assert.equal(legacyTxnsAfter, legacyTxnsBefore, 'no legacy transactions written by the D3 bundle')
 })
 
 test('production order checkpoint maps voided→cancelled and treats disputed as a permissive no-op', async () => {

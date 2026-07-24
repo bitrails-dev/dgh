@@ -237,10 +237,27 @@ const validateStoreOrderTransitions: CollectionBeforeChangeHook = ({ data, origi
   return data
 }
 
+function rewireTransactionsRelationship(field: Field): Field {
+  if ('name' in field && field.name === 'transactions' && 'relationTo' in field) {
+    return {
+      ...field,
+      relationTo: STORE_COLLECTION_SLUGS.transactions as CollectionSlug,
+    } as Field
+  }
+  return field
+}
+
 export const overrideStoreOrders: CollectionOverride = ({ defaultCollection }) => ({
   ...defaultCollection,
   slug: STORE_COLLECTION_SLUGS.orders as CollectionSlug,
-  fields: [...(defaultCollection.fields ?? []), ...orderExtensionFields],
+  // plugin-ecommerce currently omits `transactionsSlug` when it constructs its default orders
+  // collection, leaving this one relationship pointed at the legacy `transactions` slug even
+  // when slugMap is configured. Repair that upstream seam in the override so store-transactions is
+  // the sole transaction model.
+  fields: [
+    ...(defaultCollection.fields ?? []).map(rewireTransactionsRelationship),
+    ...orderExtensionFields,
+  ],
   hooks: {
     ...defaultCollection.hooks,
     beforeChange: [

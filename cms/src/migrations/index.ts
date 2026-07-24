@@ -26,6 +26,8 @@ import * as migration_20260721_140149_commerce_permissions_field from './2026072
 import * as migration_20260722_100000_order_number_seq_safety from './20260722_100000_order_number_seq_safety';
 import * as migration_20260722_100100_store_prices_enable_backfill from './20260722_100100_store_prices_enable_backfill';
 import * as migration_20260722_100200_store_orders_rels_fk_repoint from './20260722_100200_store_orders_rels_fk_repoint';
+import * as migration_20260722_100250_store_orders_rels_plugin_slug from './20260722_100250_store_orders_rels_plugin_slug';
+import * as migration_20260722_100300_store_products_localization from './20260722_100300_store_products_localization';
 
 export const migrations = [
   {
@@ -152,5 +154,30 @@ export const migrations = [
     up: migration_20260721_140149_commerce_permissions_field.up,
     down: migration_20260721_140149_commerce_permissions_field.down,
     name: '20260721_140149_commerce_permissions_field'
+  },
+  {
+    up: migration_20260722_100000_order_number_seq_safety.up,
+    down: migration_20260722_100000_order_number_seq_safety.down,
+    name: '20260722_100000_order_number_seq_safety',
+  },
+  {
+    up: migration_20260722_100100_store_prices_enable_backfill.up,
+    down: migration_20260722_100100_store_prices_enable_backfill.down,
+    name: '20260722_100100_store_prices_enable_backfill',
+  },
+  {
+    up: migration_20260722_100200_store_orders_rels_fk_repoint.up,
+    down: migration_20260722_100200_store_orders_rels_fk_repoint.down,
+    name: '20260722_100200_store_orders_rels_fk_repoint',
+  },
+  {
+    up: migration_20260722_100250_store_orders_rels_plugin_slug.up,
+    down: migration_20260722_100250_store_orders_rels_plugin_slug.down,
+    name: '20260722_100250_store_orders_rels_plugin_slug',
+  },
+  {
+    up: migration_20260722_100300_store_products_localization.up,
+    down: migration_20260722_100300_store_products_localization.down,
+    name: '20260722_100300_store_products_localization',
   },
 ];
